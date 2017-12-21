@@ -1,0 +1,10 @@
+[package]
+name = "js"
+version = "0.1.0"
+authors = ["Evan Martin <evan.martin@gmail.com>"]
+
+[dependencies]
+getopts = "0.2"
+
+[profile.release]
+debug = true
