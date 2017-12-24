@@ -262,8 +262,8 @@ mod tests {
     #[test]
     fn test_block_comment_stars() {
         let mut s = Scanner::new("/**//***/".as_bytes());
-        block_comment(&mut s);
-        block_comment(&mut s);
+        block_comment(&mut s).unwrap();
+        block_comment(&mut s).unwrap();
         assert_eq!(s.read(), 0);
     }
 
