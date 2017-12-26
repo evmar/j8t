@@ -528,6 +528,10 @@ impl<'a> Writer<'a> {
         }
         Ok(())
     }
+
+    pub fn module(&mut self, module: &ast::Module) -> Result {
+        self.stmts(&module.stmts)
+    }
 }
 
 #[cfg(test)]

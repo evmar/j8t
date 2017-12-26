@@ -793,6 +793,10 @@ impl<'a> Parser<'a> {
         try!(self.expect(Tok::RBrace));
         Ok(Stmt::Block(block))
     }
+
+    pub fn module(&mut self) -> ParseResult<ast::Module> {
+        Ok(ast::Module{stmts:self.stmts()?})
+    }
 }
 
 

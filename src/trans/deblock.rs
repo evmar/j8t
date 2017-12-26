@@ -86,9 +86,10 @@ impl visit::Visit for Deblock {
     }
 }
 
-pub fn deblock(stmts: &mut [ast::Stmt]) {
-    for s in stmts.iter_mut() {
-        Deblock {}.stmt(s);
+pub fn deblock(module: &mut ast::Module) {
+    let deblock = Deblock {};
+    for s in module.stmts.iter_mut() {
+        deblock.stmt(s);
     }
 }
 

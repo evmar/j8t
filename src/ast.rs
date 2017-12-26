@@ -207,3 +207,8 @@ pub struct Try {
     pub catch: Option<(String, Stmt)>,
     pub finally: Option<Stmt>,
 }
+
+#[derive(Debug)]
+pub struct Module {
+    pub stmts: Vec<Stmt>,
+}
