@@ -82,6 +82,8 @@ pub struct Writer<'a> {
     want_semi: bool,
     statement_start: usize,
     last_char: u8,
+
+    pub disable_asi: bool,
 }
 
 type Result = io::Result<()>;
@@ -140,12 +142,17 @@ impl<'a> Writer<'a> {
             want_semi: false,
             statement_start: 0,
             last_char: 0,
+            disable_asi: false,
         }
     }
 
     fn semi(&mut self) -> Result {
-        self.want_semi = true;
-        self.last_char = ';' as u8;
+        if self.disable_asi {
+            self.token(";")?;
+        } else {
+            self.want_semi = true;
+            self.last_char = ';' as u8;
+        }
         Ok(())
     }
 
