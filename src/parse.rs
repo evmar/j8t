@@ -195,11 +195,16 @@ impl<'a> Parser<'a> {
         let token = self.lex_read()?;
         Ok(match token.tok {
             Tok::This => Expr::This,
-            Tok::String => Expr::String(String::from(self.lexer.text(token))),
-            // IdentifierReference
-            Tok::Ident => Expr::Ident(ast::Symbol::new(self.lexer.text(token))),
-            Tok::LSquare => Expr::Array(try!(self.array_literal())),
-            Tok::LBrace => Expr::Object(Box::new(try!(self.object_literal()))),
+            Tok::Ident => {
+                let text = self.lexer.text(token);
+                match text.as_str() {
+                    "null" => Expr::Null,
+                    "undefined" => Expr::Undefined,
+                    "true" => Expr::Bool(true),
+                    "false" => Expr::Bool(false),
+                    _ => Expr::Ident(ast::Symbol::new(text))
+                }
+            }
             Tok::Number => {
                 if let lex::TokData::Number(n) = token.data {
                     Expr::Number(n)
@@ -207,6 +212,9 @@ impl<'a> Parser<'a> {
                     unreachable!();
                 }
             }
+            Tok::String => Expr::String(String::from(self.lexer.text(token))),
+            Tok::LSquare => Expr::Array(try!(self.array_literal())),
+            Tok::LBrace => Expr::Object(Box::new(try!(self.object_literal()))),
             Tok::Function => Expr::Function(Box::new(try!(self.function()))),
             Tok::LParen => {
                 let r = try!(self.expr());

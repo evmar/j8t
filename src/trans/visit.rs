@@ -25,6 +25,9 @@ pub fn expr_children(v: &mut Visit, expr: &mut ast::Expr) {
     match *expr {
         ast::Expr::This |
         ast::Expr::Ident(_) |
+        ast::Expr::Null |
+        ast::Expr::Undefined |
+        ast::Expr::Bool(_) |
         ast::Expr::Number(_) |
         ast::Expr::String(_) |
         ast::Expr::Regex(_) => {}

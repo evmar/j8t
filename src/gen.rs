@@ -253,6 +253,9 @@ impl<'a> Writer<'a> {
         match e {
             &ast::Expr::This => self.token("this")?,
             &ast::Expr::Ident(ref s) => self.token(&s.name)?,
+            &ast::Expr::Null => self.token("null")?,
+            &ast::Expr::Undefined => self.token("undefined")?,
+            &ast::Expr::Bool(b) => self.token(if b { "true" } else { "false" })?,
             &ast::Expr::Number(ref n) => self.token(&format!("{}", n))?,
             &ast::Expr::String(ref s) => self.quoted(s)?,
             &ast::Expr::Array(ref arr) => {

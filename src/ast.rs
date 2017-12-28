@@ -32,6 +32,9 @@ pub enum Expr {
     // 12.2 Primary Expression
     This,
     Ident(Rc<Symbol>),
+    Null,
+    Undefined,  // Note: not part of the grammar, hmm.
+    Bool(bool),
     Number(f64),
     String(String),
     Array(Vec<Expr>),
