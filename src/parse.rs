@@ -194,7 +194,7 @@ impl<'a> Parser<'a> {
     fn primary_expr(&mut self) -> ParseResult<Expr> {
         let token = self.lex_read()?;
         Ok(match token.tok {
-            Tok::This => Expr::Ident(ast::Symbol::new("this")),
+            Tok::This => Expr::This,
             Tok::String => Expr::String(String::from(self.lexer.text(token))),
             // IdentifierReference
             Tok::Ident => Expr::Ident(ast::Symbol::new(self.lexer.text(token))),

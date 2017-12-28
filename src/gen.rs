@@ -251,6 +251,7 @@ impl<'a> Writer<'a> {
 
     fn expr(&mut self, e: &Expr, prec: i8) -> Result {
         match e {
+            &ast::Expr::This => self.token("this")?,
             &ast::Expr::Ident(ref s) => self.token(&s.name)?,
             &ast::Expr::Number(ref n) => self.token(&format!("{}", n))?,
             &ast::Expr::String(ref s) => self.quoted(s)?,

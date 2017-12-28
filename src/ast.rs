@@ -30,6 +30,7 @@ impl Symbol {
 #[derive(Debug)]
 pub enum Expr {
     // 12.2 Primary Expression
+    This,
     Ident(Rc<Symbol>),
     Number(f64),
     String(String),
