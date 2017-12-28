@@ -81,6 +81,7 @@ pub fn stmt_children(v: &Visit, stmt: &mut ast::Stmt) {
             }
         }
         &mut ast::Stmt::If(ref mut if_) => {
+            v.expr(&mut if_.cond);
             v.stmt(&mut if_.iftrue);
             if let Some(ref mut else_) = if_.else_ {
                 v.stmt(else_);
