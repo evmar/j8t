@@ -15,6 +15,7 @@
  */
 
 use std;
+use std::rc::Rc;
 use lex;
 use lex::{Tok, Token, Span, LexError};
 use ast;
@@ -65,9 +66,9 @@ pub type ParseResult<T> = Result<T, ParseError>;
 fn is_for_in_of_head(expr: &mut Expr) -> Option<ast::ForInOf> {
     match expr {
         &mut ast::Expr::Binary(ref mut bin) if bin.op == ast::BinOp::In => {
-            let mut lhs = ast::Expr::Ident(String::from(""));
+            let mut lhs = ast::Expr::Ident(ast::Symbol::new(""));
             std::mem::swap(&mut bin.lhs, &mut lhs);
-            let mut rhs = ast::Expr::Ident(String::from(""));
+            let mut rhs = ast::Expr::Ident(ast::Symbol::new(""));
             std::mem::swap(&mut bin.rhs, &mut rhs);
             return Some(ast::ForInOf {
                 typ: None,
@@ -193,10 +194,10 @@ impl<'a> Parser<'a> {
     fn primary_expr(&mut self) -> ParseResult<Expr> {
         let token = self.lex_read()?;
         Ok(match token.tok {
-            Tok::This => Expr::Ident(String::from("this")),
+            Tok::This => Expr::Ident(ast::Symbol::new("this")),
             Tok::String => Expr::String(String::from(self.lexer.text(token))),
             // IdentifierReference
-            Tok::Ident => Expr::Ident(self.lexer.text(token)),
+            Tok::Ident => Expr::Ident(ast::Symbol::new(self.lexer.text(token))),
             Tok::LSquare => Expr::Array(try!(self.array_literal())),
             Tok::LBrace => Expr::Object(Box::new(try!(self.object_literal()))),
             Tok::Number => {
@@ -230,17 +231,17 @@ impl<'a> Parser<'a> {
         let name = match self.lex_peek()? {
             Tok::Ident => {
                 let token = self.lex_read()?;
-                Some(self.lexer.text(token))
+                Some(ast::Symbol::new(self.lexer.text(token)))
             }
             _ => None,
         };
 
         try!(self.expect(Tok::LParen));
-        let mut params: Vec<String> = Vec::new();
+        let mut params: Vec<Rc<ast::Symbol>> = Vec::new();
         loop {
             if self.lex_peek()? == Tok::Ident {
                 let token = self.lex_read()?;
-                params.push(self.lexer.text(token));
+                params.push(ast::Symbol::new(self.lexer.text(token)));
                 if self.lex_peek()? == Tok::Comma {
                     self.lex_read()?;
                     continue;
@@ -474,7 +475,7 @@ impl<'a> Parser<'a> {
                 None
             };
             decls.push(ast::VarDecl {
-                name: ast::Expr::Ident(name),
+                name: ast::Expr::Ident(ast::Symbol::new(name)),
                 init: init,
             });
 

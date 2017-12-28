@@ -212,9 +212,9 @@ impl<'a> Writer<'a> {
     fn function(&mut self, f: &ast::Function) -> Result {
         self.token("function")?;
         if let Some(ref name) = f.name {
-            self.token(&name)?;
+            self.token(&name.name)?;
         }
-        self.paren(|w| w.comma(&f.params, |w, p| w.token(p)))?;
+        self.paren(|w| w.comma(&f.params, |w, p| w.token(&p.name)))?;
         self.brace(|w| {
             for s in f.body.iter() {
                 w.stmt(s)?;
@@ -251,7 +251,7 @@ impl<'a> Writer<'a> {
 
     fn expr(&mut self, e: &Expr, prec: i8) -> Result {
         match e {
-            &ast::Expr::Ident(ref s) => self.token(s)?,
+            &ast::Expr::Ident(ref s) => self.token(&s.name)?,
             &ast::Expr::Number(ref n) => self.token(&format!("{}", n))?,
             &ast::Expr::String(ref s) => self.quoted(s)?,
             &ast::Expr::Array(ref arr) => {
