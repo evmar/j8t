@@ -57,11 +57,11 @@ fn is_block(s: &ast::Stmt) -> bool {
 }
 
 impl visit::Visit for Deblock {
-    fn expr(&self, expr: &mut ast::Expr) {
+    fn expr(&mut self, expr: &mut ast::Expr) {
         visit::expr_children(self, expr);
     }
 
-    fn stmt(&self, stmt: &mut ast::Stmt) {
+    fn stmt(&mut self, stmt: &mut ast::Stmt) {
         visit::stmt_children(self, stmt);
 
         *stmt = match *stmt {
@@ -87,7 +87,7 @@ impl visit::Visit for Deblock {
 }
 
 pub fn deblock(module: &mut ast::Module) {
-    let deblock = Deblock {};
+    let mut deblock = Deblock {};
     for s in module.stmts.iter_mut() {
         deblock.stmt(s);
     }

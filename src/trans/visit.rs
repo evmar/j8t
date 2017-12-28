@@ -17,11 +17,11 @@
 use ast;
 
 pub trait Visit {
-    fn expr(&self, expr: &mut ast::Expr);
-    fn stmt(&self, stmt: &mut ast::Stmt);
+    fn expr(&mut self, expr: &mut ast::Expr);
+    fn stmt(&mut self, stmt: &mut ast::Stmt);
 }
 
-pub fn expr_children(v: &Visit, expr: &mut ast::Expr) {
+pub fn expr_children(v: &mut Visit, expr: &mut ast::Expr) {
     match *expr {
         ast::Expr::Ident(_) |
         ast::Expr::Number(_) |
@@ -73,7 +73,7 @@ pub fn expr_children(v: &Visit, expr: &mut ast::Expr) {
     }
 }
 
-pub fn stmt_children(v: &Visit, stmt: &mut ast::Stmt) {
+pub fn stmt_children(v: &mut Visit, stmt: &mut ast::Stmt) {
     match stmt {
         &mut ast::Stmt::Block(ref mut stmts) => {
             for s in stmts.iter_mut() {
