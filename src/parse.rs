@@ -301,13 +301,13 @@ impl<'a> Parser<'a> {
         let token = self.lex_read()?;
         let mut expr = match token.tok {
             Tok::Not | Tok::BNot | Tok::Plus | Tok::Minus | Tok::PlusPlus | Tok::MinusMinus |
-            Tok::TypeOf if prec <= 16 => {
-                let expr = try!(self.expr_prec(16));
-                Expr::TypeOf(Box::new(expr))
-            }
             Tok::Void | Tok::Delete if prec <= 16 => {
                 let expr = try!(self.expr_prec(16));
                 Expr::Unary(ast::UnOp::from_tok(token.tok), Box::new(expr))
+            }
+            Tok::TypeOf if prec <= 16 => {
+                let expr = try!(self.expr_prec(16));
+                Expr::TypeOf(Box::new(expr))
             }
             Tok::New if prec <= 18 => {
                 let expr = try!(self.expr_prec(18));
