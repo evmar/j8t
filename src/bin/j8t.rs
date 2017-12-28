@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-extern crate js;
+extern crate j8t;
 extern crate getopts;
 
-use js::ast;
-use js::lex::Tok;
-use js::parse::*;
-use js::gen;
-use js::trans;
+use j8t::ast;
+use j8t::lex::Tok;
+use j8t::parse::*;
+use j8t::gen;
+use j8t::trans;
 use std::io;
 use std::io::Read;
 use std::io::Write;
