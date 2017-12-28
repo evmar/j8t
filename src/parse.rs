@@ -63,21 +63,10 @@ impl ParseError {
 
 pub type ParseResult<T> = Result<T, ParseError>;
 
-fn is_for_in_of_head(expr: &mut Expr) -> Option<ast::ForInOf> {
-    match expr {
-        &mut ast::Expr::Binary(ref mut bin) if bin.op == ast::BinOp::In => {
-            let mut lhs = ast::Expr::Ident(ast::Symbol::new(""));
-            std::mem::swap(&mut bin.lhs, &mut lhs);
-            let mut rhs = ast::Expr::Ident(ast::Symbol::new(""));
-            std::mem::swap(&mut bin.rhs, &mut rhs);
-            return Some(ast::ForInOf {
-                typ: None,
-                decl: lhs,
-                iter: rhs,
-                body: Stmt::Empty,
-            });
-        }
-        _ => None,
+fn is_for_in_of_head(expr: &Expr) -> bool {
+    match *expr {
+        ast::Expr::Binary(ref bin) if bin.op == ast::BinOp::In => true,
+        _ => false,
     }
 }
 
@@ -569,12 +558,37 @@ impl<'a> Parser<'a> {
             } else {
                 None
             };
-            let mut expr = self.expr()?;
-            if let Some(mut forin) = is_for_in_of_head(&mut expr) {
+            let expr = self.expr()?;
+            // Check if it's a for-in-of loop.
+            // Note: we want to match expr against an expr like
+            //   a in b
+            // and pull out 'a' and 'b', but it's a bit hard with borrowing.
+            // So instead first check if it's a match, then match a second time
+            // to consume it.
+            if is_for_in_of_head(&expr) {
+                let init = match expr {
+                    ast::Expr::Binary(bin) => {
+                        if let Some(decl_type) = decl_type {
+                            let bin = *bin;
+                            let decls = ast::VarDecls{
+                                typ: decl_type,
+                                decls: vec![ast::VarDecl{
+                                    name:bin.lhs,
+                                    init:Some(bin.rhs),
+                                }],
+                            };
+                            ast::ForInit::Decls(decls)
+                        } else {
+                            ast::ForInit::Expr(ast::Expr::Binary(bin))
+                        }
+                    }
+                    _ => unreachable!()
+                };
                 self.expect(Tok::RParen)?;
-                forin.typ = decl_type;
-                forin.body = try!(self.stmt());
-                return Ok(Stmt::ForInOf(Box::new(forin)));
+                return Ok(Stmt::ForInOf(Box::new(ast::ForInOf{
+                    init: init,
+                    body: self.stmt()?,
+                })));
             }
             if let Some(decl_type) = decl_type {
                 let mut decls: Vec<ast::VarDecl> = Vec::new();

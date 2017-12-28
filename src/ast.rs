@@ -194,9 +194,7 @@ pub struct For {
 
 #[derive(Debug)]
 pub struct ForInOf {
-    pub typ: Option<VarDeclType>,
-    pub decl: Expr,
-    pub iter: Expr,
+    pub init: ForInit,
     pub body: Stmt,
 }
 

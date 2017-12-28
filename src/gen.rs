@@ -449,12 +449,21 @@ impl<'a> Writer<'a> {
             &ast::Stmt::ForInOf(ref f) => {
                 self.token("for")?;
                 self.paren(|w| {
-                    if let Some(typ) = f.typ {
-                        w.token(typ.to_string())?;
+                    match f.init {
+                        ast::ForInit::Empty => {}
+                        ast::ForInit::Expr(ref e) => w.expr(e, -1)?,
+                        ast::ForInit::Decls(ref decls) => {
+                            w.comma(&decls.decls, |w, d| {
+                                w.token(decls.typ.to_string())?;
+                                w.expr(&d.name, -1)?;
+                                if let Some(ref init) = d.init {
+                                    w.token("in")?;
+                                    w.expr(init, -1)?;
+                                }
+                                Ok(())
+                            })?;
+                        }
                     }
-                    w.expr(&f.decl, -1)?;
-                    w.token("in")?;
-                    w.expr(&f.iter, -1)?;
                     Ok(())
                 })?;
                 self.stmt(&f.body)?;
