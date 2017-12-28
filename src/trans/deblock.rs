@@ -100,15 +100,15 @@ mod tests {
     use parse::Parser;
     use gen::Writer;
 
-    fn parse(input: &str) -> Vec<ast::Stmt> {
-        Parser::new(input.as_bytes()).stmts().unwrap()
+    fn parse(input: &str) -> ast::Module {
+        Parser::new(input.as_bytes()).module().unwrap()
     }
 
-    fn gen(stmts: &[ast::Stmt]) -> String {
+    fn gen(module: &ast::Module) -> String {
         let mut buf: Vec<u8> = Vec::new();
         {
             let mut w = Writer::new(&mut buf);
-            w.stmts(stmts).unwrap();
+            w.module(module).unwrap();
         }
         String::from_utf8(buf).unwrap()
     }
