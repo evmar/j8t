@@ -57,16 +57,24 @@ fn deblock_expr(expr: &mut ast::Expr) {
     match *expr {
         ast::Expr::Function(ref mut func) => {
             for s in func.body.iter_mut() {
-                deblock_stmt(s);
+                deblock_stmt(s, /* parent is try */ false);
             }
         }
         _ => visit::expr_expr(expr, deblock_expr),
     }
 }
 
-fn deblock_stmt(stmt: &mut ast::Stmt) {
+fn deblock_stmt(stmt: &mut ast::Stmt, parent_is_try: bool) {
+    // A try-catch statement syntactically must have braces.
+    // Special-case it here.
+    // TODO: one idea is to have Stmt::Block for syntactic blocks,
+    // and Stmt::List or whatever for cases where it's a list of statements
+    // that are not semantically a block. This might also help with handling
+    // lexical scope (where blocks might handle differently than braced syntax).
+    let is_try = if let ast::Stmt::Try(_) = *stmt { true } else { false };
+
     visit::stmt_expr(stmt, deblock_expr);
-    visit::stmt_stmt(stmt, deblock_stmt);
+    visit::stmt_stmt(stmt, |s| deblock_stmt(s, is_try));
 
     *stmt = match *stmt {
         // An "if" statement with an "else" must be careful to brace if the
@@ -80,7 +88,7 @@ fn deblock_stmt(stmt: &mut ast::Stmt) {
             return;
         }
         ast::Stmt::Block(ref mut stmts) => {
-            if stmts.len() != 1 {
+            if stmts.len() != 1 || parent_is_try {
                 return;
             }
             stmts.pop().unwrap()
@@ -91,7 +99,7 @@ fn deblock_stmt(stmt: &mut ast::Stmt) {
 
 pub fn deblock(module: &mut ast::Module) {
     for s in module.stmts.iter_mut() {
-        deblock_stmt(s);
+        deblock_stmt(s, /* parent is try */ false);
     }
 }
 
