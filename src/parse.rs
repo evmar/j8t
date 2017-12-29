@@ -459,16 +459,20 @@ impl<'a> Parser<'a> {
         self.expr_prec(0)
     }
 
+    // Read a variable binding left hand side.
+    fn binding(&mut self) -> ParseResult<Expr> {
+        let token = self.lex_read()?;
+        Ok(match token.tok {
+            Tok::Ident => ast::Expr::Ident(ast::Symbol::new(self.lexer.text(token))),
+            // TODO: binding patterns.
+            _ => return Err(self.parse_error(token, "binding")),
+        })
+    }
+
     fn bindings(&mut self) -> ParseResult<Vec<ast::VarDecl>> {
         let mut decls: Vec<ast::VarDecl> = Vec::new();
         loop {
-            let token = self.lex_read()?;
-            let name = match token.tok {
-                Tok::Ident => self.lexer.text(token),
-                _ => {
-                    return Err(self.parse_error(token, "binding name"));
-                }
-            };
+            let binding = self.binding()?;
             let init = if self.lex_peek()? == Tok::Eq {
                 self.lex_read()?;
                 Some(try!(self.expr_prec(1)))
@@ -476,7 +480,7 @@ impl<'a> Parser<'a> {
                 None
             };
             decls.push(ast::VarDecl {
-                name: ast::Expr::Ident(ast::Symbol::new(name)),
+                name: binding,
                 init: init,
             });
 
@@ -530,16 +534,6 @@ impl<'a> Parser<'a> {
             cond: cond,
             body: body,
         })
-    }
-
-    // Read a variable binding left hand side.
-    fn binding(&mut self) -> ParseResult<String> {
-        let token = self.lex_read()?;
-        match token.tok {
-            Tok::Ident => Ok(self.lexer.text(token)),
-            // TODO: binding patterns.
-            _ => Err(self.parse_error(token, "binding")),
-        }
     }
 
     fn for_stmt(&mut self) -> ParseResult<Stmt> {
@@ -666,14 +660,14 @@ impl<'a> Parser<'a> {
     }
 
     fn try(&mut self) -> ParseResult<ast::Try> {
-        let block = try!(self.block());
+        let block = self.block()?;
 
         let catch = if self.lex_peek()? == Tok::Catch {
             self.lex_read()?;
-            try!(self.expect(Tok::LParen));
-            let catch_expr = try!(self.binding());
-            try!(self.expect(Tok::RParen));
-            let catch_block = try!(self.block());
+            self.expect(Tok::LParen)?;
+            let catch_expr = self.binding()?;
+            self.expect(Tok::RParen)?;
+            let catch_block = self.block()?;
             Some((catch_expr, catch_block))
         } else {
             None
@@ -681,7 +675,7 @@ impl<'a> Parser<'a> {
 
         let finally = if self.lex_peek()? == Tok::Finally {
             self.lex_read()?;
-            let fin_block = try!(self.block());
+            let fin_block = self.block()?;
             Some(fin_block)
         } else {
             None

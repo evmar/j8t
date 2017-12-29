@@ -522,7 +522,7 @@ impl<'a> Writer<'a> {
                 self.stmt(&try.block)?;
                 if let Some((ref v, ref stmt)) = try.catch {
                     self.token("catch")?;
-                    self.paren(|w| w.token(v))?;
+                    self.paren(|w| w.expr(v, -1))?;
                     self.stmt(stmt)?;
                 }
                 if let Some(ref finally) = try.finally {

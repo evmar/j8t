@@ -219,7 +219,7 @@ pub struct Label {
 #[derive(Debug)]
 pub struct Try {
     pub block: Stmt,
-    pub catch: Option<(String, Stmt)>,
+    pub catch: Option<(Expr, Stmt)>,
     pub finally: Option<Stmt>,
 }
 
