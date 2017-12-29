@@ -78,32 +78,32 @@ pub fn expr_children(v: &mut Visit, expr: &mut ast::Expr) {
 }
 
 pub fn stmt_children(v: &mut Visit, stmt: &mut ast::Stmt) {
-    match stmt {
-        &mut ast::Stmt::Block(ref mut stmts) => {
+    match *stmt {
+        ast::Stmt::Block(ref mut stmts) => {
             for s in stmts.iter_mut() {
                 v.stmt(s);
             }
         }
-        &mut ast::Stmt::If(ref mut if_) => {
+        ast::Stmt::If(ref mut if_) => {
             v.expr(&mut if_.cond);
             v.stmt(&mut if_.iftrue);
             if let Some(ref mut else_) = if_.else_ {
                 v.stmt(else_);
             }
         }
-        &mut ast::Stmt::While(ref mut wh) => v.stmt(&mut wh.body),
-        &mut ast::Stmt::DoWhile(ref mut wh) => v.stmt(&mut wh.body),
-        &mut ast::Stmt::For(ref mut for_) => v.stmt(&mut for_.body),
-        &mut ast::Stmt::ForInOf(ref mut for_) => v.stmt(&mut for_.body),
-        &mut ast::Stmt::Switch(ref mut sw) => {
+        ast::Stmt::While(ref mut wh) => v.stmt(&mut wh.body),
+        ast::Stmt::DoWhile(ref mut wh) => v.stmt(&mut wh.body),
+        ast::Stmt::For(ref mut for_) => v.stmt(&mut for_.body),
+        ast::Stmt::ForInOf(ref mut for_) => v.stmt(&mut for_.body),
+        ast::Stmt::Switch(ref mut sw) => {
             for c in sw.cases.iter_mut() {
                 for s in c.stmts.iter_mut() {
                     v.stmt(s);
                 }
             }
         }
-        &mut ast::Stmt::Label(ref mut l) => v.stmt(&mut l.stmt),
-        &mut ast::Stmt::Try(ref mut t) => {
+        ast::Stmt::Label(ref mut l) => v.stmt(&mut l.stmt),
+        ast::Stmt::Try(ref mut t) => {
             v.stmt(&mut t.block);
             if let Some((_, ref mut catch)) = t.catch {
                 v.stmt(catch);
@@ -112,21 +112,21 @@ pub fn stmt_children(v: &mut Visit, stmt: &mut ast::Stmt) {
                 v.stmt(finally);
             }
         }
-        &mut ast::Stmt::Function(ref mut fun) => {
+        ast::Stmt::Function(ref mut fun) => {
             for s in fun.body.iter_mut() {
                 v.stmt(s);
             }
         }
 
-        &mut ast::Stmt::Expr(ref mut e) => v.expr(e),
-        &mut ast::Stmt::Return(ref mut e) => {
+        ast::Stmt::Expr(ref mut e) => v.expr(e),
+        ast::Stmt::Return(ref mut e) => {
             if let Some(ref mut e) = *e {
                 v.expr(e);
             }
         }
-        &mut ast::Stmt::Throw(ref mut e) => v.expr(e),
+        ast::Stmt::Throw(ref mut e) => v.expr(e),
 
-        &mut ast::Stmt::Var(ref mut decls) => {
+        ast::Stmt::Var(ref mut decls) => {
             for d in decls.decls.iter_mut() {
                 v.expr(&mut d.name);
                 if let Some(ref mut init) = d.init {
@@ -134,8 +134,8 @@ pub fn stmt_children(v: &mut Visit, stmt: &mut ast::Stmt) {
                 }
             }
         }
-        &mut ast::Stmt::Empty |
-        &mut ast::Stmt::Continue(_) |
-        &mut ast::Stmt::Break(_) => {}
+        ast::Stmt::Empty |
+        ast::Stmt::Continue(_) |
+        ast::Stmt::Break(_) => {}
     }
 }
