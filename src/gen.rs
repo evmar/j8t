@@ -657,4 +657,9 @@ mod tests {
         assert_eq!(codegen(r#""a'b""#), r#""a'b""#);
         assert_eq!(codegen(r#"'a"b'"#), r#"'a"b'"#);
     }
+
+    #[test]
+    fn test_vars() {
+        assert_eq!(codegen("var x = 3, y = 4;"), "var x=3,y=4");
+    }
 }

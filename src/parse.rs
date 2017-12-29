@@ -471,7 +471,7 @@ impl<'a> Parser<'a> {
             };
             let init = if self.lex_peek()? == Tok::Eq {
                 self.lex_read()?;
-                Some(try!(self.expr()))
+                Some(try!(self.expr_prec(1)))
             } else {
                 None
             };
