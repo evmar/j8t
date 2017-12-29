@@ -137,7 +137,9 @@ impl<'a> Env<'a> {
                 visit.scope.bindings.push(name.clone());
             }
         }
-        visit.scope.bindings.push(ast::Symbol::new("arguments"));
+        let mut args = ast::Symbol::new("arguments");
+        Rc::get_mut(&mut args).unwrap().renameable = false;
+        visit.scope.bindings.push(args);
         for p in func.params.iter() {
             visit.scope.bindings.push(p.clone());
         }
@@ -147,6 +149,7 @@ impl<'a> Env<'a> {
         }
         func.scope = visit.scope;
         for (i, s) in func.scope.bindings.iter_mut().enumerate() {
+            if !s.renameable { continue }
             let name = s.name.borrow().clone();
             let new_name = format!("{}{}", name, i);
             *s.name.borrow_mut() = new_name;

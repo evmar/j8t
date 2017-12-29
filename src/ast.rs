@@ -20,11 +20,12 @@ use std::cell::RefCell;
 #[derive(Debug)]
 pub struct Symbol {
     pub name: RefCell<String>,
+    pub renameable: bool,
 }
 
 impl Symbol {
     pub fn new<S: Into<String>>(name: S) -> Rc<Symbol> {
-        Rc::new(Symbol { name: RefCell::new(String::from(name.into())) })
+        Rc::new(Symbol { name:RefCell::new(String::from(name.into())), renameable: true })
     }
 }
 
