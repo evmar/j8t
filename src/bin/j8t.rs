@@ -22,6 +22,7 @@ use j8t::lex::Tok;
 use j8t::parse::*;
 use j8t::gen;
 use j8t::trans;
+use j8t::eval;
 use std::io;
 use std::io::Read;
 use std::io::Write;
@@ -84,6 +85,33 @@ fn measure<T, F: FnMut() -> T>(mut f: F) -> (u64, T) {
     (time, r)
 }
 
+fn load_externs() -> ast::Scope {
+    let mut scope = ast::Scope::new();
+    let mut input = Vec::<u8>::new();
+    std::fs::File::open("externs.js")
+        .unwrap()
+        .read_to_end(&mut input)
+        .unwrap();
+    let mut p = Parser::new(input.as_slice());
+    let module = p.module().unwrap();
+    for s in module.stmts {
+        match s {
+            ast::Stmt::Var(decls) => {
+                for d in decls.decls {
+                    match d.name {
+                        ast::Expr::Ident(sym) => {
+                            scope.bindings.push(sym);
+                        }
+                        _ => panic!("bad externs"),
+                    }
+                }
+            }
+            _ => panic!("bad externs"),
+        }
+    }
+    return scope;
+}
+
 fn real_main() -> bool {
     //sizes();
 
@@ -123,6 +151,12 @@ fn real_main() -> bool {
     };
     if timing {
         eprintln!("parse: {}ms", t);
+    }
+
+    let externs = load_externs();
+    let (t, _) = measure(|| { eval::scope(&externs, &mut module); });
+    if timing {
+        eprintln!("scope: {}ms", t);
     }
 
     let (t, _) = measure(|| { trans::deblock(&mut module); });

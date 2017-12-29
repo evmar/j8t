@@ -318,6 +318,7 @@ impl<'a> Parser<'a> {
         self.expect(Tok::RBrace)?;
 
         Ok(ast::Function {
+            scope: ast::Scope::new(),
             name: name,
             params: params,
             body: body,
@@ -880,7 +881,10 @@ impl<'a> Parser<'a> {
     }
 
     pub fn module(&mut self) -> ParseResult<ast::Module> {
-        Ok(ast::Module { stmts: self.stmts()? })
+        Ok(ast::Module {
+            scope: ast::Scope::new(),
+            stmts: self.stmts()?,
+        })
     }
 }
 

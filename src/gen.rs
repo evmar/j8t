@@ -172,6 +172,11 @@ impl<'a> Writer<'a> {
         Ok(())
     }
 
+    fn sym(&mut self, s: &ast::Symbol) -> Result {
+        let str = &*s.name.borrow();
+        self.token(str)
+    }
+
     #[inline(always)]
     fn wrap<F: Fn(&mut Writer) -> Result>(&mut self, left: char, right: char, f: F) -> Result {
         self.token(&left.to_string())?;
@@ -212,14 +217,15 @@ impl<'a> Writer<'a> {
     fn function(&mut self, f: &ast::Function) -> Result {
         self.token("function")?;
         if let Some(ref name) = f.name {
-            self.token(&name.name)?;
+            self.sym(&name)?;
         }
         self.function_from_paren(f)
     }
 
     fn function_from_paren(&mut self, f: &ast::Function) -> Result {
-        self.paren(|w| w.comma(&f.params, |w, p| w.token(&p.name)))?;
+        self.paren(|w| w.comma(&f.params, |w, p| w.sym(&p)))?;
         self.brace(|w| {
+            w.dump_scope(&f.scope)?;
             for s in f.body.iter() {
                 w.stmt(s)?;
             }
@@ -256,7 +262,7 @@ impl<'a> Writer<'a> {
     fn expr(&mut self, e: &Expr, prec: i8) -> Result {
         match e {
             &ast::Expr::This => self.token("this")?,
-            &ast::Expr::Ident(ref s) => self.token(&s.name)?,
+            &ast::Expr::Ident(ref s) => self.sym(&s)?,
             &ast::Expr::Null => self.token("null")?,
             &ast::Expr::Undefined => self.token("undefined")?,
             &ast::Expr::Bool(b) => self.token(if b { "true" } else { "false" })?,
@@ -287,7 +293,7 @@ impl<'a> Writer<'a> {
                             }
                         };
                         match (name, &p.value) {
-                            (Some(n), &ast::Expr::Ident(ref v)) if n == &v.name => {
+                            (Some(n), &ast::Expr::Ident(ref v)) if *n == *v.name.borrow() => {
                                 // omit; implied by property name.
                             }
                             (Some(_), &ast::Expr::Function(ref f)) => {
@@ -572,7 +578,19 @@ impl<'a> Writer<'a> {
     }
 
     pub fn module(&mut self, module: &ast::Module) -> Result {
+        self.dump_scope(&module.scope)?;
         self.stmts(&module.stmts)
+    }
+
+    pub fn dump_scope(&mut self, scope: &ast::Scope) -> Result {
+        if false {
+            self.write(b"/*\n")?;
+            for b in scope.bindings.iter() {
+                self.write(format!("{}\n", b.name.borrow()).as_bytes())?;
+            }
+            self.write(b"*/\n")?;
+        }
+        Ok(())
     }
 }
 

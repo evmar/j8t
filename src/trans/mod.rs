@@ -15,6 +15,6 @@
  */
 
 mod deblock;
-mod visit;
+pub mod visit;
 
 pub use self::deblock::deblock;

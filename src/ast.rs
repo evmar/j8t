@@ -15,15 +15,33 @@
  */
 
 use std::rc::Rc;
+use std::cell::RefCell;
 
 #[derive(Debug)]
 pub struct Symbol {
-    pub name: String,
+    pub name: RefCell<String>,
 }
 
 impl Symbol {
     pub fn new<S: Into<String>>(name: S) -> Rc<Symbol> {
-        Rc::new(Symbol { name: String::from(name.into()) })
+        Rc::new(Symbol { name: RefCell::new(String::from(name.into())) })
+    }
+}
+
+#[derive(Debug)]
+pub struct Scope {
+    pub bindings: Vec<Rc<Symbol>>,
+}
+
+impl Scope {
+    pub fn new() -> Scope {
+        Scope { bindings: Vec::new() }
+    }
+    pub fn resolve(&self, name: &str) -> Option<Rc<Symbol>> {
+        self.bindings
+            .iter()
+            .find(|s| *s.name.borrow() == name)
+            .map(|t| t.clone())
     }
 }
 
@@ -85,6 +103,7 @@ pub struct Property {
 
 #[derive(Debug)]
 pub struct Function {
+    pub scope: Scope,
     pub name: Option<Rc<Symbol>>,
     pub params: Vec<Rc<Symbol>>,
     pub body: Vec<Stmt>,
@@ -233,5 +252,6 @@ pub struct Try {
 
 #[derive(Debug)]
 pub struct Module {
+    pub scope: Scope,
     pub stmts: Vec<Stmt>,
 }

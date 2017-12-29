@@ -22,3 +22,4 @@ pub mod ast;
 pub mod gen;
 mod ops;
 pub mod trans;
+pub mod eval;
