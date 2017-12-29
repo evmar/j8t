@@ -21,7 +21,7 @@ pub trait Visit {
     fn stmt(&mut self, stmt: &mut ast::Stmt);
 }
 
-pub fn expr_children(v: &mut Visit, expr: &mut ast::Expr) {
+pub fn expr_expr<F: FnMut(&mut ast::Expr)>(expr: &mut ast::Expr, mut f: F) {
     match *expr {
         ast::Expr::This |
         ast::Expr::Ident(_) |
@@ -34,106 +34,113 @@ pub fn expr_children(v: &mut Visit, expr: &mut ast::Expr) {
 
         ast::Expr::Array(ref mut es) => {
             for e in es.iter_mut() {
-                v.expr(e);
+                f(e);
             }
         }
         ast::Expr::Object(ref mut obj) => {
-            obj.props.iter_mut().for_each(|p| v.expr(&mut p.value));
+            obj.props.iter_mut().for_each(|p| f(&mut p.value));
         }
-        ast::Expr::Function(ref mut fun) => {
-            for s in fun.body.iter_mut() {
-                v.stmt(s);
-            }
-        }
+        ast::Expr::Function(_) => panic!("caller must handle functions"),
         ast::Expr::Index(ref mut e1, ref mut e2) => {
-            v.expr(e1);
-            v.expr(e2);
+            f(e1);
+            f(e2);
         }
-        ast::Expr::Field(ref mut e, _) => v.expr(e),
-        ast::Expr::New(ref mut e) => v.expr(e),
+        ast::Expr::Field(ref mut e, _) => f(e),
+        ast::Expr::New(ref mut e) => f(e),
         ast::Expr::Call(ref mut c) => {
-            v.expr(&mut c.func);
+            f(&mut c.func);
             for e in c.args.iter_mut() {
-                v.expr(e);
+                f(e);
             }
         }
-        ast::Expr::Unary(_, ref mut e) => v.expr(e),
+        ast::Expr::Unary(_, ref mut e) => f(e),
         ast::Expr::Binary(ref mut bin) => {
-            v.expr(&mut bin.lhs);
-            v.expr(&mut bin.rhs);
+            f(&mut bin.lhs);
+            f(&mut bin.rhs);
         }
         ast::Expr::TypeOf(ref mut e) => {
-            v.expr(e);
+            f(e);
         }
         ast::Expr::Ternary(ref mut t) => {
-            v.expr(&mut t.condition);
-            v.expr(&mut t.iftrue);
-            v.expr(&mut t.iffalse);
+            f(&mut t.condition);
+            f(&mut t.iftrue);
+            f(&mut t.iffalse);
         }
         ast::Expr::Assign(ref mut e1, ref mut e2) => {
-            v.expr(e1);
-            v.expr(e2);
+            f(e1);
+            f(e2);
         }
     }
 }
 
-pub fn stmt_children(v: &mut Visit, stmt: &mut ast::Stmt) {
+pub fn stmt_expr<F: FnMut(&mut ast::Expr)>(stmt: &mut ast::Stmt, mut f: F) {
     match *stmt {
-        ast::Stmt::Block(ref mut stmts) => {
-            for s in stmts.iter_mut() {
-                v.stmt(s);
-            }
-        }
         ast::Stmt::If(ref mut if_) => {
-            v.expr(&mut if_.cond);
-            v.stmt(&mut if_.iftrue);
-            if let Some(ref mut else_) = if_.else_ {
-                v.stmt(else_);
+            f(&mut if_.cond);
+        }
+        ast::Stmt::Expr(ref mut e) => f(e),
+        ast::Stmt::Return(ref mut e) => {
+            if let Some(ref mut e) = *e {
+                f(e);
             }
         }
-        ast::Stmt::While(ref mut wh) => v.stmt(&mut wh.body),
-        ast::Stmt::DoWhile(ref mut wh) => v.stmt(&mut wh.body),
-        ast::Stmt::For(ref mut for_) => v.stmt(&mut for_.body),
-        ast::Stmt::ForInOf(ref mut for_) => v.stmt(&mut for_.body),
-        ast::Stmt::Switch(ref mut sw) => {
-            for c in sw.cases.iter_mut() {
-                for s in c.stmts.iter_mut() {
-                    v.stmt(s);
+        ast::Stmt::Throw(ref mut e) => f(e),
+
+        ast::Stmt::Var(ref mut decls) => {
+            for d in decls.decls.iter_mut() {
+                if let Some(ref mut init) = d.init {
+                    f(init);
                 }
             }
         }
-        ast::Stmt::Label(ref mut l) => v.stmt(&mut l.stmt),
+        _ => {}
+    }
+}
+
+pub fn stmt_stmt<F: FnMut(&mut ast::Stmt)>(stmt: &mut ast::Stmt, mut f: F) {
+    match *stmt {
+        ast::Stmt::Block(ref mut stmts) => {
+            for s in stmts.iter_mut() {
+                f(s);
+            }
+        }
+        ast::Stmt::If(ref mut if_) => {
+            f(&mut if_.iftrue);
+            if let Some(ref mut else_) = if_.else_ {
+                f(else_);
+            }
+        }
+        ast::Stmt::While(ref mut wh) => f(&mut wh.body),
+        ast::Stmt::DoWhile(ref mut wh) => f(&mut wh.body),
+        ast::Stmt::For(ref mut for_) => f(&mut for_.body),
+        ast::Stmt::ForInOf(ref mut for_) => f(&mut for_.body),
+        ast::Stmt::Switch(ref mut sw) => {
+            for c in sw.cases.iter_mut() {
+                for s in c.stmts.iter_mut() {
+                    f(s);
+                }
+            }
+        }
+        ast::Stmt::Label(ref mut l) => f(&mut l.stmt),
         ast::Stmt::Try(ref mut t) => {
-            v.stmt(&mut t.block);
+            f(&mut t.block);
             if let Some((_, ref mut catch)) = t.catch {
-                v.stmt(catch);
+                f(catch);
             }
             if let Some(ref mut finally) = t.finally {
-                v.stmt(finally);
+                f(finally);
             }
         }
         ast::Stmt::Function(ref mut fun) => {
             for s in fun.body.iter_mut() {
-                v.stmt(s);
+                f(s);
             }
         }
 
-        ast::Stmt::Expr(ref mut e) => v.expr(e),
-        ast::Stmt::Return(ref mut e) => {
-            if let Some(ref mut e) = *e {
-                v.expr(e);
-            }
-        }
-        ast::Stmt::Throw(ref mut e) => v.expr(e),
-
-        ast::Stmt::Var(ref mut decls) => {
-            for d in decls.decls.iter_mut() {
-                v.expr(&mut d.name);
-                if let Some(ref mut init) = d.init {
-                    v.expr(init);
-                }
-            }
-        }
+        ast::Stmt::Return(_) |
+        ast::Stmt::Throw(_) |
+        ast::Stmt::Var(_) |
+        ast::Stmt::Expr(_) |
         ast::Stmt::Empty |
         ast::Stmt::Continue(_) |
         ast::Stmt::Break(_) => {}

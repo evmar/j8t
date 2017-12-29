@@ -17,9 +17,6 @@
 use ast;
 use std;
 use trans::visit;
-use trans::visit::Visit;
-
-struct Deblock {}
 
 fn consumes_dangling_else(stmt: &ast::Stmt) -> bool {
     match *stmt {
@@ -56,40 +53,45 @@ fn is_block(s: &ast::Stmt) -> bool {
     }
 }
 
-impl visit::Visit for Deblock {
-    fn expr(&mut self, expr: &mut ast::Expr) {
-        visit::expr_children(self, expr);
+fn deblock_expr(expr: &mut ast::Expr) {
+    match *expr {
+        ast::Expr::Function(ref mut func) => {
+            for s in func.body.iter_mut() {
+                deblock_stmt(s);
+            }
+        }
+        _ => visit::expr_expr(expr, deblock_expr),
     }
+}
 
-    fn stmt(&mut self, stmt: &mut ast::Stmt) {
-        visit::stmt_children(self, stmt);
+fn deblock_stmt(stmt: &mut ast::Stmt) {
+    visit::stmt_expr(stmt, deblock_expr);
+    visit::stmt_stmt(stmt, deblock_stmt);
 
-        *stmt = match *stmt {
-            // An "if" statement with an "else" must be careful to brace if the
-            // body can consume the "else".
-            ast::Stmt::If(ref mut i) => {
-                if !is_block(&i.iftrue) && i.else_.is_some() && consumes_dangling_else(&i.iftrue) {
-                    let mut e = ast::Stmt::Empty;
-                    std::mem::swap(&mut e, &mut i.iftrue);
-                    i.iftrue = ast::Stmt::Block(vec![e]);
-                }
+    *stmt = match *stmt {
+        // An "if" statement with an "else" must be careful to brace if the
+        // body can consume the "else".
+        ast::Stmt::If(ref mut i) => {
+            if !is_block(&i.iftrue) && i.else_.is_some() && consumes_dangling_else(&i.iftrue) {
+                let mut e = ast::Stmt::Empty;
+                std::mem::swap(&mut e, &mut i.iftrue);
+                i.iftrue = ast::Stmt::Block(vec![e]);
+            }
+            return;
+        }
+        ast::Stmt::Block(ref mut stmts) => {
+            if stmts.len() != 1 {
                 return;
             }
-            ast::Stmt::Block(ref mut stmts) => {
-                if stmts.len() != 1 {
-                    return;
-                }
-                stmts.pop().unwrap()
-            }
-            _ => return,
+            stmts.pop().unwrap()
         }
+        _ => return,
     }
 }
 
 pub fn deblock(module: &mut ast::Module) {
-    let mut deblock = Deblock {};
     for s in module.stmts.iter_mut() {
-        deblock.stmt(s);
+        deblock_stmt(s);
     }
 }
 
