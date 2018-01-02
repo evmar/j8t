@@ -24,6 +24,7 @@ pub fn whitespace(it: &mut Scanner) -> bool {
     loop {
         let c = it.peek();
         match c as char {
+            '\r' => saw_newline = true,
             '\n' => saw_newline = true,
             ' ' => {}
             '\t' => {}
