@@ -265,8 +265,15 @@ impl<'a> Writer<'a> {
                         } else {
                             w.token(&p.name)?;
                         }
-                        w.token(":")?;
-                        w.expr(&p.value, 0)?;
+                        let pun =
+                            match p.value {
+                                ast::Expr::Ident(ref v) if v == &p.name => true,
+                                _ => false,
+                            };
+                        if !pun {
+                            w.token(":")?;
+                            w.expr(&p.value, 0)?;
+                        }
                         Ok(())
                     })
                 })?;
@@ -643,13 +650,13 @@ mod tests {
 
     #[test]
     fn test_object() {
-        // TODO: parens around obj literal, punning, functions.
+        // TODO: parens around obj literal, functions.
         assert_eq!(codegen(r"({
   plain: 0,
   'string': 1,
   pun,
   func() {},
   explicit_func: function() {},
-});"), "{plain:0,string:1,pun:pun,func:function func(){},explicit_func:function(){}}");
+});"), "{plain:0,string:1,pun,func:function func(){},explicit_func:function(){}}");
     }
 }
