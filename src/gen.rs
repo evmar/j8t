@@ -214,6 +214,10 @@ impl<'a> Writer<'a> {
         if let Some(ref name) = f.name {
             self.token(&name)?;
         }
+        self.function_from_paren(f)
+    }
+
+    fn function_from_paren(&mut self, f: &ast::Function) -> Result {
         self.paren(|w| w.comma(&f.params, |w, p| w.token(p)))?;
         self.brace(|w| {
             for s in f.body.iter() {
@@ -265,15 +269,18 @@ impl<'a> Writer<'a> {
                         } else {
                             w.token(&p.name)?;
                         }
-                        let pun =
-                            match p.value {
-                                ast::Expr::Ident(ref v) if v == &p.name => true,
-                                _ => false,
-                            };
-                        if !pun {
-                            w.token(":")?;
-                            w.expr(&p.value, 0)?;
-                        }
+                        match p.value {
+                            ast::Expr::Ident(ref v) if v == &p.name => {
+                                // omit; implied by property name.
+                            },
+                            ast::Expr::Function(ref f) => {
+                                w.function_from_paren(f)?;
+                            },
+                            _ => {
+                                w.token(":")?;
+                                w.expr(&p.value, 0)?;
+                            }
+                        };
                         Ok(())
                     })
                 })?;
@@ -657,6 +664,6 @@ mod tests {
   pun,
   func() {},
   explicit_func: function() {},
-});"), "{plain:0,string:1,pun,func:function func(){},explicit_func:function(){}}");
+});"), "{plain:0,string:1,pun,func(){},explicit_func(){}}");
     }
 }
