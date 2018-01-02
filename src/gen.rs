@@ -640,4 +640,16 @@ mod tests {
         assert_eq!(codegen(r#""a'b""#), r#""a'b""#);
         assert_eq!(codegen(r#"'a"b'"#), r#"'a"b'"#);
     }
+
+    #[test]
+    fn test_object() {
+        // TODO: parens around obj literal, punning, functions.
+        assert_eq!(codegen(r"({
+  plain: 0,
+  'string': 1,
+  pun,
+  func() {},
+  explicit_func: function() {},
+});"), "{plain:0,string:1,pun:pun,func:function func(){},explicit_func:function(){}}");
+    }
 }

@@ -163,25 +163,41 @@ impl<'a> Parser<'a> {
     fn object_literal(&mut self) -> ParseResult<ast::Object> {
         let mut props: Vec<ast::Property> = Vec::new();
         loop {
-            let tok = self.lex_peek()?;
-            if tok == Tok::Ident || tok == Tok::String || tok.is_kw() {
-                let token = self.lex_read()?;
-                let name = self.lexer.text(token);
-                try!(self.expect(Tok::Colon));
-                let value = try!(self.expr_prec(3));
-                props.push(ast::Property {
-                    name: name,
-                    value: value,
-                });
-                if self.lex_peek()? == Tok::Comma {
+            match self.lex_peek()? {
+                Tok::Ident | Tok::String => {}
+                tok if tok.is_kw() => {}
+                _ => break,
+            }
+            let token = self.lex_read()?;
+            let name = self.lexer.text(token);
+            let mut prop = ast::Property {
+                name: name.clone(),
+                value: ast::Expr::Ident(name.clone()),//ast::Symbol::new(name)),
+            };
+
+            match self.lex_peek()? {
+                Tok::Colon => {
+                    // a: b
                     self.lex_read()?;
-                } else {
-                    break;
+                    prop.value = self.expr_prec(3)?;
                 }
-            } else {
+                Tok::LParen => {
+                    // a(...) {}
+                    prop.value = ast::Expr::Function(Box::new(self.function_from_paren(Some(name))?));
+                }
+                _ => {
+                    // Assume it's an object like
+                    //   {a, b}
+                    // and we hit the comma or right brace,
+                    // and then let the below code handle that.
+                }
+            }
+            props.push(prop);
+
+            if self.lex_peek()? != Tok::Comma {
                 break;
             }
-
+            self.lex_read()?;
         }
         try!(self.expect(Tok::RBrace));
         Ok(ast::Object { props: props })
@@ -234,8 +250,11 @@ impl<'a> Parser<'a> {
             }
             _ => None,
         };
+        self.function_from_paren(name)
+    }
 
-        try!(self.expect(Tok::LParen));
+    fn function_from_paren(&mut self, name: Option<String>) -> ParseResult<ast::Function> {
+        self.expect(Tok::LParen)?;
         let mut params: Vec<String> = Vec::new();
         loop {
             if self.lex_peek()? == Tok::Ident {
@@ -248,14 +267,14 @@ impl<'a> Parser<'a> {
             }
             break;
         }
-        try!(self.expect(Tok::RParen));
+        self.expect(Tok::RParen)?;
 
-        try!(self.expect(Tok::LBrace));
+        self.expect(Tok::LBrace)?;
         let mut body: Vec<Stmt> = Vec::new();
         while self.lex_peek()? != Tok::RBrace {
-            body.push(try!(self.stmt()));
+            body.push(self.stmt()?);
         }
-        try!(self.expect(Tok::RBrace));
+        self.expect(Tok::RBrace)?;
 
         Ok(ast::Function {
             name: name,
@@ -929,5 +948,10 @@ return",
     #[test]
     fn test_label() {
         parse("foo: bar;");
+    }
+
+    #[test]
+    fn test_object() {
+        parse("({a: b, 'a': b, a, a() {}, a});");
     }
 }
