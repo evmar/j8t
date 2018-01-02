@@ -264,7 +264,8 @@ impl<'a> Writer<'a> {
             &ast::Expr::Object(ref obj) => {
                 self.brace(|w| {
                     w.comma(&obj.props, |w, p| {
-                        if obj_prop_needs_quote(&p.name) {
+                        let quoted = obj_prop_needs_quote(&p.name);
+                        if quoted {
                             w.token(&format!("{:?}", p.name))?;
                         } else {
                             w.token(&p.name)?;
@@ -273,7 +274,7 @@ impl<'a> Writer<'a> {
                             ast::Expr::Ident(ref v) if v == &p.name => {
                                 // omit; implied by property name.
                             },
-                            ast::Expr::Function(ref f) => {
+                            ast::Expr::Function(ref f) if !quoted => {
                                 w.function_from_paren(f)?;
                             },
                             _ => {
@@ -657,13 +658,14 @@ mod tests {
 
     #[test]
     fn test_object() {
-        // TODO: parens around obj literal, functions.
+        // TODO: parens around obj literal.
         assert_eq!(codegen(r"({
   plain: 0,
   'string': 1,
   pun,
   func() {},
   explicit_func: function() {},
-});"), "{plain:0,string:1,pun,func(){},explicit_func(){}}");
+  'with space': function() {},
+});"), "{plain:0,string:1,pun,func(){},explicit_func(){},\"with space\":function(){}}");
     }
 }
