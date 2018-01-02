@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2017 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -262,7 +262,7 @@ mod tests {
 
     #[test]
     fn test_block_comment_stars() {
-        let mut s = Scanner::new("/**//***/".as_bytes());
+        let mut s = Scanner::new("/*//***/".as_bytes());
         block_comment(&mut s).unwrap();
         block_comment(&mut s).unwrap();
         assert_eq!(s.read(), 0);
