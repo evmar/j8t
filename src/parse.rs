@@ -291,14 +291,14 @@ impl<'a> Parser<'a> {
             if self.lex_peek()? == Tok::RParen {
                 break;
             }
-            params.push(try!(self.expr_prec(3)));
+            params.push(self.expr_prec(3)?);
             if self.lex_peek()? == Tok::Comma {
                 self.lex_read()?;
                 continue;
             }
             break;
         }
-        try!(self.expect(Tok::RParen));
+        self.expect(Tok::RParen)?;
         Ok(Expr::Call(Box::new(ast::Call {
             func: func,
             args: params,
