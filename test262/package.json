@@ -1,0 +1,7 @@
+{
+  "name": "j8t-test262",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "test262-harness": "^3.2.1"
+  }
+}
