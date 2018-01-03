@@ -92,7 +92,6 @@ fn real_main() -> bool {
     opts.optflag("h", "help", "");
     opts.optflag("", "timing", "");
     opts.optflag("", "fmt", "");
-    opts.optflag("", "disable-asi", "");
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
         Err(f) => {
@@ -107,7 +106,6 @@ fn real_main() -> bool {
     let infile = &matches.free[0];
     let timing = matches.opt_present("timing");
     let fmt = matches.opt_present("fmt");
-    let disable_asi = matches.opt_present("disable-asi");
 
     let mut input = Vec::<u8>::new();
     std::fs::File::open(infile)
@@ -139,7 +137,7 @@ fn real_main() -> bool {
     };
     let (t, _) = measure(|| {
         let mut writer = gen::Writer::new(&mut w);
-        writer.disable_asi = disable_asi;
+        writer.disable_asi = fmt;
         writer.module(&module).unwrap();
     });
     if timing {
