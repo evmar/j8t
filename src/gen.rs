@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2017 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -212,13 +212,13 @@ impl<'a> Writer<'a> {
     fn function(&mut self, f: &ast::Function) -> Result {
         self.token("function")?;
         if let Some(ref name) = f.name {
-            self.token(&name)?;
+            self.token(&name.name)?;
         }
         self.function_from_paren(f)
     }
 
     fn function_from_paren(&mut self, f: &ast::Function) -> Result {
-        self.paren(|w| w.comma(&f.params, |w, p| w.token(p)))?;
+        self.paren(|w| w.comma(&f.params, |w, p| w.token(&p.name)))?;
         self.brace(|w| {
             for s in f.body.iter() {
                 w.stmt(s)?;
@@ -255,7 +255,11 @@ impl<'a> Writer<'a> {
 
     fn expr(&mut self, e: &Expr, prec: i8) -> Result {
         match e {
-            &ast::Expr::Ident(ref s) => self.token(s)?,
+            &ast::Expr::This => self.token("this")?,
+            &ast::Expr::Ident(ref s) => self.token(&s.name)?,
+            &ast::Expr::Null => self.token("null")?,
+            &ast::Expr::Undefined => self.token("undefined")?,
+            &ast::Expr::Bool(b) => self.token(if b { "true" } else { "false" })?,
             &ast::Expr::Number(ref n) => self.token(&format!("{}", n))?,
             &ast::Expr::String(ref s) => self.quoted(s)?,
             &ast::Expr::Array(ref arr) => {
@@ -271,7 +275,7 @@ impl<'a> Writer<'a> {
                             w.token(&p.name)?;
                         }
                         match p.value {
-                            ast::Expr::Ident(ref v) if v == &p.name => {
+                            ast::Expr::Ident(ref v) if v.name == p.name => {
                                 // omit; implied by property name.
                             },
                             ast::Expr::Function(ref f) if !quoted => {
@@ -460,12 +464,21 @@ impl<'a> Writer<'a> {
             &ast::Stmt::ForInOf(ref f) => {
                 self.token("for")?;
                 self.paren(|w| {
-                    if let Some(typ) = f.typ {
-                        w.token(typ.to_string())?;
+                    match f.init {
+                        ast::ForInit::Empty => {}
+                        ast::ForInit::Expr(ref e) => w.expr(e, -1)?,
+                        ast::ForInit::Decls(ref decls) => {
+                            w.comma(&decls.decls, |w, d| {
+                                w.token(decls.typ.to_string())?;
+                                w.expr(&d.name, -1)?;
+                                if let Some(ref init) = d.init {
+                                    w.token("in")?;
+                                    w.expr(init, -1)?;
+                                }
+                                Ok(())
+                            })?;
+                        }
                     }
-                    w.expr(&f.decl, -1)?;
-                    w.token("in")?;
-                    w.expr(&f.iter, -1)?;
                     Ok(())
                 })?;
                 self.stmt(&f.body)?;
@@ -524,7 +537,7 @@ impl<'a> Writer<'a> {
                 self.stmt(&try.block)?;
                 if let Some((ref v, ref stmt)) = try.catch {
                     self.token("catch")?;
-                    self.paren(|w| w.token(v))?;
+                    self.paren(|w| w.expr(v, -1))?;
                     self.stmt(stmt)?;
                 }
                 if let Some(ref finally) = try.finally {
@@ -542,6 +555,10 @@ impl<'a> Writer<'a> {
             self.stmt(&s)?;
         }
         Ok(())
+    }
+
+    pub fn module(&mut self, module: &ast::Module) -> Result {
+        self.stmts(&module.stmts)
     }
 }
 
@@ -654,6 +671,11 @@ mod tests {
         assert_eq!(codegen("'a\\nb'"), "\"a\\nb\"");
         assert_eq!(codegen(r#""a'b""#), r#""a'b""#);
         assert_eq!(codegen(r#"'a"b'"#), r#"'a"b'"#);
+    }
+
+    #[test]
+    fn test_vars() {
+        assert_eq!(codegen("var x = 3, y = 4;"), "var x=3,y=4");
     }
 
     #[test]

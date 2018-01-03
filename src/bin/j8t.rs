@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2017 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -116,7 +116,7 @@ fn real_main() -> bool {
         .unwrap();
 
     let mut p = Parser::new(input.as_slice());
-    let (t, mut stmts) = match measure(|| p.stmts()) {
+    let (t, mut module) = match measure(|| p.module()) {
         (t, Ok(stmts)) => (t, stmts),
         (_, Err(err)) => {
             err.print(&p.lexer);
@@ -127,7 +127,7 @@ fn real_main() -> bool {
         eprintln!("parse: {}ms", t);
     }
 
-    let (t, _) = measure(|| { trans::deblock(&mut stmts); });
+    let (t, _) = measure(|| { trans::deblock(&mut module); });
     if timing {
         eprintln!("deblock: {}ms", t);
     }
@@ -140,12 +140,7 @@ fn real_main() -> bool {
     let (t, _) = measure(|| {
         let mut writer = gen::Writer::new(&mut w);
         writer.disable_asi = disable_asi;
-        for s in stmts.iter() {
-            // let t = format!("{:?}", s);
-            // println!("{}", &t[0..std::cmp::min(100, t.len())]);
-            writer.stmt(&s).unwrap();
-            // println!("");
-        }
+        writer.module(&module).unwrap();
     });
     if timing {
         eprintln!("gen: {}ms", t);

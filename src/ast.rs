@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2017 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,10 +14,27 @@
  * limitations under the License.
  */
 
+use std::rc::Rc;
+
+#[derive(Debug)]
+pub struct Symbol {
+    pub name: String,
+}
+
+impl Symbol {
+    pub fn new<S: Into<String>>(name: S) -> Rc<Symbol> {
+        Rc::new(Symbol{name:String::from(name.into())})
+    }
+}
+
 #[derive(Debug)]
 pub enum Expr {
     // 12.2 Primary Expression
-    Ident(String),
+    This,
+    Ident(Rc<Symbol>),
+    Null,
+    Undefined,  // Note: not part of the grammar, hmm.
+    Bool(bool),
     Number(f64),
     String(String),
     Array(Vec<Expr>),
@@ -60,8 +77,8 @@ pub struct Property {
 
 #[derive(Debug)]
 pub struct Function {
-    pub name: Option<String>,
-    pub params: Vec<String>,
+    pub name: Option<Rc<Symbol>>,
+    pub params: Vec<Rc<Symbol>>,
     pub body: Vec<Stmt>,
 }
 
@@ -177,9 +194,7 @@ pub struct For {
 
 #[derive(Debug)]
 pub struct ForInOf {
-    pub typ: Option<VarDeclType>,
-    pub decl: Expr,
-    pub iter: Expr,
+    pub init: ForInit,
     pub body: Stmt,
 }
 
@@ -204,6 +219,11 @@ pub struct Label {
 #[derive(Debug)]
 pub struct Try {
     pub block: Stmt,
-    pub catch: Option<(String, Stmt)>,
+    pub catch: Option<(Expr, Stmt)>,
     pub finally: Option<Stmt>,
+}
+
+#[derive(Debug)]
+pub struct Module {
+    pub stmts: Vec<Stmt>,
 }

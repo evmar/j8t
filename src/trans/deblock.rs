@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2017 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,9 +17,6 @@
 use ast;
 use std;
 use trans::visit;
-use trans::visit::Visit;
-
-struct Deblock {}
 
 fn consumes_dangling_else(stmt: &ast::Stmt) -> bool {
     match *stmt {
@@ -56,39 +53,53 @@ fn is_block(s: &ast::Stmt) -> bool {
     }
 }
 
-impl visit::Visit for Deblock {
-    fn expr(&self, expr: &mut ast::Expr) {
-        visit::expr_children(self, expr);
-    }
-
-    fn stmt(&self, stmt: &mut ast::Stmt) {
-        visit::stmt_children(self, stmt);
-
-        *stmt = match *stmt {
-            // An "if" statement with an "else" must be careful to brace if the
-            // body can consume the "else".
-            ast::Stmt::If(ref mut i) => {
-                if !is_block(&i.iftrue) && i.else_.is_some() && consumes_dangling_else(&i.iftrue) {
-                    let mut e = ast::Stmt::Empty;
-                    std::mem::swap(&mut e, &mut i.iftrue);
-                    i.iftrue = ast::Stmt::Block(vec![e]);
-                }
-                return;
+fn deblock_expr(expr: &mut ast::Expr) {
+    match *expr {
+        ast::Expr::Function(ref mut func) => {
+            for s in func.body.iter_mut() {
+                deblock_stmt(s, /* parent is try */ false);
             }
-            ast::Stmt::Block(ref mut stmts) => {
-                if stmts.len() != 1 {
-                    return;
-                }
-                stmts.pop().unwrap()
-            }
-            _ => return,
         }
+        _ => visit::expr_expr(expr, deblock_expr),
     }
 }
 
-pub fn deblock(stmts: &mut [ast::Stmt]) {
-    for s in stmts.iter_mut() {
-        Deblock {}.stmt(s);
+fn deblock_stmt(stmt: &mut ast::Stmt, parent_is_try: bool) {
+    // A try-catch statement syntactically must have braces.
+    // Special-case it here.
+    // TODO: one idea is to have Stmt::Block for syntactic blocks,
+    // and Stmt::List or whatever for cases where it's a list of statements
+    // that are not semantically a block. This might also help with handling
+    // lexical scope (where blocks might handle differently than braced syntax).
+    let is_try = if let ast::Stmt::Try(_) = *stmt { true } else { false };
+
+    visit::stmt_expr(stmt, deblock_expr);
+    visit::stmt_stmt(stmt, |s| deblock_stmt(s, is_try));
+
+    *stmt = match *stmt {
+        // An "if" statement with an "else" must be careful to brace if the
+        // body can consume the "else".
+        ast::Stmt::If(ref mut i) => {
+            if !is_block(&i.iftrue) && i.else_.is_some() && consumes_dangling_else(&i.iftrue) {
+                let mut e = ast::Stmt::Empty;
+                std::mem::swap(&mut e, &mut i.iftrue);
+                i.iftrue = ast::Stmt::Block(vec![e]);
+            }
+            return;
+        }
+        ast::Stmt::Block(ref mut stmts) => {
+            if stmts.len() != 1 || parent_is_try {
+                return;
+            }
+            stmts.pop().unwrap()
+        }
+        _ => return,
+    }
+}
+
+pub fn deblock(module: &mut ast::Module) {
+    for s in module.stmts.iter_mut() {
+        deblock_stmt(s, /* parent is try */ false);
     }
 }
 
@@ -99,15 +110,15 @@ mod tests {
     use parse::Parser;
     use gen::Writer;
 
-    fn parse(input: &str) -> Vec<ast::Stmt> {
-        Parser::new(input.as_bytes()).stmts().unwrap()
+    fn parse(input: &str) -> ast::Module {
+        Parser::new(input.as_bytes()).module().unwrap()
     }
 
-    fn gen(stmts: &[ast::Stmt]) -> String {
+    fn gen(module: &ast::Module) -> String {
         let mut buf: Vec<u8> = Vec::new();
         {
             let mut w = Writer::new(&mut buf);
-            w.stmts(stmts).unwrap();
+            w.module(module).unwrap();
         }
         String::from_utf8(buf).unwrap()
     }
