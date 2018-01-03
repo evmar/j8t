@@ -104,7 +104,7 @@ impl<'a> Parser<'a> {
 
     fn parse_error<S: Into<String>>(&self, got: Token, expected: S) -> ParseError {
         ParseError {
-            msg: format!("expected {}, got {:?}", expected.into(), got),
+            msg: format!("expected {}, got {:?}", expected.into(), got.tok),
             at: got.span,
         }
     }
@@ -137,7 +137,7 @@ impl<'a> Parser<'a> {
                     self.lex_read()?;
                 }
                 _ => {
-                    elems.push(try!(self.expr()));
+                    elems.push(self.expr_prec(1)?);
                     if self.lex_peek()? == Tok::Comma {
                         self.lex_read()?;
                     } else {
@@ -146,7 +146,7 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        try!(self.expect(Tok::RSquare));
+        self.expect(Tok::RSquare)?;
         Ok(elems)
     }
 
@@ -982,5 +982,10 @@ return",
     #[test]
     fn test_object() {
         parse("({a: b, 'a': b, a, a() {}, a});");
+    }
+
+    #[test]
+    fn trailing_comma() {
+        parse("f({a,}, [b,], );");
     }
 }

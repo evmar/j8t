@@ -133,4 +133,11 @@ mod tests {
         deblock(&mut sts);
         println!("{}", gen(&sts));
     }
+
+    #[test]
+    fn test_try() {
+        let mut sts = parse("try { x; } catch (e) { y; }");
+        deblock(&mut sts);
+        println!("{}", gen(&sts));
+    }
 }
