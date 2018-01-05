@@ -166,6 +166,23 @@ fn unicode_escape(s: &mut Scanner) -> Result<char> {
     }
 }
 
+fn hex_escape(s: &mut Scanner) -> Result<char> {
+    let c1 = match digit_hex(s.read()) {
+        Some(d) => d as u32,
+        None => return Err(s.err("bad hex escape")),
+    };
+    let c2 = match digit_hex(s.read()) {
+        Some(d) => d as u32,
+        None => return Err(s.err("bad hex escape")),
+    };
+
+    let codepoint = (c1 << 4) | c2;
+    match std::char::from_u32(codepoint) {
+        Some(c) => Ok(c),
+        None => Err(s.err(format!("bad codepoint {}", codepoint))),
+    }
+}
+
 pub fn quoted(s: &mut Scanner, quote: char) -> Result<String> {
     let mut str: Vec<u8> = Vec::new();
     loop {
@@ -174,6 +191,7 @@ pub fn quoted(s: &mut Scanner, quote: char) -> Result<String> {
             '\0' => panic!("EOF while reading quote"),
             '\\' => {
                 match s.read() as char {
+                    'b' => str.push(0x8),
                     'f' => str.push(0xC),
                     'n' => str.push('\n' as u8),
                     'r' => str.push('\r' as u8),
@@ -188,6 +206,15 @@ pub fn quoted(s: &mut Scanner, quote: char) -> Result<String> {
                         }
                     }
                     'v' => str.push(0xB),
+                    'x' => {
+                        let c = hex_escape(s)?;
+                        if (c as u64) < 128 {
+                            str.push(c as u8);
+                        } else {
+                            // TODO: unicode.
+                            str.push('?' as u8);
+                        }
+                    }
                     '"' => str.push('"' as u8),
                     '\'' => str.push('\'' as u8),
                     '\\' => str.push('\\' as u8),
