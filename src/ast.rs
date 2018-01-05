@@ -64,14 +64,22 @@ pub struct Object {
 // Property forms:
 // 1) a   (short for a: a)
 // 2) a: b
-// 3) 'a': b,
+// 3) 'a': b
+// 4) 0: b  (numeric key)
 // 5) [a]: b
 // 6) a(b) {}
 // 7) get/set a(b) {}
 // 8) a=b (used to cover alternative syntax for bindings)
+
+#[derive(Debug)]
+pub enum PropertyKey {
+    String(String),
+    Number(f64),
+}
+
 #[derive(Debug)]
 pub struct Property {
-    pub name: String,
+    pub name: PropertyKey,
     pub value: Expr,
 }
 

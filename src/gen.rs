@@ -268,22 +268,36 @@ impl<'a> Writer<'a> {
             &ast::Expr::Object(ref obj) => {
                 self.brace(|w| {
                     w.comma(&obj.props, |w, p| {
-                        let quoted = obj_prop_needs_quote(&p.name);
-                        if quoted {
-                            w.token(&format!("{:?}", p.name))?;
-                        } else {
-                            w.token(&p.name)?;
-                        }
-                        match p.value {
-                            ast::Expr::Ident(ref v) if v.name == p.name => {
+                        // Write the property name, and grab the name string if
+                        // it's allowed to be punned.
+                        let name = match p.name {
+                            ast::PropertyKey::String(ref s) => {
+                                let quoted = obj_prop_needs_quote(s);
+                                if quoted {
+                                    w.token(&format!("{:?}", s))?;
+                                    None
+                                } else {
+                                    w.token(s)?;
+                                    Some(s)
+                                }
+                            }
+                            ast::PropertyKey::Number(ref n) => {
+                                w.token(&format!("{}", n))?;
+                                None
+                            }
+                        };
+                        match (name, &p.value) {
+                            (Some(n), &ast::Expr::Ident(ref v)) if n == &v.name => {
                                 // omit; implied by property name.
                             }
-                            ast::Expr::Function(ref f) if !quoted => {
+                            (Some(_), &ast::Expr::Function(ref f)) => {
+                                // TODO: this always clobbers the function name.
+                                // Do we care?
                                 w.function_from_paren(f)?;
                             }
-                            _ => {
+                            (_, v) => {
                                 w.token(":")?;
-                                w.expr(&p.value, 0)?;
+                                w.expr(v, 0)?;
                             }
                         };
                         Ok(())
@@ -685,6 +699,7 @@ mod tests {
             codegen(
                 r"({
   plain: 0,
+  0: number,
   'string': 1,
   pun,
   func() {},
@@ -692,7 +707,7 @@ mod tests {
   'with space': function() {},
 });",
             ),
-            "{plain:0,string:1,pun,func(){},explicit_func(){},\"with space\":function(){}}"
+            "{plain:0,0:number,string:1,pun,func(){},explicit_func(){},\"with space\":function(){}}"
         );
     }
 }

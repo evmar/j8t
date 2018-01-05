@@ -153,40 +153,78 @@ impl<'a> Parser<'a> {
     fn object_literal(&mut self) -> ParseResult<ast::Object> {
         let mut props: Vec<ast::Property> = Vec::new();
         loop {
-            match self.lex_peek()? {
-                Tok::Ident | Tok::String => {}
-                tok if tok.is_kw() => {}
+            let (name, can_pun) = match self.lex_peek()? {
+                Tok::Ident => {
+                    let token = self.lex_read()?;
+                    (ast::PropertyKey::String(self.lexer.text(token)), true)
+                }
+                tok if tok.is_kw() => {
+                    let token = self.lex_read()?;
+                    (ast::PropertyKey::String(self.lexer.text(token)), true)
+                }
+                Tok::String => {
+                    let token = self.lex_read()?;
+                    if let lex::TokData::String(s) = token.data {
+                        (ast::PropertyKey::String(s), false)
+                    } else {
+                        unreachable!();
+                    }
+                }
+                Tok::Number => {
+                    let token = self.lex_read()?;
+                    if let lex::TokData::Number(n) = token.data {
+                        (ast::PropertyKey::Number(n), false)
+                    } else {
+                        unreachable!();
+                    }
+                }
                 _ => break,
-            }
-            let token = self.lex_read()?;
-            let name = self.lexer.text(token);
-            let mut prop = ast::Property {
-                name: name.clone(),
-                value: ast::Expr::Ident(ast::Symbol::new(name)),
             };
 
-            match self.lex_peek()? {
+            let prop = match self.lex_peek()? {
                 Tok::Colon => {
                     // a: b
                     self.lex_read()?;
-                    prop.value = self.expr_prec(3)?;
+                    ast::Property {
+                        name: name,
+                        value: self.expr_prec(3)?,
+                    }
                 }
-                Tok::LParen => {
+                Tok::LParen if can_pun => {
                     // a(...) {}
-                    let name = match prop.value {
-                        ast::Expr::Ident(sym) => sym,
+                    let value = match name {
+                        ast::PropertyKey::String(ref s) => {
+                            let sym = ast::Symbol::new(s.clone());
+                            ast::Expr::Function(Box::new(self.function_from_paren(Some(sym))?))
+                        }
                         _ => unreachable!(),
                     };
-                    prop.value =
-                        ast::Expr::Function(Box::new(self.function_from_paren(Some(name))?));
+                    ast::Property {
+                        name: name,
+                        value: value,
+                    }
                 }
-                _ => {
+                _ if can_pun => {
                     // Assume it's an object like
                     //   {a, b}
                     // and we hit the comma or right brace,
                     // and then let the below code handle that.
+                    let value = match name {
+                        ast::PropertyKey::String(ref s) => {
+                            ast::Expr::Ident(ast::Symbol::new(s.clone()))
+                        }
+                        _ => unreachable!(),
+                    };
+                    ast::Property {
+                        name: name,
+                        value: value,
+                    }
                 }
-            }
+                _ => {
+                    let token = self.lex_read()?;
+                    return Err(self.parse_error(token, "property value"));
+                }
+            };
             props.push(prop);
 
             if self.lex_peek()? != Tok::Comma {
@@ -984,7 +1022,7 @@ return",
 
     #[test]
     fn test_object() {
-        parse("({a: b, 'a': b, a, a() {}, a});");
+        parse("({a: b, 'a': b, a, a() {}, 0: 0, a});");
     }
 
     #[test]
