@@ -57,7 +57,11 @@ fn deblock_expr(expr: &mut ast::Expr) {
     match *expr {
         ast::Expr::Function(ref mut func) => {
             for s in func.body.iter_mut() {
-                deblock_stmt(s, /* parent is try */ false);
+                deblock_stmt(
+                    s,
+                    /* parent is try */
+                    false,
+                );
             }
         }
         _ => visit::expr_expr(expr, deblock_expr),
@@ -71,7 +75,11 @@ fn deblock_stmt(stmt: &mut ast::Stmt, parent_is_try: bool) {
     // and Stmt::List or whatever for cases where it's a list of statements
     // that are not semantically a block. This might also help with handling
     // lexical scope (where blocks might handle differently than braced syntax).
-    let is_try = if let ast::Stmt::Try(_) = *stmt { true } else { false };
+    let is_try = if let ast::Stmt::Try(_) = *stmt {
+        true
+    } else {
+        false
+    };
 
     visit::stmt_expr(stmt, deblock_expr);
     visit::stmt_stmt(stmt, |s| deblock_stmt(s, is_try));
@@ -99,7 +107,11 @@ fn deblock_stmt(stmt: &mut ast::Stmt, parent_is_try: bool) {
 
 pub fn deblock(module: &mut ast::Module) {
     for s in module.stmts.iter_mut() {
-        deblock_stmt(s, /* parent is try */ false);
+        deblock_stmt(
+            s,
+            /* parent is try */
+            false,
+        );
     }
 }
 

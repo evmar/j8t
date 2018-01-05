@@ -23,7 +23,7 @@ pub struct Symbol {
 
 impl Symbol {
     pub fn new<S: Into<String>>(name: S) -> Rc<Symbol> {
-        Rc::new(Symbol{name:String::from(name.into())})
+        Rc::new(Symbol { name: String::from(name.into()) })
     }
 }
 
@@ -33,7 +33,7 @@ pub enum Expr {
     This,
     Ident(Rc<Symbol>),
     Null,
-    Undefined,  // Note: not part of the grammar, hmm.
+    Undefined, // Note: not part of the grammar, hmm.
     Bool(bool),
     Number(f64),
     String(String),

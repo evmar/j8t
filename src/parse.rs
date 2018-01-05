@@ -177,7 +177,8 @@ impl<'a> Parser<'a> {
                         ast::Expr::Ident(sym) => sym,
                         _ => unreachable!(),
                     };
-                    prop.value = ast::Expr::Function(Box::new(self.function_from_paren(Some(name))?));
+                    prop.value =
+                        ast::Expr::Function(Box::new(self.function_from_paren(Some(name))?));
                 }
                 _ => {
                     // Assume it's an object like
@@ -211,7 +212,7 @@ impl<'a> Parser<'a> {
                     "undefined" => Expr::Undefined,
                     "true" => Expr::Bool(true),
                     "false" => Expr::Bool(false),
-                    _ => Expr::Ident(ast::Symbol::new(text))
+                    _ => Expr::Ident(ast::Symbol::new(text)),
                 }
             }
             Tok::Number => {
@@ -587,22 +588,24 @@ impl<'a> Parser<'a> {
                     ast::Expr::Binary(bin) => {
                         if let Some(decl_type) = decl_type {
                             let bin = *bin;
-                            let decls = ast::VarDecls{
+                            let decls = ast::VarDecls {
                                 typ: decl_type,
-                                decls: vec![ast::VarDecl{
-                                    name:bin.lhs,
-                                    init:Some(bin.rhs),
-                                }],
+                                decls: vec![
+                                    ast::VarDecl {
+                                        name: bin.lhs,
+                                        init: Some(bin.rhs),
+                                    },
+                                ],
                             };
                             ast::ForInit::Decls(decls)
                         } else {
                             ast::ForInit::Expr(ast::Expr::Binary(bin))
                         }
                     }
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 };
                 self.expect(Tok::RParen)?;
-                return Ok(Stmt::ForInOf(Box::new(ast::ForInOf{
+                return Ok(Stmt::ForInOf(Box::new(ast::ForInOf {
                     init: init,
                     body: self.stmt()?,
                 })));
@@ -839,7 +842,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn module(&mut self) -> ParseResult<ast::Module> {
-        Ok(ast::Module{stmts:self.stmts()?})
+        Ok(ast::Module { stmts: self.stmts()? })
     }
 }
 

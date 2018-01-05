@@ -277,10 +277,10 @@ impl<'a> Writer<'a> {
                         match p.value {
                             ast::Expr::Ident(ref v) if v.name == p.name => {
                                 // omit; implied by property name.
-                            },
+                            }
                             ast::Expr::Function(ref f) if !quoted => {
                                 w.function_from_paren(f)?;
-                            },
+                            }
                             _ => {
                                 w.token(":")?;
                                 w.expr(&p.value, 0)?;
@@ -681,13 +681,18 @@ mod tests {
     #[test]
     fn test_object() {
         // TODO: parens around obj literal.
-        assert_eq!(codegen(r"({
+        assert_eq!(
+            codegen(
+                r"({
   plain: 0,
   'string': 1,
   pun,
   func() {},
   explicit_func: function() {},
   'with space': function() {},
-});"), "{plain:0,string:1,pun,func(){},explicit_func(){},\"with space\":function(){}}");
+});",
+            ),
+            "{plain:0,string:1,pun,func(){},explicit_func(){},\"with space\":function(){}}"
+        );
     }
 }
