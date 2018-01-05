@@ -432,6 +432,10 @@ pub fn sc(s: &mut Scanner, data: &mut TokData) -> Result<Tok> {
             hand::ident(s);
             Tok::Ident
         }
+        c if c as usize > 127 => {
+            hand::ident(s);
+            Tok::Ident
+        }
         c => panic!("xxx {:?}", c),
     })
 }

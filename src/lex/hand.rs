@@ -121,6 +121,7 @@ pub fn ident(s: &mut Scanner) {
     loop {
         match s.peek() as char {
             'a'...'z' | 'A'...'Z' | '_' | '$' | '0'...'9' => {}
+            c if c as usize > 0x7f => {}
             _ => return,
         }
         s.next();
