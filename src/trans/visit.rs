@@ -73,11 +73,41 @@ pub fn expr_expr<F: FnMut(&mut ast::Expr)>(expr: &mut ast::Expr, mut f: F) {
     }
 }
 
+pub fn stmt_expr_forinit<F: FnMut(&mut ast::Expr)>(init: &mut ast::ForInit, f: &mut F) {
+    match *init {
+        ast::ForInit::Empty => {}
+        ast::ForInit::Expr(ref mut e) => f(e),
+        ast::ForInit::Decls(ref mut decls) => {
+            for d in decls.decls.iter_mut() {
+                if let Some(ref mut init) = d.init {
+                    f(init);
+                }
+            }
+        }
+    }
+}
+
 pub fn stmt_expr<F: FnMut(&mut ast::Expr)>(stmt: &mut ast::Stmt, mut f: F) {
     match *stmt {
         ast::Stmt::If(ref mut if_) => {
             f(&mut if_.cond);
         }
+        ast::Stmt::While(ref mut w) => f(&mut w.cond),
+        ast::Stmt::DoWhile(ref mut w) => f(&mut w.cond),
+        ast::Stmt::For(ref mut for_) => {
+            // TODO: init
+            stmt_expr_forinit(&mut for_.init, &mut f);
+            if let Some(ref mut c) = for_.cond {
+                f(c);
+            }
+            if let Some(ref mut c) = for_.iter {
+                f(c);
+            }
+        }
+        ast::Stmt::ForInOf(ref mut for_) => {
+            stmt_expr_forinit(&mut for_.init, &mut f);
+        }
+        ast::Stmt::Switch(ref mut sw) => f(&mut sw.expr),
         ast::Stmt::Expr(ref mut e) => f(e),
         ast::Stmt::Return(ref mut e) => {
             if let Some(ref mut e) = *e {
@@ -93,7 +123,14 @@ pub fn stmt_expr<F: FnMut(&mut ast::Expr)>(stmt: &mut ast::Stmt, mut f: F) {
                 }
             }
         }
-        _ => {}
+
+        ast::Stmt::Block(_) |
+        ast::Stmt::Empty |
+        ast::Stmt::Continue(_) |
+        ast::Stmt::Break(_) |
+        ast::Stmt::Label(_) |
+        ast::Stmt::Try(_) |
+        ast::Stmt::Function(_) => {}
     }
 }
 
