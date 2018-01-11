@@ -25,7 +25,10 @@ pub struct Symbol {
 
 impl Symbol {
     pub fn new<S: Into<String>>(name: S) -> Rc<Symbol> {
-        Rc::new(Symbol { name:RefCell::new(String::from(name.into())), renameable: true })
+        Rc::new(Symbol {
+            name: RefCell::new(String::from(name.into())),
+            renameable: true,
+        })
     }
 }
 

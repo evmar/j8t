@@ -125,9 +125,15 @@ impl<'a> Env<'a> {
             parent: Some(self),
         }
     }
+}
 
-    fn function(&self, func: &mut ast::Function, expr: bool) {
-        let mut visit = self.new_scope();
+struct Visit {
+    all_syms: Vec<Rc<ast::Symbol>>,
+}
+
+impl Visit {
+    fn function<'a>(&mut self, env: &Env<'a>, func: &mut ast::Function, expr: bool) {
+        let mut visit = env.new_scope();
         if let Some(ref name) = func.name {
             // The function name is itself in scope within the function,
             // for cases like:
@@ -145,69 +151,72 @@ impl<'a> Env<'a> {
         }
         collect_scope(&mut func.body, &mut visit.scope);
         for s in func.body.iter_mut() {
-            visit_stmt(&visit, s);
+            self.stmt(&visit, s);
+        }
+        for s in visit.scope.bindings.iter() {
+            if !s.renameable {
+                continue;
+            }
+            self.all_syms.push(s.clone());
         }
         func.scope = visit.scope;
-        for (i, s) in func.scope.bindings.iter_mut().enumerate() {
-            if !s.renameable { continue }
-            let name = s.name.borrow().clone();
-            let new_name = format!("{}{}", name, i);
-            *s.name.borrow_mut() = new_name;
-        }
     }
-}
 
-fn visit_expr<'a>(env: &Env<'a>, expr: &mut ast::Expr) {
-    match *expr {
-        ast::Expr::Ident(ref mut sym) => {
-            let resolved = env.resolve(&*sym.name.borrow());
-            if let Some(new) = resolved {
-                *sym = new;
-            } else {
-                panic!("could not resolve {}", sym.name.borrow());
+    fn expr<'a>(&mut self, env: &Env<'a>, expr: &mut ast::Expr) {
+        match *expr {
+            ast::Expr::Ident(ref mut sym) => {
+                let resolved = env.resolve(&*sym.name.borrow());
+                if let Some(new) = resolved {
+                    *sym = new;
+                } else {
+                    panic!("could not resolve {}", sym.name.borrow());
+                }
+            }
+            ast::Expr::Function(ref mut func) => {
+                self.function(
+                    env,
+                    func,
+                    /* expression */
+                    true,
+                );
+            }
+            // ast::Expr::TypeOf(ref mut expr) => {
+            //     // Look for e.g.
+            //     //   typeof exports
+            //     // which may refer to a global.
+            //     match **expr {
+            //         ast::Expr::Ident(ref mut sym) => {
+            //             *sym = self.resolve(&sym.name, /* infer_global */ true);
+            //         }
+            //         _ => self.expr(expr)
+            //     }
+            // }
+            _ => {
+                visit::expr_expr(expr, |e| self.expr(env, e));
             }
         }
-        ast::Expr::Function(ref mut func) => {
-            env.function(
-                func,
-                /* expression */
-                true,
-            );
-        }
-        // ast::Expr::TypeOf(ref mut expr) => {
-        //     // Look for e.g.
-        //     //   typeof exports
-        //     // which may refer to a global.
-        //     match **expr {
-        //         ast::Expr::Ident(ref mut sym) => {
-        //             *sym = self.resolve(&sym.name, /* infer_global */ true);
-        //         }
-        //         _ => self.expr(expr)
-        //     }
-        // }
-        _ => {
-            visit::expr_expr(expr, |e| visit_expr(env, e));
-        }
     }
-}
 
-fn visit_stmt<'a>(env: &Env<'a>, stmt: &mut ast::Stmt) {
-    match *stmt {
-        ast::Stmt::Function(ref mut func) => {
-            env.function(
-                func,
-                /* expression */
-                false,
-            );
-        }
-        _ => {
-            visit::stmt_expr(stmt, |e| visit_expr(env, e));
-            visit::stmt_stmt(stmt, |s| visit_stmt(env, s));
+    fn stmt<'a>(&mut self, env: &Env<'a>, stmt: &mut ast::Stmt) {
+        match *stmt {
+            ast::Stmt::Function(ref mut func) => {
+                self.function(
+                    env,
+                    func,
+                    /* expression */
+                    false,
+                );
+            }
+            _ => {
+                visit::stmt_expr(stmt, |e| self.expr(env, e));
+                visit::stmt_stmt(stmt, |s| self.stmt(env, s));
+            }
         }
     }
 }
 
 pub fn scope(externs: &ast::Scope, module: &mut ast::Module) {
+    let mut globals = Visit { all_syms: vec![] };
     let externs = ast::Scope { bindings: externs.bindings.clone() };
     let gv = Env {
         scope: externs,
@@ -217,7 +226,13 @@ pub fn scope(externs: &ast::Scope, module: &mut ast::Module) {
     let mut v = gv.new_scope();
     collect_scope(&mut module.stmts, &mut v.scope);
     for s in module.stmts.iter_mut() {
-        visit_stmt(&v, s);
+        globals.stmt(&v, s);
     }
     module.scope = v.scope;
+
+    for (i, s) in globals.all_syms.iter_mut().enumerate() {
+        let name = s.name.borrow().clone();
+        let new_name = format!("{}{}", name, i);
+        *s.name.borrow_mut() = new_name;
+    }
 }
