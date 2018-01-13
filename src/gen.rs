@@ -292,20 +292,33 @@ impl<'a> Writer<'a> {
                                 None
                             }
                         };
-                        match (name, &p.value) {
-                            (Some(n), &ast::Expr::Ident(ref v)) if *n == *v.name.borrow() => {
-                                // omit; implied by property name.
+                        let wrote = if let Some(n) = name {
+                            match p.value {
+                                ast::Expr::Ident(ref v) if *n == *v.name.borrow() => {
+                                    // omit; implied by property name.
+                                    true
+                                }
+                                ast::Expr::Function(ref f) => {
+                                    if let Some(ref fname) = f.name {
+                                        if *n == *fname.name.borrow() {
+                                            // TODO: this always clobbers the function name.
+                                            // Do we care?
+                                            w.function_from_paren(f)?;
+                                            true
+                                        } else {
+                                            false
+                                        }
+                                    } else {
+                                        false
+                                    }
+                                }
+                                _ => {false}
                             }
-                            (Some(_), &ast::Expr::Function(ref f)) => {
-                                // TODO: this always clobbers the function name.
-                                // Do we care?
-                                w.function_from_paren(f)?;
-                            }
-                            (_, v) => {
-                                w.token(":")?;
-                                w.expr(v, 0)?;
-                            }
-                        };
+                        } else { false };
+                        if !wrote {
+                            w.token(":")?;
+                            w.expr(&p.value, 0)?;
+                        }
                         Ok(())
                     })
                 })?;

@@ -231,8 +231,8 @@ pub fn scope(externs: &ast::Scope, module: &mut ast::Module) {
     module.scope = v.scope;
 
     for (i, s) in globals.all_syms.iter_mut().enumerate() {
-        let name = s.name.borrow().clone();
-        let new_name = format!("{}{}", name, i);
+        let new_name = format!("{}{}", s.name.borrow(), i);
+        // let new_name = format!("s{}", i);
         *s.name.borrow_mut() = new_name;
     }
 }
