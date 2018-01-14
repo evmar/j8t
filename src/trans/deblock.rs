@@ -21,10 +21,11 @@ use trans::visit;
 fn consumes_dangling_else(stmt: &ast::Stmt) -> bool {
     match *stmt {
         ast::Stmt::If(ref i) => {
-            if i.else_.is_none() {
-                return true;
+            if let Some(ref else_) = i.else_ {
+                consumes_dangling_else(else_)
+            } else {
+                true
             }
-            consumes_dangling_else(&i.iftrue)
         }
         ast::Stmt::Block(_) => false,
         ast::Stmt::While(ref w) => consumes_dangling_else(&w.body),
@@ -149,6 +150,13 @@ mod tests {
     #[test]
     fn test_try() {
         let mut sts = parse("try { x; } catch (e) { y; }");
+        deblock(&mut sts);
+        println!("{}", gen(&sts));
+    }
+
+    #[test]
+    fn test_nested() {
+        let mut sts = parse("if (a) { if (b) { c; } else if (d) { e } } else if (g) { h }");
         deblock(&mut sts);
         println!("{}", gen(&sts));
     }
