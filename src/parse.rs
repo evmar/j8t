@@ -851,7 +851,7 @@ impl<'a> Parser<'a> {
                 self.lexer.back(token);
                 let expr = try!(self.expr());
                 try!(self.expect_semi());
-                Stmt::Expr(Box::new(expr))
+                Stmt::Expr(expr)
             }
         };
         Ok(stmt)
