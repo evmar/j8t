@@ -49,6 +49,9 @@ fn var_declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
         ast::Stmt::While(ref while_) => {
             var_declared_names(&while_.body, scope);
         }
+        ast::Stmt::DoWhile(ref do_) => {
+            var_declared_names(&do_.body, scope);
+        }
         ast::Stmt::For(ref for_) => {
             match for_.init {
                 ast::ForInit::Empty |
@@ -69,6 +72,13 @@ fn var_declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
             }
             var_declared_names(&forinof.body, scope);
         }
+        ast::Stmt::Switch(ref sw) => {
+            for case in sw.cases.iter() {
+                for stmt in case.stmts.iter() {
+                    var_declared_names(&stmt, scope);
+                }
+            }
+        }
         ast::Stmt::Try(ref try) => {
             var_declared_names(&try.block, scope);
             if let Some((ref param, ref catch)) = try.catch {
@@ -81,13 +91,18 @@ fn var_declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
                 var_declared_names(catch, scope);
             }
         }
+        ast::Stmt::Label(ref label) => {
+            var_declared_names(&label.stmt, scope);
+        }
         ast::Stmt::Function(ref func) => {
             // TODO: this is not part of the spec, how do functions get hoisted?
             if let Some(ref name) = func.name {
                 scope.bindings.push(name.clone());
             }
         }
-        _ => {}
+        ast::Stmt::Empty | ast::Stmt::Expr(_) |
+        ast::Stmt::Continue(_) | ast::Stmt::Break(_) |
+        ast::Stmt::Return(_) | ast::Stmt::Throw(_) => {}
     }
 }
 
