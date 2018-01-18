@@ -336,7 +336,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn function_call(&mut self, func: Expr) -> ParseResult<Expr> {
+    fn function_call(&mut self, func: ExprNode) -> ParseResult<ExprNode> {
         let mut params: Vec<ExprNode> = Vec::new();
         loop {
             if self.lex_peek()? == Tok::RParen {
@@ -349,11 +349,12 @@ impl<'a> Parser<'a> {
             }
             break;
         }
-        self.expect(Tok::RParen)?;
-        Ok(Expr::Call(Box::new(ast::Call {
-            func: func,
-            args: params,
-        })))
+        let end = self.expect(Tok::RParen)?;
+        Ok((Span::new(func.0.start, end),
+            Expr::Call(Box::new(ast::Call {
+                func: func,
+                args: params,
+            }))))
     }
 
     fn expr_prec(&mut self, prec: usize) -> ParseResult<ExprNode> {
@@ -540,7 +541,7 @@ impl<'a> Parser<'a> {
                             Expr::Index(Box::new(expr), Box::new(index)));
                 }
                 Tok::LParen if prec <= 19 => {
-                    expr = (todo_span(), self.function_call(expr.1)?);
+                    expr = self.function_call(expr)?;
                 }
                 _ => {
                     self.lexer.back(token);

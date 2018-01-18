@@ -48,7 +48,7 @@ pub fn expr_expr<F: FnMut(&mut ast::Expr)>(expr: &mut ast::Expr, mut f: F) {
         ast::Expr::Field(ref mut e, _) => f(&mut e.1),
         ast::Expr::New(ref mut e) => f(&mut e.1),
         ast::Expr::Call(ref mut c) => {
-            f(&mut c.func);
+            f(&mut c.func.1);
             for e in c.args.iter_mut() {
                 f(&mut e.1);
             }

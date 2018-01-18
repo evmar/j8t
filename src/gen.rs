@@ -355,7 +355,7 @@ impl<'a> Writer<'a> {
             }
             &ast::Expr::Call(ref call) => {
                 self.maybe_paren(prec > 19, |w| {
-                    w.expr(&call.func, 19)?;
+                    w.exprn(&call.func, 19)?;
                     w.paren(|w| w.comma(&call.args, |w, e| w.exprn(e, 0)))?;
                     Ok(())
                 })?;

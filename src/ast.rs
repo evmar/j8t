@@ -125,7 +125,7 @@ pub struct Regex {
 
 #[derive(Debug)]
 pub struct Call {
-    pub func: Expr,
+    pub func: ExprNode,
     pub args: Vec<ExprNode>,
 }
 
