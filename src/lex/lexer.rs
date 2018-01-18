@@ -31,6 +31,15 @@ pub struct Span {
     pub end: usize,
 }
 
+impl Span {
+    pub fn new(start: usize, end: usize) -> Span {
+        Span{
+            start: start,
+            end: end,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Token {
     pub tok: Tok,

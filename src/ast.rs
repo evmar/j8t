@@ -17,6 +17,8 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 
+pub use lex::{Span};
+
 #[derive(Debug)]
 pub struct Symbol {
     pub name: RefCell<String>,
@@ -77,6 +79,8 @@ pub enum Expr {
     Ternary(Box<Ternary>),
     Assign(Box<Expr>, Box<Expr>),
 }
+
+pub type ExprNode = (Span, Expr);
 
 #[derive(Debug)]
 pub struct Object {

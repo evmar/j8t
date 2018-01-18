@@ -19,7 +19,11 @@ use std::rc::Rc;
 use lex;
 use lex::{Tok, Token, Span, LexError};
 use ast;
-use ast::{Expr, Stmt};
+use ast::{Expr, ExprNode, Stmt};
+
+fn todo_span() -> Span {
+    Span::new(0, 0)
+}
 
 pub struct Parser<'a> {
     pub lexer: lex::Lexer<'a>,
@@ -117,17 +121,17 @@ impl<'a> Parser<'a> {
         self.lexer.peek().map_err(ParseError::from_lexerror)
     }
 
-    fn expect(&mut self, tok: Tok) -> ParseResult<()> {
+    fn expect(&mut self, tok: Tok) -> ParseResult<usize> {
         let token = self.lex_read()?;
         if token.tok == tok {
-            Ok(())
+            Ok(token.span.end)
         } else {
             Err(self.parse_error(token, format!("{:?}", tok)))
         }
 
     }
 
-    fn array_literal(&mut self) -> ParseResult<Vec<Expr>> {
+    fn array_literal(&mut self, start: usize) -> ParseResult<(Span, Vec<Expr>)> {
         let mut elems: Vec<Expr> = Vec::new();
         loop {
             match self.lex_peek()? {
@@ -146,8 +150,8 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        self.expect(Tok::RSquare)?;
-        Ok(elems)
+        let end = self.expect(Tok::RSquare)?;
+        Ok((Span::new(start, end), elems))
     }
 
     fn object_literal(&mut self) -> ParseResult<ast::Object> {
@@ -239,42 +243,49 @@ impl<'a> Parser<'a> {
     // 12.2 Primary Expression
     // TODO: we need to allow this to fail to handle 'case' clauses in switch properly.
     // Need a primary_expr_opt() that this calls.
-    fn primary_expr(&mut self) -> ParseResult<Expr> {
+    fn primary_expr(&mut self) -> ParseResult<ExprNode> {
         let token = self.lex_read()?;
         Ok(match token.tok {
-            Tok::This => Expr::This,
+            Tok::This => (token.span, Expr::This),
             Tok::Ident => {
+                let span = token.span.clone();
                 let text = self.lexer.text(token);
-                match text.as_str() {
+                (span, match text.as_str() {
                     "null" => Expr::Null,
                     "undefined" => Expr::Undefined,
                     "true" => Expr::Bool(true),
                     "false" => Expr::Bool(false),
                     _ => Expr::Ident(ast::Symbol::new(text)),
-                }
+                })
             }
             Tok::Number => {
                 if let lex::TokData::Number(n) = token.data {
-                    Expr::Number(n)
+                    (token.span, Expr::Number(n))
                 } else {
                     unreachable!();
                 }
             }
-            Tok::String => Expr::String(String::from(self.lexer.text(token))),
-            Tok::LSquare => Expr::Array(try!(self.array_literal())),
-            Tok::LBrace => Expr::Object(Box::new(try!(self.object_literal()))),
-            Tok::Function => Expr::Function(Box::new(try!(self.function()))),
+            Tok::String => {
+                let span = token.span.clone();
+                (span, Expr::String(self.lexer.text(token)))
+            }
+            Tok::LSquare => {
+                let (span, arr) = self.array_literal(token.span.start)?;
+                (span, Expr::Array(arr))
+            }
+            Tok::LBrace => (todo_span(), Expr::Object(Box::new(try!(self.object_literal())))),
+            Tok::Function => (todo_span(), Expr::Function(Box::new(try!(self.function())))),
             Tok::LParen => {
-                let r = try!(self.expr());
-                try!(self.expect(Tok::RParen));
-                r
+                let r = self.expr()?;
+                self.expect(Tok::RParen)?;
+                (todo_span(), r)
             }
             Tok::Div => {
                 let literal = match self.lexer.read_regex() {
                     Err(err) => panic!(err),
                     Ok(literal) => literal,
                 };
-                Expr::Regex(Box::new(ast::Regex { literal: String::from(literal) }))
+                (todo_span(), Expr::Regex(Box::new(ast::Regex { literal: String::from(literal) })))
             }
             _ => {
                 return Err(self.parse_error(token, "primary expression"));
@@ -367,7 +378,8 @@ impl<'a> Parser<'a> {
             }
             _ => {
                 self.lexer.back(token);
-                try!(self.primary_expr())
+                let (_span, expr) = self.primary_expr()?;
+                expr
             }
         };
 
@@ -849,8 +861,8 @@ impl<'a> Parser<'a> {
                     })));
                 }
                 self.lexer.back(token);
-                let expr = try!(self.expr());
-                try!(self.expect_semi());
+                let expr = self.expr()?;
+                self.expect_semi()?;
                 Stmt::Expr(expr)
             }
         };
