@@ -151,7 +151,7 @@ pub enum Stmt {
     Block(Vec<Stmt>),
     Var(Box<VarDecls>),
     Empty,
-    Expr(Expr),
+    Expr(ExprNode),
     If(Box<If>),
     While(Box<While>),
     DoWhile(Box<While>),

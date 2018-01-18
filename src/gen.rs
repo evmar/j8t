@@ -441,7 +441,7 @@ impl<'a> Writer<'a> {
             }
             &ast::Stmt::Empty => self.semi()?,
             &ast::Stmt::Expr(ref e) => {
-                self.expr(e, -1)?;
+                self.exprn(e, -1)?;
                 self.semi()?;
             }
             &ast::Stmt::If(ref i) => {

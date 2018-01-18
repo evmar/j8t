@@ -888,7 +888,7 @@ impl<'a> Parser<'a> {
                 self.lexer.back(token);
                 let expr = self.expr()?;
                 self.expect_semi()?;
-                Stmt::Expr(expr.1)
+                Stmt::Expr(expr)
             }
         };
         Ok(stmt)

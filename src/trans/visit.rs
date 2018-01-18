@@ -108,7 +108,7 @@ pub fn stmt_expr<F: FnMut(&mut ast::Expr)>(stmt: &mut ast::Stmt, mut f: F) {
             stmt_expr_forinit(&mut for_.init, &mut f);
         }
         ast::Stmt::Switch(ref mut sw) => f(&mut sw.expr),
-        ast::Stmt::Expr(ref mut e) => f(e),
+        ast::Stmt::Expr(ref mut e) => f(&mut e.1),
         ast::Stmt::Return(ref mut e) => {
             if let Some(ref mut e) = *e {
                 f(e);
