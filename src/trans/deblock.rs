@@ -65,7 +65,7 @@ fn deblock_expr(expr: &mut ast::Expr) {
                 );
             }
         }
-        _ => visit::expr_expr(expr, deblock_expr),
+        _ => visit::expr_expr(expr, |e| deblock_expr(&mut e.1)),
     }
 }
 

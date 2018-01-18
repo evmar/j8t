@@ -16,12 +16,7 @@
 
 use ast;
 
-pub trait Visit {
-    fn expr(&mut self, expr: &mut ast::Expr);
-    fn stmt(&mut self, stmt: &mut ast::Stmt);
-}
-
-pub fn expr_expr<F: FnMut(&mut ast::Expr)>(expr: &mut ast::Expr, mut f: F) {
+pub fn expr_expr<F: FnMut(&mut ast::ExprNode)>(expr: &mut ast::Expr, mut f: F) {
     match *expr {
         ast::Expr::This |
         ast::Expr::Ident(_) |
@@ -34,41 +29,41 @@ pub fn expr_expr<F: FnMut(&mut ast::Expr)>(expr: &mut ast::Expr, mut f: F) {
 
         ast::Expr::Array(ref mut es) => {
             for e in es.iter_mut() {
-                f(&mut e.1);
+                f(e);
             }
         }
         ast::Expr::Object(ref mut obj) => {
-            obj.props.iter_mut().for_each(|p| f(&mut p.value.1));
+            obj.props.iter_mut().for_each(|p| f(&mut p.value));
         }
         ast::Expr::Function(_) => panic!("caller must handle functions"),
         ast::Expr::Index(ref mut e1, ref mut e2) => {
-            f(&mut e1.1);
-            f(&mut e2.1);
+            f(e1);
+            f(e2);
         }
-        ast::Expr::Field(ref mut e, _) => f(&mut e.1),
-        ast::Expr::New(ref mut e) => f(&mut e.1),
+        ast::Expr::Field(ref mut e, _) => f(e),
+        ast::Expr::New(ref mut e) => f(e),
         ast::Expr::Call(ref mut c) => {
-            f(&mut c.func.1);
+            f(&mut c.func);
             for e in c.args.iter_mut() {
-                f(&mut e.1);
+                f(e);
             }
         }
-        ast::Expr::Unary(_, ref mut e) => f(&mut e.1),
+        ast::Expr::Unary(_, ref mut e) => f(e),
         ast::Expr::Binary(ref mut bin) => {
-            f(&mut bin.lhs.1);
-            f(&mut bin.rhs.1);
+            f(&mut bin.lhs);
+            f(&mut bin.rhs);
         }
         ast::Expr::TypeOf(ref mut e) => {
-            f(&mut e.1);
+            f(e);
         }
         ast::Expr::Ternary(ref mut t) => {
-            f(&mut t.condition.1);
-            f(&mut t.iftrue.1);
-            f(&mut t.iffalse.1);
+            f(&mut t.condition);
+            f(&mut t.iftrue);
+            f(&mut t.iffalse);
         }
         ast::Expr::Assign(ref mut e1, ref mut e2) => {
-            f(&mut e1.1);
-            f(&mut e2.1);
+            f(e1);
+            f(e2);
         }
     }
 }

@@ -162,14 +162,14 @@ impl Visit {
         func.scope = visit.scope;
     }
 
-    fn expr<'a>(&mut self, env: &Env<'a>, expr: &mut ast::Expr) {
+    fn expr<'a>(&mut self, env: &Env<'a>, span: &mut ast::Span, expr: &mut ast::Expr) {
         match *expr {
             ast::Expr::Ident(ref mut sym) => {
                 let resolved = env.resolve(&*sym.name.borrow());
                 if let Some(new) = resolved {
                     *sym = new;
                 } else {
-                    panic!("could not resolve {}", sym.name.borrow());
+                    panic!("could not resolve {:?} {:?}", sym.name.borrow(), span);
                 }
             }
             ast::Expr::Function(ref mut func) => {
@@ -192,7 +192,7 @@ impl Visit {
             //     }
             // }
             _ => {
-                visit::expr_expr(expr, |e| self.expr(env, e));
+                visit::expr_expr(expr, |&mut (ref mut s, ref mut e)| self.expr(env, s, e));
             }
         }
     }
@@ -208,7 +208,10 @@ impl Visit {
                 );
             }
             _ => {
-                visit::stmt_expr(stmt, |e| self.expr(env, e));
+                visit::stmt_expr(stmt, |e| {
+                    let mut s = ast::Span::new(0, 0);
+                    self.expr(env, &mut s, e);
+                });
                 visit::stmt_stmt(stmt, |s| self.stmt(env, s));
             }
         }
