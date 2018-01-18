@@ -120,6 +120,7 @@ fn real_main() -> bool {
     opts.optflag("h", "help", "");
     opts.optflag("", "timing", "");
     opts.optflag("", "fmt", "");
+    opts.optflag("", "rename", "");
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
         Err(f) => {
@@ -134,6 +135,7 @@ fn real_main() -> bool {
     let infile = &matches.free[0];
     let timing = matches.opt_present("timing");
     let fmt = matches.opt_present("fmt");
+    let rename = matches.opt_present("rename");
 
     let mut input = Vec::<u8>::new();
     std::fs::File::open(infile)
@@ -153,10 +155,12 @@ fn real_main() -> bool {
         eprintln!("parse: {}ms", t);
     }
 
-    let externs = load_externs();
-    let (t, _) = measure(|| { eval::scope(&externs, &mut module); });
-    if timing {
-        eprintln!("scope: {}ms", t);
+    if rename {
+        let externs = load_externs();
+        let (t, _) = measure(|| { eval::scope(&externs, &mut module); });
+        if timing {
+            eprintln!("scope: {}ms", t);
+        }
     }
 
     let (t, _) = measure(|| { trans::deblock(&mut module); });
