@@ -38,7 +38,7 @@ pub fn expr_expr<F: FnMut(&mut ast::Expr)>(expr: &mut ast::Expr, mut f: F) {
             }
         }
         ast::Expr::Object(ref mut obj) => {
-            obj.props.iter_mut().for_each(|p| f(&mut p.value));
+            obj.props.iter_mut().for_each(|p| f(&mut p.value.1));
         }
         ast::Expr::Function(_) => panic!("caller must handle functions"),
         ast::Expr::Index(ref mut e1, ref mut e2) => {

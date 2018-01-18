@@ -106,7 +106,7 @@ pub enum PropertyKey {
 #[derive(Debug)]
 pub struct Property {
     pub name: PropertyKey,
-    pub value: Expr,
+    pub value: ExprNode,
 }
 
 #[derive(Debug)]

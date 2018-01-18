@@ -157,19 +157,22 @@ impl<'a> Parser<'a> {
     fn object_literal(&mut self) -> ParseResult<ast::Object> {
         let mut props: Vec<ast::Property> = Vec::new();
         loop {
-            let (name, can_pun) = match self.lex_peek()? {
+            let (span, name, can_pun) = match self.lex_peek()? {
                 Tok::Ident => {
                     let token = self.lex_read()?;
-                    (ast::PropertyKey::String(self.lexer.text(token)), true)
+                    (token.span.clone(),
+                     ast::PropertyKey::String(self.lexer.text(token)), true)
                 }
                 tok if tok.is_kw() => {
                     let token = self.lex_read()?;
-                    (ast::PropertyKey::String(self.lexer.text(token)), true)
+                    (token.span.clone(),
+                     ast::PropertyKey::String(self.lexer.text(token)), true)
                 }
                 Tok::String => {
                     let token = self.lex_read()?;
                     if let lex::TokData::String(s) = token.data {
-                        (ast::PropertyKey::String(s), false)
+                        (token.span.clone(),
+                         ast::PropertyKey::String(s), false)
                     } else {
                         unreachable!();
                     }
@@ -177,7 +180,7 @@ impl<'a> Parser<'a> {
                 Tok::Number => {
                     let token = self.lex_read()?;
                     if let lex::TokData::Number(n) = token.data {
-                        (ast::PropertyKey::Number(n), false)
+                        (token.span, ast::PropertyKey::Number(n), false)
                     } else {
                         unreachable!();
                     }
@@ -191,7 +194,7 @@ impl<'a> Parser<'a> {
                     self.lex_read()?;
                     ast::Property {
                         name: name,
-                        value: self.expr_prec(3)?.1,  // TODO: span
+                        value: self.expr_prec(3)?,
                     }
                 }
                 Tok::LParen if can_pun => {
@@ -199,7 +202,8 @@ impl<'a> Parser<'a> {
                     let value = match name {
                         ast::PropertyKey::String(ref s) => {
                             let sym = ast::Symbol::new(s.clone());
-                            ast::Expr::Function(Box::new(self.function_from_paren(Some(sym))?))
+                            (span, // TODO: correct span?
+                             ast::Expr::Function(Box::new(self.function_from_paren(Some(sym))?)))
                         }
                         _ => unreachable!(),
                     };
@@ -215,7 +219,7 @@ impl<'a> Parser<'a> {
                     // and then let the below code handle that.
                     let value = match name {
                         ast::PropertyKey::String(ref s) => {
-                            ast::Expr::Ident(ast::Symbol::new(s.clone()))
+                            (span, ast::Expr::Ident(ast::Symbol::new(s.clone())))
                         }
                         _ => unreachable!(),
                     };

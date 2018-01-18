@@ -296,7 +296,7 @@ impl<'a> Writer<'a> {
                             }
                         };
                         let wrote = if let Some(n) = name {
-                            match p.value {
+                            match p.value.1 {
                                 ast::Expr::Ident(ref v) if *n == *v.name.borrow() => {
                                     // omit; implied by property name.
                                     true
@@ -320,7 +320,7 @@ impl<'a> Writer<'a> {
                         } else { false };
                         if !wrote {
                             w.token(":")?;
-                            w.expr(&p.value, 0)?;
+                            w.exprn(&p.value, 0)?;
                         }
                         Ok(())
                     })
