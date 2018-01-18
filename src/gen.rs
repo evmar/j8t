@@ -333,14 +333,14 @@ impl<'a> Writer<'a> {
             &ast::Expr::Regex(ref regex) => self.token(&regex.literal)?,
             &ast::Expr::Index(ref expr, ref index) => {
                 self.maybe_paren(prec > 19, |w| {
-                    w.expr(expr, 19)?;
-                    w.wrap('[', ']', |w| w.expr(index, -1))?;
+                    w.exprn(expr, 19)?;
+                    w.wrap('[', ']', |w| w.exprn(index, -1))?;
                     Ok(())
                 })?;
             }
             &ast::Expr::Field(ref expr, ref field) => {
                 self.maybe_paren(prec > 19, |w| {
-                    w.expr(expr, 19)?;
+                    w.exprn(expr, 19)?;
                     w.token(".")?;
                     w.token(field)?;
                     Ok(())
@@ -382,9 +382,9 @@ impl<'a> Writer<'a> {
             &ast::Expr::Binary(ref bin) => {
                 let p = bin.op.prec();
                 self.maybe_paren(prec > p, |w| {
-                    w.expr(&bin.lhs, p)?;
+                    w.exprn(&bin.lhs, p)?;
                     w.token(&bin.op.to_string())?;
-                    w.expr(&bin.rhs, p)?;
+                    w.exprn(&bin.rhs, p)?;
                     Ok(())
                 })?;
             }
@@ -394,19 +394,19 @@ impl<'a> Writer<'a> {
             }
             &ast::Expr::Ternary(ref t) => {
                 self.maybe_paren(prec > 4, |w| {
-                    w.expr(&t.condition, 5)?;
+                    w.exprn(&t.condition, 5)?;
                     w.token("?")?;
-                    w.expr(&t.iftrue, 3)?;
+                    w.exprn(&t.iftrue, 3)?;
                     w.token(":")?;
-                    w.expr(&t.iffalse, 3)?;
+                    w.exprn(&t.iffalse, 3)?;
                     Ok(())
                 })?;
             }
             &ast::Expr::Assign(ref lhs, ref rhs) => {
                 self.maybe_paren(prec > 3, |w| {
-                    w.expr(lhs, 4)?;
+                    w.exprn(lhs, 4)?;
                     w.token("=")?;
-                    w.expr(rhs, 3)?;
+                    w.exprn(rhs, 3)?;
                     Ok(())
                 })?;
             }

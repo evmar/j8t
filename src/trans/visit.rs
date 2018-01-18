@@ -42,10 +42,10 @@ pub fn expr_expr<F: FnMut(&mut ast::Expr)>(expr: &mut ast::Expr, mut f: F) {
         }
         ast::Expr::Function(_) => panic!("caller must handle functions"),
         ast::Expr::Index(ref mut e1, ref mut e2) => {
-            f(e1);
-            f(e2);
+            f(&mut e1.1);
+            f(&mut e2.1);
         }
-        ast::Expr::Field(ref mut e, _) => f(e),
+        ast::Expr::Field(ref mut e, _) => f(&mut e.1),
         ast::Expr::New(ref mut e) => f(&mut e.1),
         ast::Expr::Call(ref mut c) => {
             f(&mut c.func);
@@ -55,20 +55,20 @@ pub fn expr_expr<F: FnMut(&mut ast::Expr)>(expr: &mut ast::Expr, mut f: F) {
         }
         ast::Expr::Unary(_, ref mut e) => f(&mut e.1),
         ast::Expr::Binary(ref mut bin) => {
-            f(&mut bin.lhs);
-            f(&mut bin.rhs);
+            f(&mut bin.lhs.1);
+            f(&mut bin.rhs.1);
         }
         ast::Expr::TypeOf(ref mut e) => {
             f(&mut e.1);
         }
         ast::Expr::Ternary(ref mut t) => {
-            f(&mut t.condition);
-            f(&mut t.iftrue);
-            f(&mut t.iffalse);
+            f(&mut t.condition.1);
+            f(&mut t.iftrue.1);
+            f(&mut t.iffalse.1);
         }
         ast::Expr::Assign(ref mut e1, ref mut e2) => {
-            f(e1);
-            f(e2);
+            f(&mut e1.1);
+            f(&mut e2.1);
         }
     }
 }

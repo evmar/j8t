@@ -67,8 +67,8 @@ pub enum Expr {
     Regex(Box<Regex>),
 
     // 12.3 Left-Hand-Side Expressions
-    Index(Box<Expr>, Box<Expr>),
-    Field(Box<Expr>, String),
+    Index(Box<ExprNode>, Box<ExprNode>),
+    Field(Box<ExprNode>, String),
     New(Box<ExprNode>),
     Call(Box<Call>),
 
@@ -77,7 +77,7 @@ pub enum Expr {
     Binary(Box<Binary>),
     TypeOf(Box<ExprNode>),
     Ternary(Box<Ternary>),
-    Assign(Box<Expr>, Box<Expr>),
+    Assign(Box<ExprNode>, Box<ExprNode>),
 }
 
 pub type ExprNode = (Span, Expr);
@@ -135,15 +135,15 @@ pub use ops::BinOp;
 #[derive(Debug)]
 pub struct Binary {
     pub op: BinOp,
-    pub lhs: Expr,
-    pub rhs: Expr,
+    pub lhs: ExprNode,
+    pub rhs: ExprNode,
 }
 
 #[derive(Debug)]
 pub struct Ternary {
-    pub condition: Expr,
-    pub iftrue: Expr,
-    pub iffalse: Expr,
+    pub condition: ExprNode,
+    pub iftrue: ExprNode,
+    pub iffalse: ExprNode,
 }
 
 #[derive(Debug)]
