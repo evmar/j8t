@@ -34,7 +34,7 @@ pub fn expr_expr<F: FnMut(&mut ast::Expr)>(expr: &mut ast::Expr, mut f: F) {
 
         ast::Expr::Array(ref mut es) => {
             for e in es.iter_mut() {
-                f(e);
+                f(&mut e.1);
             }
         }
         ast::Expr::Object(ref mut obj) => {
@@ -46,20 +46,20 @@ pub fn expr_expr<F: FnMut(&mut ast::Expr)>(expr: &mut ast::Expr, mut f: F) {
             f(e2);
         }
         ast::Expr::Field(ref mut e, _) => f(e),
-        ast::Expr::New(ref mut e) => f(e),
+        ast::Expr::New(ref mut e) => f(&mut e.1),
         ast::Expr::Call(ref mut c) => {
             f(&mut c.func);
             for e in c.args.iter_mut() {
-                f(e);
+                f(&mut e.1);
             }
         }
-        ast::Expr::Unary(_, ref mut e) => f(e),
+        ast::Expr::Unary(_, ref mut e) => f(&mut e.1),
         ast::Expr::Binary(ref mut bin) => {
             f(&mut bin.lhs);
             f(&mut bin.rhs);
         }
         ast::Expr::TypeOf(ref mut e) => {
-            f(e);
+            f(&mut e.1);
         }
         ast::Expr::Ternary(ref mut t) => {
             f(&mut t.condition);

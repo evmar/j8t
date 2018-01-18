@@ -61,7 +61,7 @@ pub enum Expr {
     Bool(bool),
     Number(f64),
     String(String),
-    Array(Vec<Expr>),
+    Array(Vec<ExprNode>),
     Object(Box<Object>),
     Function(Box<Function>),
     Regex(Box<Regex>),
@@ -69,13 +69,13 @@ pub enum Expr {
     // 12.3 Left-Hand-Side Expressions
     Index(Box<Expr>, Box<Expr>),
     Field(Box<Expr>, String),
-    New(Box<Expr>),
+    New(Box<ExprNode>),
     Call(Box<Call>),
 
     // Various other operators.
-    Unary(UnOp, Box<Expr>),
+    Unary(UnOp, Box<ExprNode>),
     Binary(Box<Binary>),
-    TypeOf(Box<Expr>),
+    TypeOf(Box<ExprNode>),
     Ternary(Box<Ternary>),
     Assign(Box<Expr>, Box<Expr>),
 }
@@ -126,7 +126,7 @@ pub struct Regex {
 #[derive(Debug)]
 pub struct Call {
     pub func: Expr,
-    pub args: Vec<Expr>,
+    pub args: Vec<ExprNode>,
 }
 
 pub use ops::UnOp;

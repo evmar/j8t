@@ -17,7 +17,7 @@
 use std::io;
 use std::io::Write;
 use ast;
-use ast::Expr;
+use ast::{Expr, ExprNode};
 
 trait Prec {
     fn prec(&self) -> i8;
@@ -259,6 +259,9 @@ impl<'a> Writer<'a> {
         Ok(())
     }
 
+    fn exprn(&mut self, e: &ExprNode, prec: i8) -> Result {
+        self.expr(&e.1, prec)
+    }
     fn expr(&mut self, e: &Expr, prec: i8) -> Result {
         match e {
             &ast::Expr::This => self.token("this")?,
@@ -269,7 +272,7 @@ impl<'a> Writer<'a> {
             &ast::Expr::Number(ref n) => self.token(&format!("{}", n))?,
             &ast::Expr::String(ref s) => self.quoted(s)?,
             &ast::Expr::Array(ref arr) => {
-                self.wrap('[', ']', |w| w.comma(arr, |w, e| w.expr(e, 0)))?;
+                self.wrap('[', ']', |w| w.comma(arr, |w, e| w.exprn(e, 0)))?;
             }
             &ast::Expr::Object(ref obj) => {
                 self.brace(|w| {
@@ -346,14 +349,14 @@ impl<'a> Writer<'a> {
             &ast::Expr::New(ref expr) => {
                 self.maybe_paren(prec > 18, |w| {
                     w.token("new")?;
-                    w.expr(expr, 18)?;
+                    w.exprn(expr, 18)?;
                     Ok(())
                 })?;
             }
             &ast::Expr::Call(ref call) => {
                 self.maybe_paren(prec > 19, |w| {
                     w.expr(&call.func, 19)?;
-                    w.paren(|w| w.comma(&call.args, |w, e| w.expr(e, 0)))?;
+                    w.paren(|w| w.comma(&call.args, |w, e| w.exprn(e, 0)))?;
                     Ok(())
                 })?;
             }
@@ -362,7 +365,7 @@ impl<'a> Writer<'a> {
                     &ast::UnOp::PostPlusPlus |
                     &ast::UnOp::PostMinusMinus => {
                         self.maybe_paren(prec > 17, |w| {
-                            w.expr(expr, 17)?;
+                            w.exprn(expr, 17)?;
                             w.token(&op.to_string())?;
                             Ok(())
                         })?;
@@ -370,7 +373,7 @@ impl<'a> Writer<'a> {
                     _ => {
                         self.maybe_paren(prec > 16, |w| {
                             w.token(&op.to_string())?;
-                            w.expr(expr, 16)?;
+                            w.exprn(expr, 16)?;
                             Ok(())
                         })?;
                     }
@@ -387,7 +390,7 @@ impl<'a> Writer<'a> {
             }
             &ast::Expr::TypeOf(ref expr) => {
                 self.token("typeof")?;
-                self.expr(expr, 16)?;
+                self.exprn(expr, 16)?;
             }
             &ast::Expr::Ternary(ref t) => {
                 self.maybe_paren(prec > 4, |w| {
