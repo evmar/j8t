@@ -16,7 +16,91 @@
 
 use std::rc::Rc;
 use ast;
+use parse::Parser;
 use trans::visit;
+
+const EXTERNS: &'static str = r#"
+var Array;
+var ArrayBuffer;
+var Boolean;
+var Date;
+var Document;
+var DocumentFragment;
+var Element;
+var Error;
+var Event;
+var Function;
+var HTMLBodyElement;
+var HTMLElement;
+var HTMLFrameElement;
+var HTMLFrameSetElement;
+var HTMLIFrameElement;
+var HTMLMediaElement;
+var Hammer;
+var IDBCursor;
+var IDBDatabase;
+var IDBOpenDBRequest;
+var IDBRequest;
+var IDBTransaction;
+var Intl;
+var JSON;
+var Map;
+var Math;
+var MessageChannel;
+var NaN;
+var Node;
+var Number;
+var Object;
+var Promise;
+var Proxy;
+var RegExp;
+var Set;
+var String;
+var Symbol;
+var TypeError;
+var Uint8Array;
+var WeakMap;
+var XMLHttpRequest;
+var Zone;
+var console;
+var decodeURIComponent;
+var document;
+var encodeURIComponent;
+var eval;
+var exports;
+var getComputedStyle;
+var global;
+var isFinite;
+var isNaN;
+var module;
+var parseFloat;
+var parseInt;
+var setImmediate;
+var setTimeout;
+var window;
+"#;
+
+fn load_externs() -> ast::Scope {
+    let mut scope = ast::Scope::new();
+    let mut p = Parser::new(EXTERNS.as_bytes());
+    let module = p.module().unwrap();
+    for s in module.stmts {
+        match s {
+            ast::Stmt::Var(decls) => {
+                for d in decls.decls {
+                    match d.name {
+                        ast::Expr::Ident(sym) => {
+                            scope.bindings.push(sym);
+                        }
+                        _ => panic!("bad externs"),
+                    }
+                }
+            }
+            _ => panic!("bad externs"),
+        }
+    }
+    return scope;
+}
 
 fn decl_names(decls: &ast::VarDecls, scope: &mut ast::Scope) {
     for decl in decls.decls.iter() {
@@ -250,8 +334,8 @@ impl<'a> Visit<'a> {
     }
 }
 
-pub fn scope(externs: &ast::Scope, module: &mut ast::Module) {
-    let mut externs = ast::Scope { bindings: externs.bindings.clone() };
+pub fn scope(module: &mut ast::Module) {
+    let mut externs = load_externs();
     let mut visit = Visit {
         all_syms: vec![],
         globals: &mut externs,
