@@ -17,7 +17,7 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 
-pub use lex::{Span};
+pub use lex::Span;
 
 #[derive(Debug)]
 pub struct Symbol {
@@ -41,7 +41,9 @@ pub struct Scope {
 
 impl Scope {
     pub fn new() -> Scope {
-        Scope { bindings: Vec::new() }
+        Scope {
+            bindings: Vec::new(),
+        }
     }
     pub fn resolve(&self, sym: &Rc<Symbol>) -> Option<Rc<Symbol>> {
         let name = sym.name.borrow();
@@ -169,9 +171,7 @@ pub enum Stmt {
     Function(Box<Function>),
 }
 
-#[derive(Debug)]
-#[derive(Clone)]
-#[derive(Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum VarDeclType {
     Var,
     Const,

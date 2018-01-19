@@ -86,16 +86,14 @@ fn load_externs() -> ast::Scope {
     let module = p.module().unwrap();
     for s in module.stmts {
         match s {
-            ast::Stmt::Var(decls) => {
-                for d in decls.decls {
-                    match d.name {
-                        ast::Expr::Ident(sym) => {
-                            scope.bindings.push(sym);
-                        }
-                        _ => panic!("bad externs"),
+            ast::Stmt::Var(decls) => for d in decls.decls {
+                match d.name {
+                    ast::Expr::Ident(sym) => {
+                        scope.bindings.push(sym);
                     }
+                    _ => panic!("bad externs"),
                 }
-            }
+            },
             _ => panic!("bad externs"),
         }
     }
@@ -116,11 +114,9 @@ fn decl_names(decls: &ast::VarDecls, scope: &mut ast::Scope) {
 fn var_declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
     // Follows the definition of VarDeclaredNames in the spec.
     match *stmt {
-        ast::Stmt::Block(ref stmts) => {
-            for s in stmts {
-                var_declared_names(s, scope);
-            }
-        }
+        ast::Stmt::Block(ref stmts) => for s in stmts {
+            var_declared_names(s, scope);
+        },
         ast::Stmt::Var(ref decls) => {
             decl_names(decls, scope);
         }
@@ -138,8 +134,7 @@ fn var_declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
         }
         ast::Stmt::For(ref for_) => {
             match for_.init {
-                ast::ForInit::Empty |
-                ast::ForInit::Expr(_) => {}
+                ast::ForInit::Empty | ast::ForInit::Expr(_) => {}
                 ast::ForInit::Decls(ref decls) => {
                     decl_names(decls, scope);
                 }
@@ -148,21 +143,18 @@ fn var_declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
         }
         ast::Stmt::ForInOf(ref forinof) => {
             match forinof.init {
-                ast::ForInit::Empty |
-                ast::ForInit::Expr(_) => {}
+                ast::ForInit::Empty | ast::ForInit::Expr(_) => {}
                 ast::ForInit::Decls(ref decls) => {
                     decl_names(decls, scope);
                 }
             }
             var_declared_names(&forinof.body, scope);
         }
-        ast::Stmt::Switch(ref sw) => {
-            for case in sw.cases.iter() {
-                for stmt in case.stmts.iter() {
-                    var_declared_names(&stmt, scope);
-                }
+        ast::Stmt::Switch(ref sw) => for case in sw.cases.iter() {
+            for stmt in case.stmts.iter() {
+                var_declared_names(&stmt, scope);
             }
-        }
+        },
         ast::Stmt::Try(ref try) => {
             var_declared_names(&try.block, scope);
             if let Some((ref param, ref catch)) = try.catch {
@@ -184,9 +176,12 @@ fn var_declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
                 scope.bindings.push(name.clone());
             }
         }
-        ast::Stmt::Empty | ast::Stmt::Expr(_) |
-        ast::Stmt::Continue(_) | ast::Stmt::Break(_) |
-        ast::Stmt::Return(_) | ast::Stmt::Throw(_) => {}
+        ast::Stmt::Empty
+        | ast::Stmt::Expr(_)
+        | ast::Stmt::Continue(_)
+        | ast::Stmt::Break(_)
+        | ast::Stmt::Return(_)
+        | ast::Stmt::Throw(_) => {}
     }
 }
 
@@ -262,14 +257,19 @@ impl<'a> Visit<'a> {
         func.scope = visit.scope;
     }
 
-    fn resolve<'e>(&mut self, env: &Env<'e>, sym: &mut Rc<ast::Symbol>, create_global: bool) -> bool {
+    fn resolve<'e>(
+        &mut self,
+        env: &Env<'e>,
+        sym: &mut Rc<ast::Symbol>,
+        create_global: bool,
+    ) -> bool {
         if let Some(new) = env.resolve(&sym) {
             *sym = new;
             return true;
         }
         if let Some(new) = self.globals.resolve(&sym) {
             *sym = new;
-            return true
+            return true;
         }
         if create_global {
             eprintln!("inferred global: {}", sym.name.borrow());
@@ -291,12 +291,7 @@ impl<'a> Visit<'a> {
                 return;
             }
             ast::Expr::Function(ref mut func) => {
-                self.function(
-                    env,
-                    func,
-                    /* expression */
-                    true,
-                );
+                self.function(env, func, /* expression */ true);
                 return;
             }
             ast::Expr::TypeOf(ref mut expr) => {
@@ -316,12 +311,7 @@ impl<'a> Visit<'a> {
     fn stmt<'e>(&mut self, env: &Env<'e>, stmt: &mut ast::Stmt) {
         match *stmt {
             ast::Stmt::Function(ref mut func) => {
-                self.function(
-                    env,
-                    func,
-                    /* expression */
-                    false,
-                );
+                self.function(env, func, /* expression */ false);
             }
             _ => {
                 visit::stmt_expr(stmt, |e| {

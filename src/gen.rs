@@ -28,28 +28,20 @@ impl Prec for ast::BinOp {
         match self {
             &ast::BinOp::StarStar => 15,
 
-            &ast::BinOp::Star |
-            &ast::BinOp::Div |
-            &ast::BinOp::Percent => 14,
+            &ast::BinOp::Star | &ast::BinOp::Div | &ast::BinOp::Percent => 14,
 
-            &ast::BinOp::Plus |
-            &ast::BinOp::Minus => 13,
+            &ast::BinOp::Plus | &ast::BinOp::Minus => 13,
 
-            &ast::BinOp::LTLT |
-            &ast::BinOp::GTGT |
-            &ast::BinOp::GTGTGT => 12,
+            &ast::BinOp::LTLT | &ast::BinOp::GTGT | &ast::BinOp::GTGTGT => 12,
 
-            &ast::BinOp::LT |
-            &ast::BinOp::GT |
-            &ast::BinOp::LTE |
-            &ast::BinOp::GTE |
-            &ast::BinOp::In |
-            &ast::BinOp::InstanceOf => 11,
+            &ast::BinOp::LT
+            | &ast::BinOp::GT
+            | &ast::BinOp::LTE
+            | &ast::BinOp::GTE
+            | &ast::BinOp::In
+            | &ast::BinOp::InstanceOf => 11,
 
-            &ast::BinOp::EqEq |
-            &ast::BinOp::NEq |
-            &ast::BinOp::EqEqEq |
-            &ast::BinOp::NEqEq => 10,
+            &ast::BinOp::EqEq | &ast::BinOp::NEq | &ast::BinOp::EqEqEq | &ast::BinOp::NEqEq => 10,
 
             &ast::BinOp::BAnd => 9,
             &ast::BinOp::Xor => 8,
@@ -57,19 +49,19 @@ impl Prec for ast::BinOp {
             &ast::BinOp::AndAnd => 6,
             &ast::BinOp::OrOr => 5,
 
-            &ast::BinOp::Eq |
-            &ast::BinOp::PlusEq |
-            &ast::BinOp::MinusEq |
-            &ast::BinOp::StarEq |
-            &ast::BinOp::PercentEq |
-            &ast::BinOp::StarStarEq |
-            &ast::BinOp::LTLTEq |
-            &ast::BinOp::GTGTEq |
-            &ast::BinOp::GTGTGTEq |
-            &ast::BinOp::AndEq |
-            &ast::BinOp::OrEq |
-            &ast::BinOp::CaratEq |
-            &ast::BinOp::DivEq => 3,
+            &ast::BinOp::Eq
+            | &ast::BinOp::PlusEq
+            | &ast::BinOp::MinusEq
+            | &ast::BinOp::StarEq
+            | &ast::BinOp::PercentEq
+            | &ast::BinOp::StarStarEq
+            | &ast::BinOp::LTLTEq
+            | &ast::BinOp::GTGTEq
+            | &ast::BinOp::GTGTGTEq
+            | &ast::BinOp::AndEq
+            | &ast::BinOp::OrEq
+            | &ast::BinOp::CaratEq
+            | &ast::BinOp::DivEq => 3,
 
             &ast::BinOp::Comma => 0,
         }
@@ -315,9 +307,11 @@ impl<'a> Writer<'a> {
                                         false
                                     }
                                 }
-                                _ => {false}
+                                _ => false,
                             }
-                        } else { false };
+                        } else {
+                            false
+                        };
                         if !wrote {
                             w.token(":")?;
                             w.exprn(&p.value, 0)?;
@@ -360,25 +354,22 @@ impl<'a> Writer<'a> {
                     Ok(())
                 })?;
             }
-            &ast::Expr::Unary(ref op, ref expr) => {
-                match op {
-                    &ast::UnOp::PostPlusPlus |
-                    &ast::UnOp::PostMinusMinus => {
-                        self.maybe_paren(prec > 17, |w| {
-                            w.exprn(expr, 17)?;
-                            w.token(&op.to_string())?;
-                            Ok(())
-                        })?;
-                    }
-                    _ => {
-                        self.maybe_paren(prec > 16, |w| {
-                            w.token(&op.to_string())?;
-                            w.exprn(expr, 16)?;
-                            Ok(())
-                        })?;
-                    }
+            &ast::Expr::Unary(ref op, ref expr) => match op {
+                &ast::UnOp::PostPlusPlus | &ast::UnOp::PostMinusMinus => {
+                    self.maybe_paren(prec > 17, |w| {
+                        w.exprn(expr, 17)?;
+                        w.token(&op.to_string())?;
+                        Ok(())
+                    })?;
                 }
-            }
+                _ => {
+                    self.maybe_paren(prec > 16, |w| {
+                        w.token(&op.to_string())?;
+                        w.exprn(expr, 16)?;
+                        Ok(())
+                    })?;
+                }
+            },
             &ast::Expr::Binary(ref bin) => {
                 let p = bin.op.prec();
                 self.maybe_paren(prec > p, |w| {

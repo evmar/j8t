@@ -37,16 +37,14 @@ pub fn whitespace(it: &mut Scanner) -> bool {
 pub fn block_comment(s: &mut Scanner) -> Result<()> {
     loop {
         match s.read() as char {
-            '*' => {
-                match s.peek() as char {
-                    '/' => {
-                        s.read();
-                        return Ok(());
-                    }
-                    '\0' => return Err(s.err("unexpected eof")),
-                    _ => {}
+            '*' => match s.peek() as char {
+                '/' => {
+                    s.read();
+                    return Ok(());
                 }
-            }
+                '\0' => return Err(s.err("unexpected eof")),
+                _ => {}
+            },
             '\0' => return Err(s.err("unexpected eof")),
             _ => {}
         }
@@ -95,12 +93,10 @@ pub fn number_hex(scanner: &mut Scanner) -> u64 {
 pub fn number(scanner: &mut Scanner) -> f64 {
     let start = scanner.pos;
     match scanner.read() as char {
-        '0' => {
-            match scanner.read() as char {
-                'x' => return number_hex(scanner) as f64,
-                _ => scanner.back(),
-            }
-        }
+        '0' => match scanner.read() as char {
+            'x' => return number_hex(scanner) as f64,
+            _ => scanner.back(),
+        },
         _ => scanner.back(),
     }
     loop {
@@ -131,21 +127,19 @@ pub fn ident(s: &mut Scanner) {
 fn unicode_escape(s: &mut Scanner) -> Result<char> {
     let mut codepoint: u32 = 0;
     match s.read() as char {
-        '{' => {
-            loop {
-                let c = s.read();
-                if c as char == '}' {
-                    break;
-                }
-                let digit = match digit_hex(c) {
-                    Some(d) => d as u32,
-                    None => {
-                        return Err(s.err("bad hex escape"));
-                    }
-                };
-                codepoint = codepoint * 16 + digit;
+        '{' => loop {
+            let c = s.read();
+            if c as char == '}' {
+                break;
             }
-        }
+            let digit = match digit_hex(c) {
+                Some(d) => d as u32,
+                None => {
+                    return Err(s.err("bad hex escape"));
+                }
+            };
+            codepoint = codepoint * 16 + digit;
+        },
         _ => {
             s.back();
             for _ in 0..4 {
@@ -239,19 +233,17 @@ fn regex_body(s: &mut Scanner) {
             '\\' => {
                 s.read();
             }
-            '[' => {
-                loop {
-                    match s.read() as char {
-                        '\0' => panic!("EOF while reading regex"),
-                        '\n' => panic!("newline while reading regex"),
-                        '\\' => {
-                            s.read();
-                        }
-                        ']' => break,
-                        _ => {}
+            '[' => loop {
+                match s.read() as char {
+                    '\0' => panic!("EOF while reading regex"),
+                    '\n' => panic!("newline while reading regex"),
+                    '\\' => {
+                        s.read();
                     }
+                    ']' => break,
+                    _ => {}
                 }
-            }
+            },
             _ => {}
         }
     }
