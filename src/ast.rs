@@ -43,10 +43,11 @@ impl Scope {
     pub fn new() -> Scope {
         Scope { bindings: Vec::new() }
     }
-    pub fn resolve(&self, name: &str) -> Option<Rc<Symbol>> {
+    pub fn resolve(&self, sym: &Rc<Symbol>) -> Option<Rc<Symbol>> {
+        let name = sym.name.borrow();
         self.bindings
             .iter()
-            .find(|s| *s.name.borrow() == name)
+            .find(|s| *s.name.borrow() == *name)
             .map(|t| t.clone())
     }
 }
