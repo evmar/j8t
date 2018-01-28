@@ -42,6 +42,7 @@ var IDBDatabase;
 var IDBOpenDBRequest;
 var IDBRequest;
 var IDBTransaction;
+var Infinity;
 var Intl;
 var JSON;
 var Map;
