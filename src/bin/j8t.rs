@@ -93,7 +93,7 @@ fn real_main() -> bool {
     opts.optflag("h", "help", "");
     opts.optflag("", "timing", "");
     opts.optflag("", "fmt", "");
-    opts.optflag("", "rename", "");
+    opts.optflagopt("", "rename", "", "MODE");
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
         Err(f) => {
@@ -108,7 +108,16 @@ fn real_main() -> bool {
     let infile = &matches.free[0];
     let timing = matches.opt_present("timing");
     let fmt = matches.opt_present("fmt");
-    let rename = matches.opt_present("rename");
+    let (rename, debug_rename) =
+        match matches.opt_str("rename") {
+            None => (true, false),
+            Some(ref s) if s == "debug" => (true, true),
+            Some(ref s) if s == "off" => (false, false),
+            Some(_) => {
+                eprintln!("bad --rename");
+                return false;
+            }
+        };
 
     let mut input = Vec::<u8>::new();
     std::fs::File::open(infile)
@@ -129,7 +138,7 @@ fn real_main() -> bool {
     }
 
     if rename {
-        let (t, _) = measure(|| { eval::scope(&mut module); });
+        let (t, _) = measure(|| { eval::scope(&mut module, debug_rename); });
         if timing {
             eprintln!("scope: {}ms", t);
         }

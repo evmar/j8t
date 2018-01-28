@@ -338,7 +338,35 @@ impl<'a> Visit<'a> {
     }
 }
 
-pub fn scope(module: &mut ast::Module) {
+const NAME_GEN_ALPHABET: &'static [u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$";
+
+struct NameGen<'a> {
+    globals: &'a ast::Scope,
+    i: usize,
+}
+
+impl<'a> NameGen<'a> {
+    fn new_name(&mut self) -> String {
+        let mut name: String = String::new();
+        let mut i = self.i;
+        self.i += 1;
+        name.push(NAME_GEN_ALPHABET[i % NAME_GEN_ALPHABET.len()] as char);
+        i /= NAME_GEN_ALPHABET.len();
+        let ext_len = NAME_GEN_ALPHABET.len() + 10;
+        while i > 0 {
+            let ci = i % ext_len;
+            i /= ext_len;
+            name.push(if ci < NAME_GEN_ALPHABET.len() {
+                NAME_GEN_ALPHABET[ci]
+            } else {
+                b"01234567890"[ci - NAME_GEN_ALPHABET.len()]
+            } as char);
+        }
+        return name;
+    }
+}
+
+pub fn scope(module: &mut ast::Module, debug: bool) {
     let mut externs = load_externs();
     let mut visit = Visit {
         all_syms: vec![],
@@ -355,9 +383,14 @@ pub fn scope(module: &mut ast::Module) {
     }
     module.scope = env.scope;
 
+    let mut name_gen = NameGen { globals: &visit.globals, i: 0 };
     for (i, s) in visit.all_syms.iter_mut().enumerate() {
-        let new_name = format!("{}{}", s.name.borrow(), i);
-        // let new_name = format!("s{}", i);
+        let new_name =
+            if debug {
+                format!("{}{}", s.name.borrow(), i)
+            } else {
+                name_gen.new_name()
+            };
         *s.name.borrow_mut() = new_name;
     }
 }
