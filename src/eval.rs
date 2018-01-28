@@ -174,6 +174,9 @@ fn var_declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
                 }
                 var_declared_names(catch, scope);
             }
+            if let Some(ref finally) = try.finally {
+                var_declared_names(finally, scope);
+            }
         }
         ast::Stmt::Label(ref label) => {
             var_declared_names(&label.stmt, scope);
