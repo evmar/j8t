@@ -25,45 +25,45 @@ trait Prec {
 
 impl Prec for ast::BinOp {
     fn prec(&self) -> i8 {
-        match self {
-            &ast::BinOp::StarStar => 15,
+        match *self {
+            ast::BinOp::StarStar => 15,
 
-            &ast::BinOp::Star | &ast::BinOp::Div | &ast::BinOp::Percent => 14,
+            ast::BinOp::Star | ast::BinOp::Div | ast::BinOp::Percent => 14,
 
-            &ast::BinOp::Plus | &ast::BinOp::Minus => 13,
+            ast::BinOp::Plus | ast::BinOp::Minus => 13,
 
-            &ast::BinOp::LTLT | &ast::BinOp::GTGT | &ast::BinOp::GTGTGT => 12,
+            ast::BinOp::LTLT | ast::BinOp::GTGT | ast::BinOp::GTGTGT => 12,
 
-            &ast::BinOp::LT
-            | &ast::BinOp::GT
-            | &ast::BinOp::LTE
-            | &ast::BinOp::GTE
-            | &ast::BinOp::In
-            | &ast::BinOp::InstanceOf => 11,
+            ast::BinOp::LT
+            | ast::BinOp::GT
+            | ast::BinOp::LTE
+            | ast::BinOp::GTE
+            | ast::BinOp::In
+            | ast::BinOp::InstanceOf => 11,
 
-            &ast::BinOp::EqEq | &ast::BinOp::NEq | &ast::BinOp::EqEqEq | &ast::BinOp::NEqEq => 10,
+            ast::BinOp::EqEq | ast::BinOp::NEq | ast::BinOp::EqEqEq | ast::BinOp::NEqEq => 10,
 
-            &ast::BinOp::BAnd => 9,
-            &ast::BinOp::Xor => 8,
-            &ast::BinOp::BOr => 7,
-            &ast::BinOp::AndAnd => 6,
-            &ast::BinOp::OrOr => 5,
+            ast::BinOp::BAnd => 9,
+            ast::BinOp::Xor => 8,
+            ast::BinOp::BOr => 7,
+            ast::BinOp::AndAnd => 6,
+            ast::BinOp::OrOr => 5,
 
-            &ast::BinOp::Eq
-            | &ast::BinOp::PlusEq
-            | &ast::BinOp::MinusEq
-            | &ast::BinOp::StarEq
-            | &ast::BinOp::PercentEq
-            | &ast::BinOp::StarStarEq
-            | &ast::BinOp::LTLTEq
-            | &ast::BinOp::GTGTEq
-            | &ast::BinOp::GTGTGTEq
-            | &ast::BinOp::AndEq
-            | &ast::BinOp::OrEq
-            | &ast::BinOp::CaratEq
-            | &ast::BinOp::DivEq => 3,
+            ast::BinOp::Eq
+            | ast::BinOp::PlusEq
+            | ast::BinOp::MinusEq
+            | ast::BinOp::StarEq
+            | ast::BinOp::PercentEq
+            | ast::BinOp::StarStarEq
+            | ast::BinOp::LTLTEq
+            | ast::BinOp::GTGTEq
+            | ast::BinOp::GTGTGTEq
+            | ast::BinOp::AndEq
+            | ast::BinOp::OrEq
+            | ast::BinOp::CaratEq
+            | ast::BinOp::DivEq => 3,
 
-            &ast::BinOp::Comma => 0,
+            ast::BinOp::Comma => 0,
         }
     }
 }
@@ -255,18 +255,18 @@ impl<'a> Writer<'a> {
         self.expr(&e.1, prec)
     }
     fn expr(&mut self, e: &Expr, prec: i8) -> Result {
-        match e {
-            &ast::Expr::This => self.token("this")?,
-            &ast::Expr::Ident(ref s) => self.sym(&s)?,
-            &ast::Expr::Null => self.token("null")?,
-            &ast::Expr::Undefined => self.token("undefined")?,
-            &ast::Expr::Bool(b) => self.token(if b { "true" } else { "false" })?,
-            &ast::Expr::Number(ref n) => self.token(&format!("{}", n))?,
-            &ast::Expr::String(ref s) => self.quoted(s)?,
-            &ast::Expr::Array(ref arr) => {
+        match *e {
+            ast::Expr::This => self.token("this")?,
+            ast::Expr::Ident(ref s) => self.sym(&s)?,
+            ast::Expr::Null => self.token("null")?,
+            ast::Expr::Undefined => self.token("undefined")?,
+            ast::Expr::Bool(b) => self.token(if b { "true" } else { "false" })?,
+            ast::Expr::Number(ref n) => self.token(&format!("{}", n))?,
+            ast::Expr::String(ref s) => self.quoted(s)?,
+            ast::Expr::Array(ref arr) => {
                 self.wrap('[', ']', |w| w.comma(arr, |w, e| w.exprn(e, 0)))?;
             }
-            &ast::Expr::Object(ref obj) => {
+            ast::Expr::Object(ref obj) => {
                 self.brace(|w| {
                     w.comma(&obj.props, |w, p| {
                         // Write the property name, and grab the name string if
@@ -320,19 +320,19 @@ impl<'a> Writer<'a> {
                     })
                 })?;
             }
-            &ast::Expr::Function(ref f) => {
+            ast::Expr::Function(ref f) => {
                 let needs_parens = self.ofs == self.statement_start;
                 self.maybe_paren(needs_parens, |w| w.function(f))?;
             }
-            &ast::Expr::Regex(ref regex) => self.token(&regex.literal)?,
-            &ast::Expr::Index(ref expr, ref index) => {
+            ast::Expr::Regex(ref regex) => self.token(&regex.literal)?,
+            ast::Expr::Index(ref expr, ref index) => {
                 self.maybe_paren(prec > 19, |w| {
                     w.exprn(expr, 19)?;
                     w.wrap('[', ']', |w| w.exprn(index, -1))?;
                     Ok(())
                 })?;
             }
-            &ast::Expr::Field(ref expr, ref field) => {
+            ast::Expr::Field(ref expr, ref field) => {
                 self.maybe_paren(prec > 19, |w| {
                     w.exprn(expr, 19)?;
                     w.token(".")?;
@@ -340,22 +340,22 @@ impl<'a> Writer<'a> {
                     Ok(())
                 })?;
             }
-            &ast::Expr::New(ref expr) => {
+            ast::Expr::New(ref expr) => {
                 self.maybe_paren(prec > 18, |w| {
                     w.token("new")?;
                     w.exprn(expr, 18)?;
                     Ok(())
                 })?;
             }
-            &ast::Expr::Call(ref call) => {
+            ast::Expr::Call(ref call) => {
                 self.maybe_paren(prec > 19, |w| {
                     w.exprn(&call.func, 19)?;
                     w.paren(|w| w.comma(&call.args, |w, e| w.exprn(e, 0)))?;
                     Ok(())
                 })?;
             }
-            &ast::Expr::Unary(ref op, ref expr) => match op {
-                &ast::UnOp::PostPlusPlus | &ast::UnOp::PostMinusMinus => {
+            ast::Expr::Unary(ref op, ref expr) => match *op {
+                ast::UnOp::PostPlusPlus | ast::UnOp::PostMinusMinus => {
                     self.maybe_paren(prec > 17, |w| {
                         w.exprn(expr, 17)?;
                         w.token(&op.to_string())?;
@@ -370,7 +370,7 @@ impl<'a> Writer<'a> {
                     })?;
                 }
             },
-            &ast::Expr::Binary(ref bin) => {
+            ast::Expr::Binary(ref bin) => {
                 let p = bin.op.prec();
                 self.maybe_paren(prec > p, |w| {
                     w.exprn(&bin.lhs, p)?;
@@ -379,11 +379,11 @@ impl<'a> Writer<'a> {
                     Ok(())
                 })?;
             }
-            &ast::Expr::TypeOf(ref expr) => {
+            ast::Expr::TypeOf(ref expr) => {
                 self.token("typeof")?;
                 self.exprn(expr, 16)?;
             }
-            &ast::Expr::Ternary(ref t) => {
+            ast::Expr::Ternary(ref t) => {
                 self.maybe_paren(prec > 4, |w| {
                     w.exprn(&t.condition, 5)?;
                     w.token("?")?;
@@ -393,7 +393,7 @@ impl<'a> Writer<'a> {
                     Ok(())
                 })?;
             }
-            &ast::Expr::Assign(ref lhs, ref rhs) => {
+            ast::Expr::Assign(ref lhs, ref rhs) => {
                 self.maybe_paren(prec > 3, |w| {
                     w.exprn(lhs, 4)?;
                     w.token("=")?;
@@ -407,8 +407,8 @@ impl<'a> Writer<'a> {
 
     pub fn stmt(&mut self, s: &ast::Stmt) -> Result {
         self.statement_start = self.ofs;
-        match s {
-            &ast::Stmt::Block(ref stmts) => {
+        match *s {
+            ast::Stmt::Block(ref stmts) => {
                 self.brace(|w| {
                     for s in stmts.iter() {
                         w.stmt(s)?;
@@ -416,7 +416,7 @@ impl<'a> Writer<'a> {
                     Ok(())
                 })?;
             }
-            &ast::Stmt::Var(ref decl) => {
+            ast::Stmt::Var(ref decl) => {
                 self.token("var")?;
                 for (i, decl) in decl.decls.iter().enumerate() {
                     if i > 0 {
@@ -430,12 +430,12 @@ impl<'a> Writer<'a> {
                 }
                 self.semi()?;
             }
-            &ast::Stmt::Empty => self.semi()?,
-            &ast::Stmt::Expr(ref e) => {
+            ast::Stmt::Empty => self.semi()?,
+            ast::Stmt::Expr(ref e) => {
                 self.exprn(e, -1)?;
                 self.semi()?;
             }
-            &ast::Stmt::If(ref i) => {
+            ast::Stmt::If(ref i) => {
                 self.token("if")?;
                 self.paren(|w| w.expr(&i.cond, -1))?;
                 self.stmt(&i.iftrue)?;
@@ -444,19 +444,19 @@ impl<'a> Writer<'a> {
                     self.stmt(else_)?;
                 }
             }
-            &ast::Stmt::While(ref wh) => {
+            ast::Stmt::While(ref wh) => {
                 self.token("while")?;
                 self.paren(|w| w.expr(&wh.cond, -1))?;
                 self.stmt(&wh.body)?;
             }
-            &ast::Stmt::DoWhile(ref wh) => {
+            ast::Stmt::DoWhile(ref wh) => {
                 self.token("do")?;
                 self.stmt(&wh.body)?;
                 self.token("while")?;
                 self.paren(|w| w.expr(&wh.cond, -1))?;
                 self.semi()?;
             }
-            &ast::Stmt::For(ref f) => {
+            ast::Stmt::For(ref f) => {
                 self.token("for")?;
                 self.paren(|w| {
                     match f.init {
@@ -488,7 +488,7 @@ impl<'a> Writer<'a> {
                 })?;
                 self.stmt(&f.body)?;
             }
-            &ast::Stmt::ForInOf(ref f) => {
+            ast::Stmt::ForInOf(ref f) => {
                 self.token("for")?;
                 self.paren(|w| {
                     match f.init {
@@ -510,7 +510,7 @@ impl<'a> Writer<'a> {
                 })?;
                 self.stmt(&f.body)?;
             }
-            &ast::Stmt::Switch(ref switch) => {
+            ast::Stmt::Switch(ref switch) => {
                 self.token("switch")?;
                 self.paren(|w| w.expr(&switch.expr, -1))?;
                 self.brace(|w| {
@@ -528,38 +528,38 @@ impl<'a> Writer<'a> {
                     Ok(())
                 })?;
             }
-            &ast::Stmt::Break(ref label) => {
+            ast::Stmt::Break(ref label) => {
                 self.token("break")?;
                 if let &Some(ref label) = label {
                     self.token(label)?;
                 }
                 self.semi()?;
             }
-            &ast::Stmt::Continue(ref label) => {
+            ast::Stmt::Continue(ref label) => {
                 self.token("continue")?;
                 if let &Some(ref label) = label {
                     self.token(label)?;
                 }
                 self.semi()?;
             }
-            &ast::Stmt::Return(ref expr) => {
+            ast::Stmt::Return(ref expr) => {
                 self.token("return")?;
                 if let &Some(ref expr) = expr {
                     self.expr(expr, -1)?;
                 }
                 self.semi()?;
             }
-            &ast::Stmt::Label(ref label) => {
+            ast::Stmt::Label(ref label) => {
                 self.token(&label.label)?;
                 self.token(":")?;
                 self.stmt(&label.stmt)?;
             }
-            &ast::Stmt::Throw(ref expr) => {
+            ast::Stmt::Throw(ref expr) => {
                 self.token("throw")?;
                 self.expr(expr, -1)?;
                 self.semi()?;
             }
-            &ast::Stmt::Try(ref try) => {
+            ast::Stmt::Try(ref try) => {
                 self.token("try")?;
                 self.stmt(&try.block)?;
                 if let Some((ref v, ref stmt)) = try.catch {
@@ -572,7 +572,7 @@ impl<'a> Writer<'a> {
                     self.stmt(finally)?;
                 }
             }
-            &ast::Stmt::Function(ref f) => self.function(f)?,
+            ast::Stmt::Function(ref f) => self.function(f)?,
         }
         Ok(())
     }
