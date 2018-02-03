@@ -200,9 +200,43 @@ fn collect_scope(stmts: &[ast::Stmt], scope: &mut ast::Scope) {
     }
 }
 
+const NAME_GEN_ALPHABET: &'static [u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$";
+
+struct NameGen {
+    i: usize,
+}
+
+impl NameGen {
+    fn new() -> NameGen {
+        NameGen { i: 0 }
+    }
+    fn clone(&self) -> NameGen {
+        NameGen { i: self.i }
+    }
+    fn new_name(&mut self) -> String {
+        let mut i = self.i;
+        self.i += 1;
+        let mut name: String = String::new();
+        name.push(NAME_GEN_ALPHABET[i % NAME_GEN_ALPHABET.len()] as char);
+        i /= NAME_GEN_ALPHABET.len();
+        let ext_len = NAME_GEN_ALPHABET.len() + 10;
+        while i > 0 {
+            let ci = i % ext_len;
+            i /= ext_len;
+            name.push(if ci < NAME_GEN_ALPHABET.len() {
+                NAME_GEN_ALPHABET[ci]
+            } else {
+                b"01234567890"[ci - NAME_GEN_ALPHABET.len()]
+            } as char);
+        }
+        return name;
+    }
+}
+
 struct Env<'p> {
     scope: ast::Scope,
     parent: Option<&'p Env<'p>>,
+    name_gen: NameGen,
 }
 
 impl<'p> Env<'p> {
@@ -226,6 +260,19 @@ impl<'p> Env<'p> {
         Env {
             scope: ast::Scope::new(),
             parent: Some(self),
+            name_gen: self.name_gen.clone(),
+        }
+    }
+
+    fn rename(&mut self, debug: bool) {
+        for (i, s) in self.scope.bindings.iter_mut().enumerate() {
+            let new_name =
+                if debug {
+                    format!("{}{}", s.name.borrow(), i)
+                } else {
+                    self.name_gen.new_name()
+                };
+            *s.name.borrow_mut() = new_name;
         }
     }
 }
@@ -233,37 +280,39 @@ impl<'p> Env<'p> {
 struct Visit<'a> {
     all_syms: Vec<Rc<ast::Symbol>>,
     globals: &'a mut ast::Scope,
+    debug_rename: bool,
 }
 
 impl<'a> Visit<'a> {
     fn function<'e>(&mut self, env: &Env<'e>, func: &mut ast::Function, expr: bool) {
-        let mut visit = env.new_scope();
+        let mut env = env.new_scope();
         if let Some(ref name) = func.name {
             // The function name is itself in scope within the function,
             // for cases like:
             //   let x = (function foo() { ... foo(); });
             // See note 2 in 14.1.21.
             if expr {
-                visit.scope.bindings.push(name.clone());
+                env.scope.bindings.push(name.clone());
             }
         }
         let mut args = ast::Symbol::new("arguments");
         Rc::get_mut(&mut args).unwrap().renameable = false;
-        visit.scope.bindings.push(args);
+        env.scope.bindings.push(args);
         for p in func.params.iter() {
-            visit.scope.bindings.push(p.clone());
+            env.scope.bindings.push(p.clone());
         }
-        collect_scope(&mut func.body, &mut visit.scope);
+        collect_scope(&mut func.body, &mut env.scope);
         for s in func.body.iter_mut() {
-            self.stmt(&visit, s);
+            self.stmt(&env, s);
         }
-        for s in visit.scope.bindings.iter() {
+        for s in env.scope.bindings.iter() {
             if !s.renameable {
                 continue;
             }
             self.all_syms.push(s.clone());
         }
-        func.scope = visit.scope;
+        env.rename(self.debug_rename);
+        func.scope = env.scope;
     }
 
     fn resolve<'e>(&mut self, env: &Env<'e>, sym: &mut Rc<ast::Symbol>, create_global: bool) -> bool {
@@ -338,43 +387,17 @@ impl<'a> Visit<'a> {
     }
 }
 
-const NAME_GEN_ALPHABET: &'static [u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$";
-
-struct NameGen<'a> {
-    globals: &'a ast::Scope,
-    i: usize,
-}
-
-impl<'a> NameGen<'a> {
-    fn new_name(&mut self) -> String {
-        let mut name: String = String::new();
-        let mut i = self.i;
-        self.i += 1;
-        name.push(NAME_GEN_ALPHABET[i % NAME_GEN_ALPHABET.len()] as char);
-        i /= NAME_GEN_ALPHABET.len();
-        let ext_len = NAME_GEN_ALPHABET.len() + 10;
-        while i > 0 {
-            let ci = i % ext_len;
-            i /= ext_len;
-            name.push(if ci < NAME_GEN_ALPHABET.len() {
-                NAME_GEN_ALPHABET[ci]
-            } else {
-                b"01234567890"[ci - NAME_GEN_ALPHABET.len()]
-            } as char);
-        }
-        return name;
-    }
-}
-
 pub fn scope(module: &mut ast::Module, debug: bool) {
     let mut externs = load_externs();
     let mut visit = Visit {
         all_syms: vec![],
         globals: &mut externs,
+        debug_rename: debug,
     };
     let mut env = Env {
         scope: ast::Scope::new(),
         parent: None,
+        name_gen: NameGen::new(),
     };
 
     collect_scope(&mut module.stmts, &mut env.scope);
@@ -382,15 +405,4 @@ pub fn scope(module: &mut ast::Module, debug: bool) {
         visit.stmt(&env, s);
     }
     module.scope = env.scope;
-
-    let mut name_gen = NameGen { globals: &visit.globals, i: 0 };
-    for (i, s) in visit.all_syms.iter_mut().enumerate() {
-        let new_name =
-            if debug {
-                format!("{}{}", s.name.borrow(), i)
-            } else {
-                name_gen.new_name()
-            };
-        *s.name.borrow_mut() = new_name;
-    }
 }
