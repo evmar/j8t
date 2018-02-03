@@ -33,17 +33,17 @@ fn consumes_dangling_else(stmt: &ast::Stmt) -> bool {
         ast::Stmt::ForInOf(ref f) => consumes_dangling_else(&f.body),
         ast::Stmt::Label(ref l) => consumes_dangling_else(&l.stmt),
 
-        ast::Stmt::Var(_) |
-        ast::Stmt::Empty |
-        ast::Stmt::Expr(_) |
-        ast::Stmt::Switch(_) |
-        ast::Stmt::Continue(_) |
-        ast::Stmt::Break(_) |
-        ast::Stmt::Return(_) |
-        ast::Stmt::Throw(_) |
-        ast::Stmt::Try(_) |
-        ast::Stmt::DoWhile(_) |
-        ast::Stmt::Function(_) => false,
+        ast::Stmt::Var(_)
+        | ast::Stmt::Empty
+        | ast::Stmt::Expr(_)
+        | ast::Stmt::Switch(_)
+        | ast::Stmt::Continue(_)
+        | ast::Stmt::Break(_)
+        | ast::Stmt::Return(_)
+        | ast::Stmt::Throw(_)
+        | ast::Stmt::Try(_)
+        | ast::Stmt::DoWhile(_)
+        | ast::Stmt::Function(_) => false,
     }
 }
 
@@ -58,11 +58,7 @@ fn deblock_expr(expr: &mut ast::Expr) {
     match *expr {
         ast::Expr::Function(ref mut func) => {
             for s in func.body.iter_mut() {
-                deblock_stmt(
-                    s,
-                    /* parent is try */
-                    false,
-                );
+                deblock_stmt(s, /* parent is try */ false);
             }
         }
         _ => visit::expr_expr(expr, |e| deblock_expr(&mut e.1)),
@@ -108,11 +104,7 @@ fn deblock_stmt(stmt: &mut ast::Stmt, parent_is_try: bool) {
 
 pub fn deblock(module: &mut ast::Module) {
     for s in module.stmts.iter_mut() {
-        deblock_stmt(
-            s,
-            /* parent is try */
-            false,
-        );
+        deblock_stmt(s, /* parent is try */ false);
     }
 }
 

@@ -24,8 +24,7 @@ use lex::scan::TokData;
 use lex::scanner::Result;
 use std;
 
-#[derive(Clone)]
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Span {
     pub start: usize,
     pub end: usize,
@@ -33,7 +32,7 @@ pub struct Span {
 
 impl Span {
     pub fn new(start: usize, end: usize) -> Span {
-        Span{
+        Span {
             start: start,
             end: end,
         }

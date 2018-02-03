@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-extern crate j8t;
 extern crate getopts;
+extern crate j8t;
 
 use j8t::ast;
 use j8t::lex::Tok;
@@ -51,12 +51,10 @@ impl FmtWrite {
             .stdin(std::process::Stdio::piped())
             .spawn()?;
         let w = Box::new(c.stdin.take().unwrap());
-        Ok(
-            (FmtWrite {
-                 child: c,
-                 w: Some(w),
-             }),
-        )
+        Ok((FmtWrite {
+            child: c,
+            w: Some(w),
+        }))
     }
 }
 
@@ -138,13 +136,17 @@ fn real_main() -> bool {
     }
 
     if rename {
-        let (t, _) = measure(|| { eval::scope(&mut module, debug_rename); });
+        let (t, _) = measure(|| {
+            eval::scope(&mut module, debug_rename);
+        });
         if timing {
             eprintln!("scope: {}ms", t);
         }
     }
 
-    let (t, _) = measure(|| { trans::deblock(&mut module); });
+    let (t, _) = measure(|| {
+        trans::deblock(&mut module);
+    });
     if timing {
         eprintln!("deblock: {}ms", t);
     }

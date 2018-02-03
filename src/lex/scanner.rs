@@ -48,7 +48,11 @@ impl<'a> Scanner<'a> {
     pub fn err<S: Into<String>>(&self, msg: S) -> LexError {
         LexError {
             msg: msg.into(),
-            pos: if self.pos > 0 { self.pos - 1 } else { self.pos },
+            pos: if self.pos > 0 {
+                self.pos - 1
+            } else {
+                self.pos
+            },
         }
     }
 

@@ -104,7 +104,6 @@ impl<'a> CodeGen<'a> {
     }
 }
 
-
 fn gen_match(w: &mut CodeGen, t: &Trie) -> io::Result<()> {
     if t.edges.len() > 0 {
         w.write_match("s.read() as char", |w| {
@@ -348,15 +347,11 @@ fn gen_scan() -> Result {
     );
     trie.insert(
         "'".bytes(),
-        String::from(
-            "*data = TokData::String(hand::quoted(s, '\\'')?); Tok::String",
-        ),
+        String::from("*data = TokData::String(hand::quoted(s, '\\'')?); Tok::String"),
     );
     trie.insert(
         "\"".bytes(),
-        String::from(
-            "*data = TokData::String(hand::quoted(s, '\"')?); Tok::String",
-        ),
+        String::from("*data = TokData::String(hand::quoted(s, '\"')?); Tok::String"),
     );
     trie.matchers.push(String::from(
         "'0'...'9' => { s.back(); *data = TokData::Number(hand::number(s)); Tok::Number }",
