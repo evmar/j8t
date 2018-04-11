@@ -732,7 +732,7 @@ mod tests {
   'with space': function() {},
 });",
             ),
-            "{plain:0,0:number,string:1,pun,func(){},explicit_func(){},\"with space\":function(){}}"
+            "{plain:0,0:number,string:1,pun,func(){},explicit_func:function(){},\"with space\":function(){}}"
         );
     }
 }

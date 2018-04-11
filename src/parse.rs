@@ -1010,7 +1010,7 @@ mod tests {
     fn parse_expr(input: &str) -> Expr {
         println!("parse_expr: {:?}", input);
         let mut p = Parser::new(input.as_bytes());
-        let expr = match p.expr() {
+        let (_, expr) = match p.expr() {
             Err(err) => {
                 err.print(&p.lexer);
                 panic!("err");
@@ -1047,7 +1047,7 @@ mod tests {
         let expr = parse_expr("a + b + c");
         match expr {
             Expr::Binary(ref bin) => match bin.lhs {
-                Expr::Binary(_) => {}
+                (_, Expr::Binary(_)) => {}
                 _ => panic!("fail"),
             },
             _ => panic!("fail"),
