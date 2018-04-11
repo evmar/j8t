@@ -621,12 +621,12 @@ mod tests {
     }
 
     #[test]
-    fn test_write() {
+    fn write() {
         assert_eq!(codegen("foo + bar"), "foo+bar");
     }
 
     #[test]
-    fn test_prec() {
+    fn prec() {
         assert_eq!(codegen("a = b = c"), "a=b=c");
         assert_eq!(codegen("(a = b) = c"), "(a=b)=c");
 
@@ -639,20 +639,20 @@ mod tests {
     }
 
     #[test]
-    fn test_func_expr() {
+    fn func_expr() {
         assert_eq!(codegen("function(){}"), "function(){}");
         assert_eq!(codegen("(function(){})()"), "(function(){})()");
     }
 
     #[test]
-    fn test_whitespace() {
+    fn whitespace() {
         assert_eq!(codegen("1 += +2;"), "1+=+2");
         assert_eq!(codegen("return typeof a;"), "return typeof a");
         assert_eq!(codegen("if (a) b; else if (c) d;"), "if(a)b;else if(c)d");
     }
 
     #[test]
-    fn test_switch() {
+    fn switch() {
         assert_eq!(
             codegen("switch (a) { case b: case 3: z; default: q; }"),
             "switch(a){case b:case 3:z;default:q}"
@@ -660,7 +660,7 @@ mod tests {
     }
 
     #[test]
-    fn test_obj_props() {
+    fn obj_props() {
         assert_eq!(
             codegen("x = {a:0,'b':0,'c?':0,'e f':0};"),
             "x={a:0,b:0,\"c?\":0,\"e f\":0}"
@@ -668,22 +668,22 @@ mod tests {
     }
 
     #[test]
-    fn test_regex() {
+    fn regex() {
         assert_eq!(codegen("x = /a/g;"), "x=/a/g");
     }
 
     #[test]
-    fn test_plusplus() {
+    fn plusplus() {
         assert_eq!(codegen("++x--"), "++x--");
     }
 
     #[test]
-    fn test_comma() {
+    fn comma() {
         assert_eq!(codegen("var x = 3, y = 4;x=3,y=4;"), "var x=3,y=4;x=3,y=4");
     }
 
     #[test]
-    fn test_for() {
+    fn for_variants() {
         // assert_eq!(codegen("for (;;);"), "for(;;)");
         // assert_eq!(codegen("for (var x = 3; a; b);"), "for(var x=3;a;b)");
         assert_eq!(
@@ -697,7 +697,7 @@ mod tests {
     }
 
     #[test]
-    fn test_number() {
+    fn number() {
         assert_eq!(codegen("1"), "1");
         assert_eq!(codegen("1.1"), "1.1");
         assert_eq!(codegen("0xb"), "11");
@@ -706,19 +706,19 @@ mod tests {
     }
 
     #[test]
-    fn test_string() {
+    fn string() {
         assert_eq!(codegen("'a\\nb'"), "\"a\\nb\"");
         assert_eq!(codegen(r#""a'b""#), r#""a'b""#);
         assert_eq!(codegen(r#"'a"b'"#), r#"'a"b'"#);
     }
 
     #[test]
-    fn test_vars() {
+    fn vars() {
         assert_eq!(codegen("var x = 3, y = 4;"), "var x=3,y=4");
     }
 
     #[test]
-    fn test_object() {
+    fn object() {
         // TODO: parens around obj literal.
         assert_eq!(
             codegen(

@@ -129,7 +129,7 @@ mod tests {
     }
 
     #[test]
-    fn test_deblock() {
+    fn deblock_if() {
         let mut sts = parse("if (a) { return b(c) }");
         deblock(&mut sts);
         println!("{}", gen(&sts));
@@ -140,14 +140,14 @@ mod tests {
     }
 
     #[test]
-    fn test_try() {
+    fn try() {
         let mut sts = parse("try { x; } catch (e) { y; }");
         deblock(&mut sts);
         println!("{}", gen(&sts));
     }
 
     #[test]
-    fn test_nested() {
+    fn nested() {
         let mut sts = parse("if (a) { if (b) { c; } else if (d) { e } } else if (g) { h }");
         deblock(&mut sts);
         println!("{}", gen(&sts));

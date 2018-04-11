@@ -151,7 +151,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_dots() {
+    fn dots() {
         let l = Lexer::new("a.b.c".as_bytes());
         let toks: Vec<Tok> = l.collect();
         assert_eq!(
@@ -161,7 +161,7 @@ mod tests {
     }
 
     #[test]
-    fn test_keywords() {
+    fn keywords() {
         let l = Lexer::new("func function".as_bytes());
         let toks: Vec<Tok> = l.collect();
         assert_eq!(toks.as_slice(), &[Tok::Ident, Tok::Function]);

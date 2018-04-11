@@ -1038,12 +1038,12 @@ mod tests {
     }
 
     #[test]
-    fn test_expr() {
+    fn expr() {
         parse_expr("abc");
     }
 
     #[test]
-    fn test_assoc() {
+    fn assoc() {
         let expr = parse_expr("a + b + c");
         match expr {
             Expr::Binary(ref bin) => match bin.lhs {
@@ -1055,7 +1055,7 @@ mod tests {
     }
 
     #[test]
-    fn test_binop() {
+    fn binop() {
         parse_expr("a * b + c * d + e * f * g + h");
 
         parse_expr("i + j * k + l");
@@ -1064,18 +1064,18 @@ mod tests {
     }
 
     #[test]
-    fn test_field() {
+    fn field() {
         parse_expr("a.b.c");
         //parse_expr("a.3");
     }
 
     #[test]
-    fn test_unary() {
+    fn unary() {
         parse_expr("a + typeof typeof a.b + a");
     }
 
     #[test]
-    fn test_umd() {
+    fn umd() {
         parse_expr(
             "function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
@@ -1086,7 +1086,7 @@ mod tests {
     }
 
     #[test]
-    fn test_asi() {
+    fn asi() {
         parse(
             "{ a
 b } c",
@@ -1094,7 +1094,7 @@ b } c",
     }
 
     #[test]
-    fn test_asi_case() {
+    fn asi_case() {
         parse(
             "
       switch (c) {
@@ -1105,7 +1105,7 @@ b } c",
     }
 
     #[test]
-    fn test_asi_return() {
+    fn asi_return() {
         parse(
             "return
 return 3
@@ -1116,21 +1116,21 @@ return",
     }
 
     #[test]
-    fn test_asi_comment() {
+    fn asi_comment() {
         parse(
             "var foo = function() {}
 /** comment */ x;");
     }
 
     #[test]
-    fn test_asi_comment_2() {
+    fn asi_comment_2() {
         parse(
             "var foo = function() {}  // x
 x;");
     }
 
     #[test]
-    fn test_for() {
+    fn for_variants() {
         parse("for (;;);");
         parse("for (var x = 3; a; b);");
         parse("for (var x = 3, y = 4; a; b);");
@@ -1141,17 +1141,17 @@ x;");
     }
 
     #[test]
-    fn test_kws() {
+    fn kws() {
         parse("foo.extends = bar.case;");
     }
 
     #[test]
-    fn test_label() {
+    fn label() {
         parse("foo: bar;");
     }
 
     #[test]
-    fn test_object() {
+    fn object() {
         parse("({a: b, 'a': b, a, a() {}, 0: 0, a});");
     }
 

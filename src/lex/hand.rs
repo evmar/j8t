@@ -275,13 +275,13 @@ mod tests {
         }
 
         #[test]
-        fn test_body() {
+        fn body() {
             parse("a[b/]/");
         }
     }
 
     #[test]
-    fn test_block_comment_stars() {
+    fn block_comment_stars() {
         let mut s = Scanner::new("/*//***/".as_bytes());
         block_comment(&mut s).unwrap();
         block_comment(&mut s).unwrap();
@@ -296,7 +296,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_number() {
+    fn number_variants() {
         assert_eq!(parse_number("1"), 1.0);
         assert_eq!(parse_number("1.1"), 1.1);
         assert_eq!(parse_number("0xb"), 11.0);
