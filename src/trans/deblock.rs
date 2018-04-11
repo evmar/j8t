@@ -43,7 +43,8 @@ fn consumes_dangling_else(stmt: &ast::Stmt) -> bool {
         | ast::Stmt::Throw(_)
         | ast::Stmt::Try(_)
         | ast::Stmt::DoWhile(_)
-        | ast::Stmt::Function(_) => false,
+        | ast::Stmt::Function(_)
+        | ast::Stmt::Class(_) => false,
     }
 }
 

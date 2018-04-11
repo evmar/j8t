@@ -121,6 +121,13 @@ pub struct Function {
 }
 
 #[derive(Debug)]
+pub struct Class {
+    pub name: Option<Rc<Symbol>>,
+    // TODO: heritage.
+    pub methods: Vec<Function>,
+}
+
+#[derive(Debug)]
 pub struct Regex {
     // TODO: parse into body and flags?
     pub literal: String,
@@ -169,6 +176,7 @@ pub enum Stmt {
     Try(Box<Try>),
 
     Function(Box<Function>),
+    Class(Box<Class>),
 }
 
 #[derive(Debug, Clone, Copy)]

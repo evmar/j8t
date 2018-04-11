@@ -316,6 +316,39 @@ impl<'a> Parser<'a> {
         })
     }
 
+    // 14.5 Class Definitions
+    fn class(&mut self) -> ParseResult<ast::Class> {
+        let name = match self.lex_peek()? {
+            Tok::Ident => {
+                let token = self.lex_read()?;
+                Some(ast::Symbol::new(self.lexer.text(token)))
+            }
+            _ => None,
+        };
+        let mut methods: Vec<ast::Function> = Vec::new();
+        self.expect(Tok::LBrace)?;
+        loop {
+            let token = self.lex_read()?;
+            match token.tok {
+                Tok::Ident => {
+                    let name = Some(ast::Symbol::new(self.lexer.text(token)));
+                    methods.push(self.function_from_paren(name)?);
+                }
+                Tok::Semi => {
+                    // Stray extra semis are allowed per spec.
+                }
+                Tok::RBrace => break,
+                _ => {
+                    return Err(self.parse_error(token, "class body"));
+                }
+            }
+        }
+        Ok(ast::Class{
+            name: name,
+            methods: methods,
+        })
+    }
+
     // 14.1 Function Definitions
     fn function(&mut self) -> ParseResult<ast::Function> {
         let name = match self.lex_peek()? {
@@ -902,7 +935,8 @@ impl<'a> Parser<'a> {
         let token = self.lex_read()?;
         let stmt = match token.tok {
             // Declaration
-            Tok::Function => Stmt::Function(Box::new(try!(self.function()))),
+            Tok::Class => Stmt::Class(Box::new(self.class()?)),
+            Tok::Function => Stmt::Function(Box::new(self.function()?)),
             // Statement
             Tok::LBrace => {
                 let body = try!(self.stmts());
@@ -1158,5 +1192,14 @@ x;");
     #[test]
     fn trailing_comma() {
         parse("f({a,}, [b,], );");
+    }
+
+    #[test]
+    fn class() {
+        parse("class C {
+f() { var x; }
+;
+f2() {}
+}");
     }
 }

@@ -226,6 +226,20 @@ impl<'a> Writer<'a> {
         Ok(())
     }
 
+    fn class(&mut self, c: &ast::Class) -> Result {
+        self.token("class")?;
+        if let Some(ref name) = c.name {
+            self.sym(name)?;
+        }
+        self.brace(|w| {
+            for s in c.methods.iter() {
+                panic!("class methods");
+            }
+            Ok(())
+        })?;
+        Ok(())
+    }
+
     fn write_char(&mut self, c: char) -> Result {
         let buf: [u8; 1] = [c as u8];
         self.write_all(&buf[..])?;
@@ -573,6 +587,7 @@ impl<'a> Writer<'a> {
                 }
             }
             ast::Stmt::Function(ref f) => self.function(f)?,
+            ast::Stmt::Class(ref c) => self.class(c)?,
         }
         Ok(())
     }

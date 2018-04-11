@@ -180,6 +180,9 @@ fn var_declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
                 scope.bindings.push(name.clone());
             }
         }
+        ast::Stmt::Class(ref class) => {
+            // TODO: class bindings.
+        }
         ast::Stmt::Empty
         | ast::Stmt::Expr(_)
         | ast::Stmt::Continue(_)
