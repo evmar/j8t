@@ -1116,6 +1116,20 @@ return",
     }
 
     #[test]
+    fn test_asi_comment() {
+        parse(
+            "var foo = function() {}
+/** comment */ x;");
+    }
+
+    #[test]
+    fn test_asi_comment_2() {
+        parse(
+            "var foo = function() {}  // x
+x;");
+    }
+
+    #[test]
     fn test_for() {
         parse("for (;;);");
         parse("for (var x = 3; a; b);");

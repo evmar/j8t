@@ -65,8 +65,11 @@ impl<'a> Lexer<'a> {
             return Ok(t);
         }
 
+        let mut saw_newline = false;
         loop {
-            let saw_newline = hand::whitespace(&mut self.scan);
+            if hand::whitespace(&mut self.scan) {
+                saw_newline = true;
+            }
             let start = self.scan.pos;
             let mut data: scan::TokData = scan::TokData::None;
             let mut tok = scan::sc(&mut self.scan, &mut data)?;
