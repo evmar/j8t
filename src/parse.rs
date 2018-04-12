@@ -527,15 +527,17 @@ impl<'a> Parser<'a> {
                 }
                 Tok::PlusEq
                 | Tok::MinusEq
-                | Tok::StarEq
-                | Tok::PercentEq
                 | Tok::StarStarEq
+                | Tok::StarEq
+                | Tok::DivEq
+                | Tok::PercentEq
                 | Tok::LTLTEq
                 | Tok::GTGTEq
                 | Tok::GTGTGTEq
                 | Tok::AndEq
                 | Tok::OrEq
-                | Tok::CaratEq if prec <= 3 =>
+                | Tok::CaratEq
+                | Tok::OrEq if prec <= 3 =>
                 {
                     let rhs = self.expr_prec(3)?;
                     expr = (
