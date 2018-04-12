@@ -12,3 +12,7 @@ debug = true
 [[bin]]
 name = "j8t"
 doc = false
+
+[[bin]]
+name = "genscan"
+doc = false
