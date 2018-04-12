@@ -349,6 +349,49 @@ impl<'a> Parser<'a> {
         })
     }
 
+    fn binding_element(&mut self) -> ParseResult<ast::BindingElement> {
+        let token = self.lex_read()?;
+        Ok(match token.tok {
+            Tok::Ident => ast::BindingElement::Name(ast::Symbol::new(self.lexer.text(token))),
+            Tok::LBrace => {
+                let mut props: Vec<Rc<ast::Symbol>> = Vec::new();
+                loop {
+                    // BindingProperty
+                    let token = self.lex_read()?;
+                    match token.tok {
+                        Tok::Ident => {
+                            props.push(ast::Symbol::new(self.lexer.text(token)));
+                        }
+                        _ => {
+                            self.lexer.back(token);
+                            break;
+                        }
+                    }
+                    if self.lex_peek()? == Tok::Comma {
+                        self.lex_read()?;
+                    } else {
+                        break;
+                    }
+                }
+                self.expect(Tok::RBrace)?;
+                let mut init: Option<ExprNode> = None;
+                if self.lex_peek()? == Tok::Eq {
+                    self.lex_read()?;
+                    // Assignment expression
+                    init = Some(self.expr_prec(3)?);
+                }
+                ast::BindingElement::BindingPattern(
+                    ast::BindingPattern::Object(ast::ObjectBindingPattern { props: props }),
+                    init,
+                )
+            }
+            // Tok::LSquare => {
+            //     // Array binding pattern.
+            // }
+            _ => return Err(self.parse_error(token, "binding element")),
+        })
+    }
+
     // 14.1 Function Definitions
     fn function(&mut self) -> ParseResult<ast::Function> {
         let name = match self.lex_peek()? {
@@ -364,18 +407,13 @@ impl<'a> Parser<'a> {
     fn function_from_paren(&mut self, name: Option<Rc<ast::Symbol>>) -> ParseResult<ast::Function> {
         self.expect(Tok::LParen)?;
         let mut params: Vec<ast::BindingElement> = Vec::new();
-        loop {
-            if self.lex_peek()? == Tok::Ident {
-                let token = self.lex_read()?;
-                params.push(ast::BindingElement::Name(ast::Symbol::new(
-                    self.lexer.text(token),
-                )));
-                if self.lex_peek()? == Tok::Comma {
-                    self.lex_read()?;
-                    continue;
-                }
+        while self.lex_peek()? != Tok::RParen {
+            params.push(self.binding_element()?);
+            if self.lex_peek()? == Tok::Comma {
+                self.lex_read()?;
+            } else {
+                break;
             }
-            break;
         }
         self.expect(Tok::RParen)?;
 
@@ -1212,5 +1250,12 @@ x;",
             );
         }
 
+        #[test]
+        fn function_binding() {
+            parse("function f({a}) {}");
+            parse("function f({a,b}) {}");
+            parse("function f({a,b,}) {}");
+            parse("function f({a} = {}) {}");
+        }
     }
 }

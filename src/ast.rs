@@ -114,7 +114,7 @@ pub struct Property {
 
 #[derive(Debug)]
 pub struct ObjectBindingPattern {
-    // TODO
+    pub props: Vec<Rc<Symbol>>,
 }
 
 #[derive(Debug)]
@@ -124,14 +124,14 @@ pub struct ArrayBindingPattern {
 
 #[derive(Debug)]
 pub enum BindingPattern {
-    ObjectBindingPattern(ObjectBindingPattern),
-    ArrayBindingPattern(ArrayBindingPattern),
+    Object(ObjectBindingPattern),
+    Array(ArrayBindingPattern),
 }
 
 #[derive(Debug)]
 pub enum BindingElement {
     Name(Rc<Symbol>),
-    BindingPattern(BindingPattern),
+    BindingPattern(BindingPattern, Option<ExprNode>),
 }
 
 #[derive(Debug)]
