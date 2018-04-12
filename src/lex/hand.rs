@@ -90,18 +90,26 @@ pub fn number_hex(scanner: &mut Scanner) -> u64 {
     }
 }
 
-pub fn number(scanner: &mut Scanner) -> f64 {
+pub fn number(scanner: &mut Scanner) -> Result<f64> {
     let start = scanner.pos;
     match scanner.read() as char {
         '0' => match scanner.read() as char {
-            'x' => return number_hex(scanner) as f64,
+            'x' => return Ok(number_hex(scanner) as f64),
             _ => scanner.back(),
         },
         _ => scanner.back(),
     }
     loop {
         match scanner.read() as char {
-            '0'...'9' | '.' | 'e' | 'E' => {}
+            '0'...'9' | '.' => {}
+            // ExponentPart
+            'e' | 'E' => {
+                match scanner.read() as char {
+                    '-' | '+' => {}
+                    _ => scanner.back(),
+                }
+                // TODO: the full state machine here.
+            }
             _ => {
                 scanner.back();
                 break;
@@ -110,7 +118,10 @@ pub fn number(scanner: &mut Scanner) -> f64 {
     }
     let end = scanner.pos;
     let str = std::str::from_utf8(&scanner.input[start..end]).unwrap();
-    return str.parse().unwrap();
+    match str.parse() {
+        Ok(n) => Ok(n),
+        Err(err) => Err(scanner.err(format!("bad number: {:?}", str))),
+    }
 }
 
 pub fn ident(s: &mut Scanner) {
@@ -291,8 +302,10 @@ mod tests {
     fn parse_number(s: &str) -> f64 {
         let mut scan = Scanner::new(s.as_bytes());
         let n = number(&mut scan);
-        assert_eq!(scan.read(), 0);
-        n
+        if scan.read() != 0 {
+            panic!("leftover text after parse");
+        }
+        n.unwrap()
     }
 
     #[test]
@@ -301,5 +314,8 @@ mod tests {
         assert_eq!(parse_number("1.1"), 1.1);
         assert_eq!(parse_number("0xb"), 11.0);
         assert_eq!(parse_number("1e3"), 1000.0);
+        assert_eq!(parse_number("1e-3"), 0.001);
+        // TODO: some failing number variants, e.g.
+        //  "1e3e3", "1.2.3"
     }
 }

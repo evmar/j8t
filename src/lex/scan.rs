@@ -384,7 +384,7 @@ pub fn sc(s: &mut Scanner, data: &mut TokData) -> Result<Tok> {
         '~' => Tok::BNot,
         '0'...'9' => {
             s.back();
-            *data = TokData::Number(hand::number(s));
+            *data = TokData::Number(hand::number(s)?);
             Tok::Number
         }
         'a'...'z' | 'A'...'Z' | '_' | '$' => {
