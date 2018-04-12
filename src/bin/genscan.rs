@@ -232,6 +232,7 @@ const KWS: StrTab = &[
     ("import", "Import"),
     ("in", "In"),
     ("instanceof", "InstanceOf"),
+    ("let", "Let"),
     ("new", "New"),
     ("return", "Return"),
     ("super", "Super"),

@@ -989,11 +989,17 @@ impl<'a> Parser<'a> {
                 try!(self.expect(Tok::RBrace));
                 Stmt::Block(body)
             }
-            Tok::Var => {
-                let decls = try!(self.bindings());
-                try!(self.expect_semi());
+            Tok::Var | Tok::Let | Tok::Const => {
+                let typ = match token.tok {
+                    Tok::Var => ast::VarDeclType::Var,
+                    Tok::Let => ast::VarDeclType::Let,
+                    Tok::Const => ast::VarDeclType::Const,
+                    _ => unreachable!(),
+                };
+                let decls = self.bindings()?;
+                self.expect_semi()?;
                 Stmt::Var(Box::new(ast::VarDecls {
-                    typ: ast::VarDeclType::Var,
+                    typ: typ,
                     decls: decls,
                 }))
             }
@@ -1262,6 +1268,12 @@ x;",
             parse("function f({a,b}) {}");
             parse("function f({a,b,}) {}");
             parse("function f({a} = {}) {}");
+        }
+
+        #[test]
+        fn let_const() {
+            parse("let x = 3, y;");
+            parse("const x, y = 4;");
         }
     }
 }

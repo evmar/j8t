@@ -92,6 +92,7 @@ pub enum Tok {
     Import,
     In,
     InstanceOf,
+    Let,
     New,
     Return,
     Super,
@@ -186,6 +187,7 @@ impl Tok {
             &Tok::Import => true,
             &Tok::In => true,
             &Tok::InstanceOf => true,
+            &Tok::Let => true,
             &Tok::New => true,
             &Tok::Return => true,
             &Tok::Super => true,
@@ -412,6 +414,9 @@ pub fn kw(text: &[u8]) -> Tok {
         3 => {
             if text == "for".as_bytes() {
                 return Tok::For;
+            }
+            if text == "let".as_bytes() {
+                return Tok::Let;
             }
             if text == "new".as_bytes() {
                 return Tok::New;
