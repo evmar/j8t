@@ -363,11 +363,11 @@ impl<'a> Parser<'a> {
 
     fn function_from_paren(&mut self, name: Option<Rc<ast::Symbol>>) -> ParseResult<ast::Function> {
         self.expect(Tok::LParen)?;
-        let mut params: Vec<Rc<ast::Symbol>> = Vec::new();
+        let mut params: Vec<ast::BindingElement> = Vec::new();
         loop {
             if self.lex_peek()? == Tok::Ident {
                 let token = self.lex_read()?;
-                params.push(ast::Symbol::new(self.lexer.text(token)));
+                params.push(ast::BindingElement::Name(ast::Symbol::new(self.lexer.text(token))));
                 if self.lex_peek()? == Tok::Comma {
                     self.lex_read()?;
                     continue;
@@ -1194,12 +1194,17 @@ x;");
         parse("f({a,}, [b,], );");
     }
 
-    #[test]
-    fn class() {
-        parse("class C {
-f() { var x; }
-;
-f2() {}
+    mod es6 {
+        use super::*;
+
+        #[test]
+        fn class() {
+            parse("class C {
+  f() { var x; }
+  ;
+  f2() {}
 }");
+        }
+
     }
 }

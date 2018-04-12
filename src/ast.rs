@@ -113,10 +113,32 @@ pub struct Property {
 }
 
 #[derive(Debug)]
+pub struct ObjectBindingPattern {
+    // TODO
+}
+
+#[derive(Debug)]
+pub struct ArrayBindingPattern {
+    // TODO
+}
+
+#[derive(Debug)]
+pub enum BindingPattern {
+    ObjectBindingPattern(ObjectBindingPattern),
+    ArrayBindingPattern(ArrayBindingPattern),
+}
+
+#[derive(Debug)]
+pub enum BindingElement {
+    Name(Rc<Symbol>),
+    BindingPattern(BindingPattern),
+}
+
+#[derive(Debug)]
 pub struct Function {
     pub scope: Scope,
     pub name: Option<Rc<Symbol>>,
-    pub params: Vec<Rc<Symbol>>,
+    pub params: Vec<BindingElement>,
     pub body: Vec<Stmt>,
 }
 

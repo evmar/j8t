@@ -296,8 +296,13 @@ impl<'a> Visit<'a> {
         let mut args = ast::Symbol::new("arguments");
         Rc::get_mut(&mut args).unwrap().renameable = false;
         env.scope.bindings.push(args);
-        for p in func.params.iter() {
-            env.scope.bindings.push(p.clone());
+        for param in func.params.iter() {
+            match *param {
+                ast::BindingElement::Name(ref name) => {
+                    env.scope.bindings.push(name.clone());
+                }
+                _ => unimplemented!(),
+            }
         }
         collect_scope(&mut func.body, &mut env.scope);
         for s in func.body.iter_mut() {
