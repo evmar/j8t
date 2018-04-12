@@ -264,12 +264,11 @@ impl<'p> Env<'p> {
 
     fn rename(&mut self, debug: bool) {
         for (i, s) in self.scope.bindings.iter_mut().enumerate() {
-            let new_name =
-                if debug {
-                    format!("{}{}", s.name.borrow(), i)
-                } else {
-                    self.name_gen.new_name()
-                };
+            let new_name = if debug {
+                format!("{}{}", s.name.borrow(), i)
+            } else {
+                self.name_gen.new_name()
+            };
             *s.name.borrow_mut() = new_name;
         }
     }

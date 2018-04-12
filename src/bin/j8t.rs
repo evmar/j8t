@@ -106,16 +106,15 @@ fn real_main() -> bool {
     let infile = &matches.free[0];
     let timing = matches.opt_present("timing");
     let fmt = matches.opt_present("fmt");
-    let (rename, debug_rename) =
-        match matches.opt_str("rename") {
-            None => (true, false),
-            Some(ref s) if s == "debug" => (true, true),
-            Some(ref s) if s == "off" => (false, false),
-            Some(_) => {
-                eprintln!("bad --rename");
-                return false;
-            }
-        };
+    let (rename, debug_rename) = match matches.opt_str("rename") {
+        None => (true, false),
+        Some(ref s) if s == "debug" => (true, true),
+        Some(ref s) if s == "off" => (false, false),
+        Some(_) => {
+            eprintln!("bad --rename");
+            return false;
+        }
+    };
 
     let mut input = Vec::<u8>::new();
     std::fs::File::open(infile)

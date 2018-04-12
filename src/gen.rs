@@ -215,13 +215,15 @@ impl<'a> Writer<'a> {
     }
 
     fn function_from_paren(&mut self, f: &ast::Function) -> Result {
-        self.paren(|w| w.comma(&f.params, |w, param| {
-            match *param {
-                ast::BindingElement::Name(ref name) => w.sym(name)?,
-                _ => unimplemented!(),
-            }
-            Ok(())
-        }))?;
+        self.paren(|w| {
+            w.comma(&f.params, |w, param| {
+                match *param {
+                    ast::BindingElement::Name(ref name) => w.sym(name)?,
+                    _ => unimplemented!(),
+                }
+                Ok(())
+            })
+        })?;
         self.brace(|w| {
             w.dump_scope(&f.scope)?;
             for s in f.body.iter() {

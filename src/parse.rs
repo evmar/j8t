@@ -343,7 +343,7 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        Ok(ast::Class{
+        Ok(ast::Class {
             name: name,
             methods: methods,
         })
@@ -367,7 +367,9 @@ impl<'a> Parser<'a> {
         loop {
             if self.lex_peek()? == Tok::Ident {
                 let token = self.lex_read()?;
-                params.push(ast::BindingElement::Name(ast::Symbol::new(self.lexer.text(token))));
+                params.push(ast::BindingElement::Name(ast::Symbol::new(
+                    self.lexer.text(token),
+                )));
                 if self.lex_peek()? == Tok::Comma {
                     self.lex_read()?;
                     continue;
@@ -1153,14 +1155,16 @@ return",
     fn asi_comment() {
         parse(
             "var foo = function() {}
-/** comment */ x;");
+/** comment */ x;",
+        );
     }
 
     #[test]
     fn asi_comment_2() {
         parse(
             "var foo = function() {}  // x
-x;");
+x;",
+        );
     }
 
     #[test]
@@ -1199,11 +1203,13 @@ x;");
 
         #[test]
         fn class() {
-            parse("class C {
+            parse(
+                "class C {
   f() { var x; }
   ;
   f2() {}
-}");
+}",
+            );
         }
 
     }
