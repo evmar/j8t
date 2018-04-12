@@ -355,11 +355,21 @@ fn gen_scan() -> Result {
         String::from("*data = TokData::String(hand::quoted(s, '\"')?); Tok::String"),
     );
     trie.matchers.push(String::from(
-        "'0'...'9' => { s.back(); *data = TokData::Number(hand::number(s)); Tok::Number }",
+        "'0'...'9' => { s.back(); *data = TokData::Number(hand::number(s)?); Tok::Number }",
     ));
     trie.matchers.push(String::from(
         "'a'...'z' | 'A'...'Z' | '_' | '$' => { hand::ident(s); Tok::Ident }",
     ));
+    // Make '.' followed by a digit parse as a number.
+    for &mut (c, ref mut t) in trie.edges.iter_mut() {
+        if c == '.' as u8 {
+            // Two .backs(), one for the dot, one for the digit.
+            t.matchers.push(String::from(
+                "'0'...'9' => { s.back(); s.back(); *data = TokData::Number(hand::number(s)?); Tok::Number }",
+            ));
+            break;
+        }
+    }
     trie.sort();
     gen_trie(w, &mut trie)?;
 

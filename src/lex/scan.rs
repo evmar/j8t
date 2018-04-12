@@ -291,6 +291,12 @@ pub fn sc(s: &mut Scanner, data: &mut TokData) -> Result<Tok> {
                 '.' => Tok::Ellipsis,
                 c => panic!("xxx {:?}", c),
             },
+            '0'...'9' => {
+                s.back();
+                s.back();
+                *data = TokData::Number(hand::number(s)?);
+                Tok::Number
+            }
             _ => {
                 s.back();
                 Tok::Dot

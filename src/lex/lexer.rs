@@ -150,20 +150,31 @@ impl<'a> Iterator for Lexer<'a> {
 mod tests {
     use super::*;
 
+    fn assert_toks(input: &str, expected_toks: &[Tok]) {
+        let l = Lexer::new(input.as_bytes());
+        let toks: Vec<Tok> = l.collect();
+        assert_eq!(toks.as_slice(), expected_toks,);
+    }
+
     #[test]
     fn dots() {
-        let l = Lexer::new("a.b.c".as_bytes());
-        let toks: Vec<Tok> = l.collect();
-        assert_eq!(
-            toks.as_slice(),
-            &[Tok::Ident, Tok::Dot, Tok::Ident, Tok::Dot, Tok::Ident]
+        assert_toks(
+            "a.b.c",
+            &[Tok::Ident, Tok::Dot, Tok::Ident, Tok::Dot, Tok::Ident],
         );
     }
 
     #[test]
     fn keywords() {
-        let l = Lexer::new("func function".as_bytes());
-        let toks: Vec<Tok> = l.collect();
-        assert_eq!(toks.as_slice(), &[Tok::Ident, Tok::Function]);
+        assert_toks("func function", &[Tok::Ident, Tok::Function]);
+    }
+
+    #[test]
+    fn decimals() {
+        assert_toks(".123", &[Tok::Number]);
+        assert_toks("1.123", &[Tok::Number]);
+        assert_toks(". 123", &[Tok::Dot, Tok::Number]);
+        assert_toks("123. 123", &[Tok::Number, Tok::Number]);
+        assert_toks("123 . 123", &[Tok::Number, Tok::Dot, Tok::Number]);
     }
 }
