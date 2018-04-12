@@ -74,6 +74,12 @@ fn is_for_in_of_head(expr: &Expr) -> bool {
     }
 }
 
+// Given an expression that occurs after a 'var', extract the vars
+// that were actually declared.
+// E.g. given the input
+//     var x = 3, y
+//         *      *
+// this given the expressions marked *.
 fn decls_from_expr(expr: Expr, decls: &mut Vec<ast::VarDecl>) {
     match expr {
         ast::Expr::Ident(_) => {
