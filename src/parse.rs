@@ -82,18 +82,21 @@ fn is_for_in_of_head(expr: &Expr) -> bool {
 // this given the expressions marked *.
 fn decls_from_expr(expr: Expr, decls: &mut Vec<ast::VarDecl>) {
     match expr {
-        ast::Expr::Ident(_) => {
+        ast::Expr::Ident(name) => {
             decls.push(ast::VarDecl {
-                name: expr,
+                pattern: ast::BindingPattern::Name(name),
                 init: None,
             });
         }
-        ast::Expr::Assign(lhs, rhs) => {
-            decls.push(ast::VarDecl {
-                name: lhs.1,
-                init: Some(rhs.1),
-            });
-        }
+        ast::Expr::Assign(lhs, rhs) => match *lhs {
+            (_, ast::Expr::Ident(name)) => {
+                decls.push(ast::VarDecl {
+                    pattern: ast::BindingPattern::Name(name),
+                    init: Some(*rhs),
+                });
+            }
+            _ => panic!("decls_from_expr"),
+        },
         ast::Expr::Binary(bin) => {
             let bin = *bin;
             if bin.op == ast::BinOp::Comma {
@@ -355,10 +358,12 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn binding_element(&mut self) -> ParseResult<ast::BindingElement> {
+    // See BindingPattern and BindingElement in the spec,
+    // but note that this also encompasses plain names.
+    fn binding_pattern(&mut self) -> ParseResult<ast::BindingPattern> {
         let token = self.lex_read()?;
         Ok(match token.tok {
-            Tok::Ident => ast::BindingElement::Name(ast::Symbol::new(self.lexer.text(token))),
+            Tok::Ident => ast::BindingPattern::Name(ast::Symbol::new(self.lexer.text(token))),
             Tok::LBrace => {
                 let mut props: Vec<Rc<ast::Symbol>> = Vec::new();
                 loop {
@@ -380,16 +385,7 @@ impl<'a> Parser<'a> {
                     }
                 }
                 self.expect(Tok::RBrace)?;
-                let mut init: Option<ExprNode> = None;
-                if self.lex_peek()? == Tok::Eq {
-                    self.lex_read()?;
-                    // Assignment expression
-                    init = Some(self.expr_prec(3)?);
-                }
-                ast::BindingElement::BindingPattern(
-                    ast::BindingPattern::Object(ast::ObjectBindingPattern { props: props }),
-                    init,
-                )
+                ast::BindingPattern::Object(ast::ObjectBindingPattern { props: props })
             }
             // Tok::LSquare => {
             //     // Array binding pattern.
@@ -412,9 +408,16 @@ impl<'a> Parser<'a> {
 
     fn function_from_paren(&mut self, name: Option<Rc<ast::Symbol>>) -> ParseResult<ast::Function> {
         self.expect(Tok::LParen)?;
-        let mut params: Vec<ast::BindingElement> = Vec::new();
+        let mut params: Vec<(ast::BindingPattern, Option<ExprNode>)> = Vec::new();
         while self.lex_peek()? != Tok::RParen {
-            params.push(self.binding_element()?);
+            let binding = self.binding_pattern()?;
+            let mut init: Option<ExprNode> = None;
+            if self.lex_peek()? == Tok::Eq {
+                self.lex_read()?;
+                init = Some(self.expr_prec(3 /* assignment expr */)?);
+            }
+            params.push((binding, init));
+
             if self.lex_peek()? == Tok::Comma {
                 self.lex_read()?;
             } else {
@@ -718,20 +721,10 @@ impl<'a> Parser<'a> {
         self.expr_prec(0)
     }
 
-    // Read a variable binding left hand side.
-    fn binding(&mut self) -> ParseResult<Expr> {
-        let token = self.lex_read()?;
-        Ok(match token.tok {
-            Tok::Ident => ast::Expr::Ident(ast::Symbol::new(self.lexer.text(token))),
-            // TODO: binding patterns.
-            _ => return Err(self.parse_error(token, "binding")),
-        })
-    }
-
     fn bindings(&mut self) -> ParseResult<Vec<ast::VarDecl>> {
         let mut decls: Vec<ast::VarDecl> = Vec::new();
         loop {
-            let binding = self.binding()?;
+            let pattern = self.binding_pattern()?;
             let init = if self.lex_peek()? == Tok::Eq {
                 self.lex_read()?;
                 Some(self.expr_prec(1)?)
@@ -739,8 +732,8 @@ impl<'a> Parser<'a> {
                 None
             };
             decls.push(ast::VarDecl {
-                name: binding,
-                init: init.map(|i| i.1),
+                pattern: pattern,
+                init: init,
             });
 
             if self.lex_peek()? == Tok::Comma {
@@ -798,6 +791,13 @@ impl<'a> Parser<'a> {
     fn for_stmt(&mut self) -> ParseResult<Stmt> {
         // This is subtle because of the many possible forms of a 'for' statement.
         // See the test.
+        // The important thing to open with is (unfortunately) a parse of the
+        // body as an expr(), not anything more complex, because we need to parse
+        // all of
+        //   for (x = 3; ...
+        //   for (x in y) ...
+        //   for ([x] = 3; ...
+        //   for ([x] in y; ...
 
         self.expect(Tok::LParen)?;
 
@@ -819,29 +819,23 @@ impl<'a> Parser<'a> {
             // So instead first check if it's a match, then match a second time
             // to consume it.
             if is_for_in_of_head(&expr.1) {
-                let init = match expr.1 {
-                    ast::Expr::Binary(bin) => {
-                        if let Some(decl_type) = decl_type {
-                            let bin = *bin;
-                            let decls = ast::VarDecls {
-                                typ: decl_type,
-                                decls: vec![
-                                    ast::VarDecl {
-                                        name: bin.lhs.1,
-                                        init: Some(bin.rhs.1),
-                                    },
-                                ],
-                            };
-                            ast::ForInit::Decls(decls)
-                        } else {
-                            ast::ForInit::Expr(ast::Expr::Binary(bin))
-                        }
-                    }
-                    _ => unreachable!(),
+                let bin = match expr.1 {
+                    ast::Expr::Binary(bin) => *bin,
+                    _ => unreachable!(), // assured by is_for_in_of_head.
                 };
+                let ast::Binary {lhs, rhs, op} = bin;
+                let loop_var =
+                    match lhs.1 {
+                        ast::Expr::Ident(name) => {
+                            ast::BindingPattern::Name(name)
+                        }
+                        _ => unimplemented!(),
+                    };
                 self.expect(Tok::RParen)?;
                 return Ok(Stmt::ForInOf(Box::new(ast::ForInOf {
-                    init: init,
+                    decl_type: decl_type,
+                    loop_var: loop_var,
+                    expr: rhs,
                     body: self.stmt()?,
                 })));
             }
@@ -926,7 +920,7 @@ impl<'a> Parser<'a> {
         let catch = if self.lex_peek()? == Tok::Catch {
             self.lex_read()?;
             self.expect(Tok::LParen)?;
-            let catch_expr = self.binding()?;
+            let catch_expr = self.binding_pattern()?;
             self.expect(Tok::RParen)?;
             let catch_block = self.block()?;
             Some((catch_expr, catch_block))
@@ -1276,6 +1270,11 @@ x;",
         fn let_const() {
             parse("let x = 3, y;");
             parse("const x, y = 4;");
+        }
+
+        #[test]
+        fn let_binding() {
+            parse("const {x} = a;");
         }
     }
 }

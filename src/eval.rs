@@ -88,8 +88,8 @@ fn load_externs() -> ast::Scope {
     for s in module.stmts {
         match s {
             ast::Stmt::Var(decls) => for d in decls.decls {
-                match d.name {
-                    ast::Expr::Ident(sym) => {
+                match d.pattern {
+                    ast::BindingPattern::Name(sym) => {
                         scope.bindings.push(sym);
                     }
                     _ => panic!("bad externs"),
@@ -103,8 +103,8 @@ fn load_externs() -> ast::Scope {
 
 fn decl_names(decls: &ast::VarDecls, scope: &mut ast::Scope) {
     for decl in decls.decls.iter() {
-        match decl.name {
-            ast::Expr::Ident(ref sym) => {
+        match decl.pattern {
+            ast::BindingPattern::Name(ref sym) => {
                 scope.bindings.push(sym.clone());
             }
             _ => panic!("vardecl {:?}", decl),
@@ -143,10 +143,12 @@ fn var_declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
             var_declared_names(&for_.body, scope);
         }
         ast::Stmt::ForInOf(ref forinof) => {
-            match forinof.init {
-                ast::ForInit::Empty | ast::ForInit::Expr(_) => {}
-                ast::ForInit::Decls(ref decls) => {
-                    decl_names(decls, scope);
+            if forinof.decl_type.is_some() {
+                match forinof.loop_var {
+                    ast::BindingPattern::Name(ref sym) => {
+                        scope.bindings.push(sym.clone());
+                    }
+                    _ => unimplemented!("forinof"),
                 }
             }
             var_declared_names(&forinof.body, scope);
@@ -158,12 +160,13 @@ fn var_declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
         },
         ast::Stmt::Try(ref try) => {
             var_declared_names(&try.block, scope);
-            if let Some((ref param, ref catch)) = try.catch {
-                // TODO: not part of the spec, how does param get in scope?
-                if let ast::Expr::Ident(ref sym) = *param {
-                    scope.bindings.push(sym.clone());
-                } else {
-                    unimplemented!("binding pattern");
+            if let Some((ref pattern, ref catch)) = try.catch {
+                // TODO: not part of the spec, how does decl get in scope?
+                match *pattern {
+                    ast::BindingPattern::Name(ref sym) => {
+                        scope.bindings.push(sym.clone());
+                    }
+                    _ => unimplemented!("binding pattern"),
                 }
                 var_declared_names(catch, scope);
             }
@@ -297,7 +300,7 @@ impl<'a> Visit<'a> {
         env.scope.bindings.push(args);
         for param in func.params.iter() {
             match *param {
-                ast::BindingElement::Name(ref name) => {
+                (ast::BindingPattern::Name(ref name), _) => {
                     env.scope.bindings.push(name.clone());
                 }
                 _ => unimplemented!(),

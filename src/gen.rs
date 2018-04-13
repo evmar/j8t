@@ -218,7 +218,7 @@ impl<'a> Writer<'a> {
         self.paren(|w| {
             w.comma(&f.params, |w, param| {
                 match *param {
-                    ast::BindingElement::Name(ref name) => w.sym(name)?,
+                    (ast::BindingPattern::Name(ref name), _) => w.sym(name)?,
                     _ => unimplemented!(),
                 }
                 Ok(())
@@ -427,6 +427,25 @@ impl<'a> Writer<'a> {
         Ok(())
     }
 
+    fn binding_pattern(&mut self, pattern: &ast::BindingPattern) -> Result {
+        match *pattern {
+            ast::BindingPattern::Name(ref name) => {
+                self.sym(name)?;
+            }
+            _ => unimplemented!(),
+        }
+        Ok(())
+    }
+
+    fn var_decl(&mut self, decl: &ast::VarDecl) -> Result {
+        self.binding_pattern(&decl.pattern)?;
+        if let Some((_, ref init)) = decl.init {
+            self.token("=")?;
+            self.expr(init, -1)?;
+        }
+        Ok(())
+    }
+
     pub fn stmt(&mut self, s: &ast::Stmt) -> Result {
         self.statement_start = self.ofs;
         match *s {
@@ -440,16 +459,7 @@ impl<'a> Writer<'a> {
             }
             ast::Stmt::Var(ref decl) => {
                 self.token("var")?;
-                for (i, decl) in decl.decls.iter().enumerate() {
-                    if i > 0 {
-                        self.token(",")?;
-                    }
-                    self.expr(&decl.name, -1)?;
-                    if let Some(ref init) = decl.init {
-                        self.token("=")?;
-                        self.expr(init, -1)?;
-                    }
-                }
+                self.comma(&decl.decls, |w, decl| w.var_decl(decl))?;
                 self.semi()?;
             }
             ast::Stmt::Empty => self.semi()?,
@@ -488,14 +498,7 @@ impl<'a> Writer<'a> {
                             if decls.decls.len() > 0 {
                                 w.token(decls.typ.to_string())?;
                             }
-                            w.comma(&decls.decls, |w, d| {
-                                w.expr(&d.name, -1)?;
-                                if let Some(ref init) = d.init {
-                                    w.token("=")?;
-                                    w.expr(init, -1)?;
-                                }
-                                Ok(())
-                            })?;
+                            w.comma(&decls.decls, |w, d| w.var_decl(d))?;
                         }
                     }
                     w.token(";")?;
@@ -513,21 +516,12 @@ impl<'a> Writer<'a> {
             ast::Stmt::ForInOf(ref f) => {
                 self.token("for")?;
                 self.paren(|w| {
-                    match f.init {
-                        ast::ForInit::Empty => {}
-                        ast::ForInit::Expr(ref e) => w.expr(e, -1)?,
-                        ast::ForInit::Decls(ref decls) => {
-                            w.comma(&decls.decls, |w, d| {
-                                w.token(decls.typ.to_string())?;
-                                w.expr(&d.name, -1)?;
-                                if let Some(ref init) = d.init {
-                                    w.token("in")?;
-                                    w.expr(init, -1)?;
-                                }
-                                Ok(())
-                            })?;
-                        }
+                    if let Some(decl_type) = f.decl_type {
+                        w.token(decl_type.to_string())?;
                     }
+                    w.binding_pattern(&f.loop_var)?;
+                    w.token("in")?; // TODO
+                    w.exprn(&f.expr, -1)?;
                     Ok(())
                 })?;
                 self.stmt(&f.body)?;
@@ -584,9 +578,9 @@ impl<'a> Writer<'a> {
             ast::Stmt::Try(ref try) => {
                 self.token("try")?;
                 self.stmt(&try.block)?;
-                if let Some((ref v, ref stmt)) = try.catch {
+                if let Some((ref decl, ref stmt)) = try.catch {
                     self.token("catch")?;
-                    self.paren(|w| w.expr(v, -1))?;
+                    self.paren(|w| w.binding_pattern(decl))?;
                     self.stmt(stmt)?;
                 }
                 if let Some(ref finally) = try.finally {

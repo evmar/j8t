@@ -70,8 +70,8 @@ pub fn stmt_expr_forinit<F: FnMut(&mut ast::Expr)>(init: &mut ast::ForInit, f: &
     match *init {
         ast::ForInit::Empty => {}
         ast::ForInit::Expr(ref mut e) => f(e),
-        ast::ForInit::Decls(ref mut decls) => for d in decls.decls.iter_mut() {
-            if let Some(ref mut init) = d.init {
+        ast::ForInit::Decls(ref mut decls) => for decl in decls.decls.iter_mut() {
+            if let Some((_, ref mut init)) = decl.init {
                 f(init);
             }
         },
@@ -96,7 +96,7 @@ pub fn stmt_expr<F: FnMut(&mut ast::Expr)>(stmt: &mut ast::Stmt, mut f: F) {
             }
         }
         ast::Stmt::ForInOf(ref mut for_) => {
-            stmt_expr_forinit(&mut for_.init, &mut f);
+            f(&mut for_.expr.1);
         }
         ast::Stmt::Switch(ref mut sw) => f(&mut sw.expr),
         ast::Stmt::Expr(ref mut e) => f(&mut e.1),
@@ -107,8 +107,8 @@ pub fn stmt_expr<F: FnMut(&mut ast::Expr)>(stmt: &mut ast::Stmt, mut f: F) {
         }
         ast::Stmt::Throw(ref mut e) => f(e),
 
-        ast::Stmt::Var(ref mut decls) => for d in decls.decls.iter_mut() {
-            if let Some(ref mut init) = d.init {
+        ast::Stmt::Var(ref mut decls) => for decl in decls.decls.iter_mut() {
+            if let Some((_, ref mut init)) = decl.init {
                 f(init);
             }
         },

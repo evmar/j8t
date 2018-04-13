@@ -124,21 +124,16 @@ pub struct ArrayBindingPattern {
 
 #[derive(Debug)]
 pub enum BindingPattern {
+    Name(Rc<Symbol>),
     Object(ObjectBindingPattern),
     Array(ArrayBindingPattern),
-}
-
-#[derive(Debug)]
-pub enum BindingElement {
-    Name(Rc<Symbol>),
-    BindingPattern(BindingPattern, Option<ExprNode>),
 }
 
 #[derive(Debug)]
 pub struct Function {
     pub scope: Scope,
     pub name: Option<Rc<Symbol>>,
-    pub params: Vec<BindingElement>,
+    pub params: Vec<(BindingPattern, Option<ExprNode>)>,
     pub body: Vec<Stmt>,
 }
 
@@ -220,8 +215,8 @@ impl VarDeclType {
 
 #[derive(Debug)]
 pub struct VarDecl {
-    pub name: Expr,
-    pub init: Option<Expr>,
+    pub pattern: BindingPattern,
+    pub init: Option<ExprNode>,
 }
 
 #[derive(Debug)]
@@ -260,7 +255,10 @@ pub struct For {
 
 #[derive(Debug)]
 pub struct ForInOf {
-    pub init: ForInit,
+    pub decl_type: Option<VarDeclType>,
+    pub loop_var: BindingPattern,
+    // TODO: op
+    pub expr: ExprNode,
     pub body: Stmt,
 }
 
@@ -285,7 +283,7 @@ pub struct Label {
 #[derive(Debug)]
 pub struct Try {
     pub block: Stmt,
-    pub catch: Option<(Expr, Stmt)>,
+    pub catch: Option<(BindingPattern, Stmt)>,
     pub finally: Option<Stmt>,
 }
 
