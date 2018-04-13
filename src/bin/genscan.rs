@@ -162,6 +162,7 @@ const TOKS: StrTab = &[
     ("?", "Question"),
     (":", "Colon"),
     ("}", "RBrace"),
+    ("=>", "Arrow"),
 ];
 
 const UNOPS: StrTab = &[

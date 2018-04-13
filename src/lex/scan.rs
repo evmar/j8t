@@ -31,6 +31,7 @@ pub enum Tok {
     Question,
     Colon,
     RBrace,
+    Arrow,
     Not,
     BNot,
     PlusPlus,
@@ -126,6 +127,7 @@ impl Tok {
             &Tok::Question => false,
             &Tok::Colon => false,
             &Tok::RBrace => false,
+            &Tok::Arrow => false,
             &Tok::Not => false,
             &Tok::BNot => false,
             &Tok::PlusPlus => false,
@@ -341,6 +343,7 @@ pub fn sc(s: &mut Scanner, data: &mut TokData) -> Result<Tok> {
                     Tok::EqEq
                 }
             },
+            '>' => Tok::Arrow,
             _ => {
                 s.back();
                 Tok::Eq
