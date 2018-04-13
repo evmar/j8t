@@ -823,14 +823,11 @@ impl<'a> Parser<'a> {
                     ast::Expr::Binary(bin) => *bin,
                     _ => unreachable!(), // assured by is_for_in_of_head.
                 };
-                let ast::Binary {lhs, rhs, op} = bin;
-                let loop_var =
-                    match lhs.1 {
-                        ast::Expr::Ident(name) => {
-                            ast::BindingPattern::Name(name)
-                        }
-                        _ => unimplemented!(),
-                    };
+                let ast::Binary { lhs, rhs, op } = bin;
+                let loop_var = match lhs.1 {
+                    ast::Expr::Ident(name) => ast::BindingPattern::Name(name),
+                    _ => unimplemented!(),
+                };
                 self.expect(Tok::RParen)?;
                 return Ok(Stmt::ForInOf(Box::new(ast::ForInOf {
                     decl_type: decl_type,
