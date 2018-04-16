@@ -307,7 +307,9 @@ fn gen_scan() -> Result {
         writeln!(w, "Comment,")?;
         writeln!(w, "String,")?;
         writeln!(w, "Number,")?;
-        writeln!(w, "Ident,")
+        writeln!(w, "Ident,")?;
+        writeln!(w, "Template,")?;
+        Ok(())
     })?;
 
     writeln!(w, "impl Tok")?;
@@ -325,7 +327,9 @@ fn gen_scan() -> Result {
                 writeln!(w, "&Tok::Comment => false,")?;
                 writeln!(w, "&Tok::String => false,")?;
                 writeln!(w, "&Tok::Number => false,")?;
-                writeln!(w, "&Tok::Ident => false,")
+                writeln!(w, "&Tok::Ident => false,")?;
+                writeln!(w, "&Tok::Template => false,")?;
+                Ok(())
             })
         })
     })?;
@@ -359,6 +363,10 @@ fn gen_scan() -> Result {
     trie.insert(
         "\"".bytes(),
         String::from("*data = TokData::String(hand::quoted(s, '\"')?); Tok::String"),
+    );
+    trie.insert(
+        "`".bytes(),
+        String::from("*data = TokData::String(hand::template(s)?); Tok::Template"),
     );
     trie.matchers.push(String::from(
         "'0'...'9' => { s.back(); *data = TokData::Number(hand::number(s)?); Tok::Number }",

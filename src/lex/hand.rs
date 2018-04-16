@@ -236,6 +236,20 @@ pub fn quoted(s: &mut Scanner, quote: char) -> Result<String> {
     }
 }
 
+pub fn template(s: &mut Scanner) -> Result<String> {
+    let mut str: Vec<u8> = Vec::new();
+    loop {
+        match s.read() as char {
+            '`' => break,
+            c => str.push(c as u8),
+        }
+    }
+    match String::from_utf8(str) {
+        Ok(s) => Ok(s),
+        Err(err) => Err(s.err(format!("bad UTF-8: {}", err))),
+    }
+}
+
 fn regex_body(s: &mut Scanner) {
     loop {
         match s.read() as char {

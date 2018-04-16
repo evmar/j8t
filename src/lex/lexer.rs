@@ -177,4 +177,9 @@ mod tests {
         assert_toks("123. 123", &[Tok::Number, Tok::Number]);
         assert_toks("123 . 123", &[Tok::Number, Tok::Dot, Tok::Number]);
     }
+
+    #[test]
+    fn template() {
+        assert_toks("`foo`", &[Tok::Template]);
+    }
 }

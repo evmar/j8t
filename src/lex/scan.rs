@@ -111,6 +111,7 @@ pub enum Tok {
     String,
     Number,
     Ident,
+    Template,
 }
 impl Tok {
     pub fn is_kw(&self) -> bool {
@@ -207,6 +208,7 @@ impl Tok {
             &Tok::String => false,
             &Tok::Number => false,
             &Tok::Ident => false,
+            &Tok::Template => false,
         }
     }
 }
@@ -380,6 +382,10 @@ pub fn sc(s: &mut Scanner, data: &mut TokData) -> Result<Tok> {
                 Tok::Xor
             }
         },
+        '`' => {
+            *data = TokData::String(hand::template(s)?);
+            Tok::Template
+        }
         '{' => Tok::LBrace,
         '|' => match s.read() as char {
             '=' => Tok::OrEq,
