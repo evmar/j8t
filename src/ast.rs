@@ -159,7 +159,7 @@ pub struct ArrowFunction {
 #[derive(Debug)]
 pub struct Class {
     pub name: Option<Rc<Symbol>>,
-    // TODO: heritage.
+    pub extends: Option<ExprNode>,
     pub methods: Vec<Function>,
 }
 

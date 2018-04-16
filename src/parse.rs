@@ -367,6 +367,12 @@ impl<'a> Parser<'a> {
             }
             _ => None,
         };
+        let extends = if self.lex_peek()? == Tok::Extends {
+            self.lex_read()?;
+            Some(self.expr_prec(/* left-hand side expression */ 18)?)
+        } else {
+            None
+        };
         let mut methods: Vec<ast::Function> = Vec::new();
         self.expect(Tok::LBrace)?;
         loop {
@@ -387,6 +393,7 @@ impl<'a> Parser<'a> {
         }
         Ok(ast::Class {
             name: name,
+            extends: extends,
             methods: methods,
         })
     }
@@ -1302,7 +1309,7 @@ x;",
         #[test]
         fn class() {
             parse(
-                "class C {
+                "class C extends B {
   f() { var x; }
   ;
   f2() {}
