@@ -139,7 +139,10 @@ fn decls_from_expr(expr: ExprNode, decls: &mut Vec<ast::VarDecl>) -> ParseResult
 // an arrow function.  It can fail, in inputs like
 //     (x++) => 3
 // where we can't convert x++ into a parameter list.
-fn arrow_params_from_expr(expr: ExprNode, params: &mut Vec<ast::BindingElement>) -> ParseResult<()> {
+fn arrow_params_from_expr(
+    expr: ExprNode,
+    params: &mut Vec<ast::BindingElement>,
+) -> ParseResult<()> {
     match expr.1 {
         ast::Expr::EmptyParens => { /* ok, no params */ }
         ast::Expr::Ident(sym) => {

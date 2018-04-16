@@ -276,7 +276,7 @@ pub struct For {
 #[derive(Debug)]
 pub enum InOf {
     In,
-    Of
+    Of,
 }
 
 #[derive(Debug)]
