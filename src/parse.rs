@@ -80,8 +80,8 @@ fn is_for_in_of_head(expr: &Expr) -> bool {
 //     var x = 3, y
 //         *      *
 // this given the expressions marked *.
-fn decls_from_expr(expr: Expr, decls: &mut Vec<ast::VarDecl>) {
-    match expr {
+fn decls_from_expr(expr: ExprNode, decls: &mut Vec<ast::VarDecl>) -> ParseResult<()> {
+    match expr.1 {
         ast::Expr::Ident(name) => {
             decls.push(ast::VarDecl {
                 pattern: ast::BindingPattern::Name(name),
@@ -100,14 +100,23 @@ fn decls_from_expr(expr: Expr, decls: &mut Vec<ast::VarDecl>) {
         ast::Expr::Binary(bin) => {
             let bin = *bin;
             if bin.op == ast::BinOp::Comma {
-                decls_from_expr(bin.lhs.1, decls);
-                decls_from_expr(bin.rhs.1, decls);
+                decls_from_expr(bin.lhs, decls)?;
+                decls_from_expr(bin.rhs, decls)?;
             } else {
-                panic!("no decls on {:?}", bin);
+                return Err(ParseError{
+                    msg: "failed to extract decls".into(),
+                    at: expr.0,
+                });
             }
         }
-        _ => panic!("no decls on {:?}", expr),
+        _ => {
+            return Err(ParseError{
+                msg: "failed to extract decls".into(),
+                at: expr.0,
+            });
+        }
     }
+    Ok(())
 }
 
 // Parsing arrow functions is tricky.  We don't know we're in an
@@ -121,21 +130,33 @@ fn decls_from_expr(expr: Expr, decls: &mut Vec<ast::VarDecl>) {
 // an arrow function.  It can fail, in inputs like
 //     (x++) => 3
 // where we can't convert x++ into a parameter list.
-fn arrow_params_from_expr(expr: ExprNode) -> ParseResult<ast::ParameterList> {
-    let mut params: ast::ParameterList = Vec::new();
+fn arrow_params_from_expr(expr: ExprNode, params: &mut ast::ParameterList) -> ParseResult<()> {
     match expr.1 {
         ast::Expr::EmptyParens => { /* ok, no params */ }
         ast::Expr::Ident(sym) => {
             params.push((ast::BindingPattern::Name(sym), None));
         }
+        ast::Expr::Binary(bin) => {
+            let bin = *bin;
+            if bin.op == ast::BinOp::Comma {
+                arrow_params_from_expr(bin.lhs, params)?;
+                arrow_params_from_expr(bin.rhs, params)?;
+            } else {
+                return Err(ParseError {
+                    msg: format!("couldn't convert left side of arrow into parameter list"),
+                    at: expr.0,
+                });
+            }
+        }
         _ => {
+            println!("on: {:?}", expr);
             return Err(ParseError {
                 msg: format!("couldn't convert left side of arrow into parameter list"),
                 at: expr.0,
             });
         }
     }
-    Ok(params)
+    Ok(())
 }
 
 impl<'a> Parser<'a> {
@@ -596,7 +617,8 @@ impl<'a> Parser<'a> {
                 Tok::Arrow if prec <= 3 => {
                     let start = expr.0.start;
                     let end = start; // TODO
-                    let params = arrow_params_from_expr(expr)?;
+                    let mut params: ast::ParameterList = Vec::new();
+                    arrow_params_from_expr(expr, &mut params)?;
                     let body = if self.lex_peek()? == Tok::LBrace {
                         self.lex_read()?;
                         let mut body: Vec<Stmt> = Vec::new();
@@ -902,7 +924,7 @@ impl<'a> Parser<'a> {
             }
             if let Some(decl_type) = decl_type {
                 let mut decls: Vec<ast::VarDecl> = Vec::new();
-                decls_from_expr(expr.1, &mut decls);
+                decls_from_expr(expr, &mut decls)?;
                 ast::ForInit::Decls(ast::VarDecls {
                     typ: decl_type,
                     decls: decls,
@@ -1349,6 +1371,7 @@ x;",
         fn arrow() {
             parse("x => 3");
             parse("() => 3");
+            parse("(a, b, c) => 3");
         }
     }
 }
