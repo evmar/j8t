@@ -67,6 +67,7 @@ pub enum Expr {
     Array(Vec<ExprNode>),
     Object(Box<Object>),
     Function(Box<Function>),
+    ArrowFunction(Box<ArrowFunction>),
     Regex(Box<Regex>),
 
     // 12.3 Left-Hand-Side Expressions
@@ -129,12 +130,26 @@ pub enum BindingPattern {
     Array(ArrayBindingPattern),
 }
 
+pub type ParameterList = Vec<(BindingPattern, Option<ExprNode>)>;
+
 #[derive(Debug)]
 pub struct Function {
     pub scope: Scope,
     pub name: Option<Rc<Symbol>>,
-    pub params: Vec<(BindingPattern, Option<ExprNode>)>,
+    pub params: ParameterList,
     pub body: Vec<Stmt>,
+}
+
+#[derive(Debug)]
+pub enum ArrowBody {
+    Expr(ExprNode),
+    Stmts(Vec<Stmt>),
+}
+
+#[derive(Debug)]
+pub struct ArrowFunction {
+    pub params: ParameterList,
+    pub body: ArrowBody,
 }
 
 #[derive(Debug)]

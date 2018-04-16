@@ -110,6 +110,33 @@ fn decls_from_expr(expr: Expr, decls: &mut Vec<ast::VarDecl>) {
     }
 }
 
+// Parsing arrow functions is tricky.  We don't know we're in an
+// arrow function until we see the => token, so when we see the
+// initial left paren (or the bare identifier) for the param list
+// we parse it as an expression initially.  In the JS spec this
+// is described as "CoverParenthesizedExpressionAndArrowParameterList".
+//
+// To handle this, we parse first as an expression, then this function
+// attempts to convert that expression into the parameter list of
+// an arrow function.  It can fail, in inputs like
+//     (x++) => 3
+// where we can't convert x++ into a parameter list.
+fn arrow_params_from_expr(expr: ExprNode) -> ParseResult<ast::ParameterList> {
+    let mut params: ast::ParameterList = Vec::new();
+    match expr.1 {
+        ast::Expr::Ident(sym) => {
+            params.push((ast::BindingPattern::Name(sym), None));
+        }
+        _ => {
+            return Err(ParseError {
+                msg: format!("couldn't convert left side of arrow into parameter list"),
+                at: expr.0,
+            });
+        }
+    }
+    Ok(params)
+}
+
 impl<'a> Parser<'a> {
     pub fn new(input: &'a [u8]) -> Parser<'a> {
         Parser {
@@ -551,6 +578,28 @@ impl<'a> Parser<'a> {
                             rhs: rhs,
                         })),
                     );
+                }
+                Tok::Arrow if prec <= 3 => {
+                    let start = expr.0.start;
+                    let end = start;  // TODO
+                    let params = arrow_params_from_expr(expr)?;
+                    let body = if self.lex_peek()? == Tok::LBrace {
+                        self.lex_read()?;
+                        let mut body: Vec<Stmt> = Vec::new();
+                        while self.lex_peek()? != Tok::RBrace {
+                            body.push(self.stmt()?);
+                        }
+                        self.expect(Tok::RBrace)?;
+                        ast::ArrowBody::Stmts(body)
+                    } else {
+                        ast::ArrowBody::Expr(self.expr_prec(3 /* assignment expr */)?)
+                    };
+                    expr = (
+                        Span::new(start, end),
+                        Expr::ArrowFunction(Box::new(ast::ArrowFunction{
+                            params: params,
+                            body: body,
+                        })));
                 }
                 Tok::Question if prec <= 4 => {
                     let iftrue = self.expr_prec(3)?;
@@ -1272,6 +1321,11 @@ x;",
         #[test]
         fn let_binding() {
             parse("const {x} = a;");
+        }
+
+        #[test]
+        fn arrow() {
+            parse("let f = x => 3;");
         }
     }
 }
