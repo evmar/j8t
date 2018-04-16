@@ -447,6 +447,7 @@ impl<'a> Parser<'a> {
         Ok(match token.tok {
             Tok::Ident => ast::BindingPattern::Name(ast::Symbol::new(self.lexer.text(token))),
             Tok::LBrace => {
+                // ObjectBindingPattern
                 let mut props: Vec<ast::BindingElement> = Vec::new();
                 loop {
                     // BindingProperty
@@ -475,9 +476,30 @@ impl<'a> Parser<'a> {
                 self.expect(Tok::RBrace)?;
                 ast::BindingPattern::Object(ast::ObjectBindingPattern { props: props })
             }
-            // Tok::LSquare => {
-            //     // Array binding pattern.
-            // }
+            Tok::LSquare => {
+                // ArrayBindingPattern
+                let mut elems: Vec<ast::BindingElement> = Vec::new();
+                loop {
+                    // BindingProperty
+                    if self.lex_peek()? == Tok::RSquare {
+                        break;
+                    }
+                    let pattern = self.binding_pattern()?;
+                    let mut init: Option<ExprNode> = None;
+                    if self.lex_peek()? == Tok::Eq {
+                        self.lex_read()?;
+                        init = Some(self.expr_prec(3 /* assignment expr */)?);
+                    }
+                    elems.push((pattern, init));
+                    if self.lex_peek()? == Tok::Comma {
+                        self.lex_read()?;
+                    } else {
+                        break;
+                    }
+                }
+                self.expect(Tok::RSquare)?;
+                ast::BindingPattern::Array(ast::ArrayBindingPattern { elems: elems })
+            }
             _ => return Err(self.parse_error(token, "binding element")),
         })
     }
@@ -1414,6 +1436,11 @@ x;",
         #[test]
         fn let_binding() {
             parse("const {x} = a;");
+        }
+
+        #[test]
+        fn array_binding() {
+            parse("const [x] = a;");
         }
 
         #[test]

@@ -126,7 +126,7 @@ pub struct ObjectBindingPattern {
 
 #[derive(Debug)]
 pub struct ArrayBindingPattern {
-    // TODO
+    pub elems: Vec<BindingElement>,
 }
 
 #[derive(Debug)]
