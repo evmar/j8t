@@ -278,6 +278,7 @@ impl<'a> Writer<'a> {
     }
     fn expr(&mut self, e: &Expr, prec: i8) -> Result {
         match *e {
+            ast::Expr::EmptyParens => unreachable!(),
             ast::Expr::This => self.token("this")?,
             ast::Expr::Ident(ref s) => self.sym(&s)?,
             ast::Expr::Null => self.token("null")?,

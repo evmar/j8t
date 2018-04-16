@@ -56,6 +56,10 @@ impl Scope {
 
 #[derive(Debug)]
 pub enum Expr {
+    // The parse of "()", which is used only in parsing arrow functions,
+    // and which should not make it out of the parsing layer.
+    EmptyParens,
+
     // 12.2 Primary Expression
     This,
     Ident(Rc<Symbol>),

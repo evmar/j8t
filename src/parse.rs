@@ -124,6 +124,7 @@ fn decls_from_expr(expr: Expr, decls: &mut Vec<ast::VarDecl>) {
 fn arrow_params_from_expr(expr: ExprNode) -> ParseResult<ast::ParameterList> {
     let mut params: ast::ParameterList = Vec::new();
     match expr.1 {
+        ast::Expr::EmptyParens => { /* ok, no params */ }
         ast::Expr::Ident(sym) => {
             params.push((ast::BindingPattern::Name(sym), None));
         }
@@ -330,9 +331,14 @@ impl<'a> Parser<'a> {
             ),
             Tok::Function => (todo_span(), Expr::Function(Box::new(try!(self.function())))),
             Tok::LParen => {
-                let r = self.expr()?;
-                self.expect(Tok::RParen)?;
-                r
+                if self.lex_peek()? == Tok::RParen {
+                    let tok = self.lex_read()?;
+                    (tok.span, Expr::EmptyParens)
+                } else {
+                    let r = self.expr()?;
+                    self.expect(Tok::RParen)?;
+                    r
+                }
             }
             Tok::Div => {
                 let literal = match self.lexer.read_regex() {
@@ -1325,7 +1331,8 @@ x;",
 
         #[test]
         fn arrow() {
-            parse("let f = x => 3;");
+            parse("x => 3");
+            parse("() => 3");
         }
     }
 }

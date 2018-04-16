@@ -18,6 +18,7 @@ use ast;
 
 pub fn expr_expr<F: FnMut(&mut ast::ExprNode)>(expr: &mut ast::Expr, mut f: F) {
     match *expr {
+        ast::Expr::EmptyParens => unreachable!(),
         ast::Expr::This
         | ast::Expr::Ident(_)
         | ast::Expr::Null
