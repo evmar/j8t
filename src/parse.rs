@@ -386,6 +386,14 @@ impl<'a> Parser<'a> {
                     })),
                 )
             }
+            Tok::Template => {
+                (
+                    todo_span(),
+                    Expr::Template(Box::new(ast::Template {
+                        literal: self.lexer.text(token),
+                    })),
+                )
+            }
             _ => {
                 return Err(self.parse_error(token, "primary expression"));
             }

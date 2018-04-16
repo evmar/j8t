@@ -74,6 +74,7 @@ pub enum Expr {
     Class(Box<Class>),
     ArrowFunction(Box<ArrowFunction>),
     Regex(Box<Regex>),
+    Template(Box<Template>),
 
     // 12.3 Left-Hand-Side Expressions
     Index(Box<ExprNode>, Box<ExprNode>),
@@ -166,6 +167,12 @@ pub struct Class {
 
 #[derive(Debug)]
 pub struct Regex {
+    // TODO: parse into body and flags?
+    pub literal: String,
+}
+
+#[derive(Debug)]
+pub struct Template {
     // TODO: parse into body and flags?
     pub literal: String,
 }

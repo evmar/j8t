@@ -27,6 +27,7 @@ pub fn expr_expr<F: FnMut(&mut ast::ExprNode)>(expr: &mut ast::Expr, mut f: F) {
         | ast::Expr::Number(_)
         | ast::Expr::String(_)
         | ast::Expr::Regex(_) => {}
+        ast::Expr::Template(_) => unimplemented!(),
 
         ast::Expr::Array(ref mut es) => for e in es.iter_mut() {
             f(e);

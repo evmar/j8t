@@ -354,6 +354,7 @@ impl<'a> Writer<'a> {
                 unimplemented!("class gen");
             }
             ast::Expr::Regex(ref regex) => self.token(&regex.literal)?,
+            ast::Expr::Template(ref template) => unimplemented!(),
             ast::Expr::Index(ref expr, ref index) => {
                 self.maybe_paren(prec > 19, |w| {
                     w.exprn(expr, 19)?;
