@@ -71,6 +71,7 @@ pub enum Expr {
     Array(Vec<ExprNode>),
     Object(Box<Object>),
     Function(Box<Function>),
+    Class(Box<Class>),
     ArrowFunction(Box<ArrowFunction>),
     Regex(Box<Regex>),
 

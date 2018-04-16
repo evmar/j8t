@@ -329,7 +329,8 @@ impl<'a> Parser<'a> {
                 todo_span(),
                 Expr::Object(Box::new(try!(self.object_literal()))),
             ),
-            Tok::Function => (todo_span(), Expr::Function(Box::new(try!(self.function())))),
+            Tok::Function => (todo_span(), Expr::Function(Box::new(self.function()?))),
+            Tok::Class => (todo_span(), Expr::Class(Box::new(self.class()?))),
             Tok::LParen => {
                 if self.lex_peek()? == Tok::RParen {
                     let tok = self.lex_read()?;
@@ -1316,6 +1317,13 @@ x;",
   f2() {}
 }",
             );
+        }
+
+        #[test]
+        fn class_expr() {
+            parse("let x = class {}");
+            parse("let x = class A {}");
+            parse("let x = class extends B {}");
         }
 
         #[test]
