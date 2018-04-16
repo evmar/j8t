@@ -929,7 +929,12 @@ impl<'a> Parser<'a> {
                 // For-of loop.
                 let loop_var = match expr.1 {
                     ast::Expr::Ident(name) => ast::BindingPattern::Name(name),
-                    _ => unimplemented!(),
+                    _ => {
+                        return Err(ParseError {
+                            msg: "couldn't parse for-of loop head".into(),
+                            at: expr.0,
+                        });
+                    }
                 };
                 self.lex_read()?; // of
                 let expr = self.expr()?;
