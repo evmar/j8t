@@ -67,7 +67,7 @@ impl ParseError {
 
 pub type ParseResult<T> = Result<T, ParseError>;
 
-fn is_for_in_of_head(expr: &Expr) -> bool {
+fn is_for_in_head(expr: &Expr) -> bool {
     match *expr {
         ast::Expr::Binary(ref bin) if bin.op == ast::BinOp::In => true,
         _ => false,
@@ -908,13 +908,30 @@ impl<'a> Parser<'a> {
                 _ => None,
             };
             let expr = self.expr()?;
-            // Check if it's a for-in-of loop.
+            if self.lex_peek()? == Tok::Of {
+                // For-of loop.
+                let loop_var = match expr.1 {
+                    ast::Expr::Ident(name) => ast::BindingPattern::Name(name),
+                    _ => unimplemented!(),
+                };
+                self.lex_read()?; // of
+                let expr = self.expr()?;
+                self.expect(Tok::RParen)?;
+                return Ok(Stmt::ForInOf(Box::new(ast::ForInOf {
+                    decl_type: decl_type,
+                    loop_var: loop_var,
+                    in_of: ast::InOf::Of,
+                    expr: expr,
+                    body: self.stmt()?,
+                })));
+            }
+            // Check if it's a for-in loop.
             // Note: we want to match expr against an expr like
             //   a in b
             // and pull out 'a' and 'b', but it's a bit hard with borrowing.
             // So instead first check if it's a match, then match a second time
             // to consume it.
-            if is_for_in_of_head(&expr.1) {
+            if is_for_in_head(&expr.1) {
                 let bin = match expr.1 {
                     ast::Expr::Binary(bin) => *bin,
                     _ => unreachable!(), // assured by is_for_in_of_head.
@@ -928,6 +945,7 @@ impl<'a> Parser<'a> {
                 return Ok(Stmt::ForInOf(Box::new(ast::ForInOf {
                     decl_type: decl_type,
                     loop_var: loop_var,
+                    in_of: ast::InOf::In,
                     expr: rhs,
                     body: self.stmt()?,
                 })));
@@ -1311,6 +1329,8 @@ x;",
         parse("for (var x in a);");
         parse("for (const x in a);");
         parse("for (x in a);");
+        parse("for (x of a);");
+        parse("for (const x of a);");
     }
 
     #[test]

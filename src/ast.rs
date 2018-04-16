@@ -274,10 +274,16 @@ pub struct For {
 }
 
 #[derive(Debug)]
+pub enum InOf {
+    In,
+    Of
+}
+
+#[derive(Debug)]
 pub struct ForInOf {
     pub decl_type: Option<VarDeclType>,
     pub loop_var: BindingPattern,
-    // TODO: op
+    pub in_of: InOf,
     pub expr: ExprNode,
     pub body: Stmt,
 }
