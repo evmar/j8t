@@ -74,7 +74,6 @@ fn is_for_in_of_head(expr: &Expr) -> bool {
     }
 }
 
-
 fn decl_type_from_tok(tok: Tok) -> ast::VarDeclType {
     match tok {
         Tok::Var => ast::VarDeclType::Var,
@@ -113,14 +112,14 @@ fn decls_from_expr(expr: ExprNode, decls: &mut Vec<ast::VarDecl>) -> ParseResult
                 decls_from_expr(bin.lhs, decls)?;
                 decls_from_expr(bin.rhs, decls)?;
             } else {
-                return Err(ParseError{
+                return Err(ParseError {
                     msg: "failed to extract decls".into(),
                     at: expr.0,
                 });
             }
         }
         _ => {
-            return Err(ParseError{
+            return Err(ParseError {
                 msg: "failed to extract decls".into(),
                 at: expr.0,
             });
