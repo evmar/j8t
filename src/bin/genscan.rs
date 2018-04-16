@@ -121,7 +121,10 @@ fn gen_match(w: &mut CodeGen, t: &Trie) -> io::Result<()> {
                 writeln!(w, "{}", action)?;
                 writeln!(w, "}}")?;
             } else {
-                writeln!(w, "c => panic!(\"xxx {{:?}}\", c)")?;
+                writeln!(
+                    w,
+                    "c => return Err(s.err(format!(\"unhandled char {{:?}}\", c))),"
+                )?;
             }
             Ok(())
         })?;

@@ -291,7 +291,7 @@ pub fn sc(s: &mut Scanner, data: &mut TokData) -> Result<Tok> {
         '.' => match s.read() as char {
             '.' => match s.read() as char {
                 '.' => Tok::Ellipsis,
-                c => panic!("xxx {:?}", c),
+                c => return Err(s.err(format!("unhandled char {:?}", c))),
             },
             '0'...'9' => {
                 s.back();
@@ -404,7 +404,7 @@ pub fn sc(s: &mut Scanner, data: &mut TokData) -> Result<Tok> {
             hand::ident(s);
             Tok::Ident
         }
-        c => panic!("xxx {:?}", c),
+        c => return Err(s.err(format!("unhandled char {:?}", c))),
     })
 }
 pub fn kw(text: &[u8]) -> Tok {
