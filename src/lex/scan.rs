@@ -96,7 +96,6 @@ pub enum Tok {
     Let,
     New,
     Return,
-    Super,
     Switch,
     This,
     Throw,
@@ -192,7 +191,6 @@ impl Tok {
             &Tok::Let => true,
             &Tok::New => true,
             &Tok::Return => true,
-            &Tok::Super => true,
             &Tok::Switch => true,
             &Tok::This => true,
             &Tok::Throw => true,
@@ -469,9 +467,6 @@ pub fn kw(text: &[u8]) -> Tok {
             }
             if text == "const".as_bytes() {
                 return Tok::Const;
-            }
-            if text == "super".as_bytes() {
-                return Tok::Super;
             }
             if text == "throw".as_bytes() {
                 return Tok::Throw;

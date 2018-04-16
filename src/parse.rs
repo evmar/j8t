@@ -1310,7 +1310,7 @@ x;",
         fn class() {
             parse(
                 "class C extends B {
-  f() { var x; }
+  f() { super.x; }
   ;
   f2() {}
 }",
