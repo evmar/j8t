@@ -74,6 +74,16 @@ fn is_for_in_of_head(expr: &Expr) -> bool {
     }
 }
 
+
+fn decl_type_from_tok(tok: Tok) -> ast::VarDeclType {
+    match tok {
+        Tok::Var => ast::VarDeclType::Var,
+        Tok::Let => ast::VarDeclType::Let,
+        Tok::Const => ast::VarDeclType::Const,
+        _ => unreachable!(),
+    }
+}
+
 // Given an expression that occurs after a 'var', extract the vars
 // that were actually declared.
 // E.g. given the input
@@ -891,11 +901,12 @@ impl<'a> Parser<'a> {
         let init = if tok == Tok::Semi {
             ast::ForInit::Empty
         } else {
-            let decl_type = if tok == Tok::Var {
-                self.lex_read()?;
-                Some(ast::VarDeclType::Var)
-            } else {
-                None
+            let decl_type = match tok {
+                Tok::Var | Tok::Let | Tok::Const => {
+                    self.lex_read()?;
+                    Some(decl_type_from_tok(tok))
+                }
+                _ => None,
             };
             let expr = self.expr()?;
             // Check if it's a for-in-of loop.
@@ -1069,12 +1080,7 @@ impl<'a> Parser<'a> {
                 Stmt::Block(body)
             }
             Tok::Var | Tok::Let | Tok::Const => {
-                let typ = match token.tok {
-                    Tok::Var => ast::VarDeclType::Var,
-                    Tok::Let => ast::VarDeclType::Let,
-                    Tok::Const => ast::VarDeclType::Const,
-                    _ => unreachable!(),
-                };
+                let typ = decl_type_from_tok(token.tok);
                 let decls = self.bindings()?;
                 self.expect_semi()?;
                 Stmt::Var(Box::new(ast::VarDecls {
@@ -1304,6 +1310,7 @@ x;",
         parse("for (x = 3; a; b);");
         parse("for (x = 3, y = 4; a; b);");
         parse("for (var x in a);");
+        parse("for (const x in a);");
         parse("for (x in a);");
     }
 
