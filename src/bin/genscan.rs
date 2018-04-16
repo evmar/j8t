@@ -235,6 +235,7 @@ const KWS: StrTab = &[
     ("instanceof", "InstanceOf"),
     ("let", "Let"),
     ("new", "New"),
+    ("of", "Of"),
     ("return", "Return"),
     // Is there any reason to specially handle 'super'?
     // ("super", "Super"),

@@ -95,6 +95,7 @@ pub enum Tok {
     InstanceOf,
     Let,
     New,
+    Of,
     Return,
     Switch,
     This,
@@ -190,6 +191,7 @@ impl Tok {
             &Tok::InstanceOf => true,
             &Tok::Let => true,
             &Tok::New => true,
+            &Tok::Of => true,
             &Tok::Return => true,
             &Tok::Switch => true,
             &Tok::This => true,
@@ -416,6 +418,9 @@ pub fn kw(text: &[u8]) -> Tok {
             }
             if text == "in".as_bytes() {
                 return Tok::In;
+            }
+            if text == "of".as_bytes() {
+                return Tok::Of;
             }
         }
         3 => {
