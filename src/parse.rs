@@ -594,7 +594,7 @@ impl<'a> Parser<'a> {
                 }
                 Tok::Arrow if prec <= 3 => {
                     let start = expr.0.start;
-                    let end = start;  // TODO
+                    let end = start; // TODO
                     let params = arrow_params_from_expr(expr)?;
                     let body = if self.lex_peek()? == Tok::LBrace {
                         self.lex_read()?;
@@ -609,10 +609,11 @@ impl<'a> Parser<'a> {
                     };
                     expr = (
                         Span::new(start, end),
-                        Expr::ArrowFunction(Box::new(ast::ArrowFunction{
+                        Expr::ArrowFunction(Box::new(ast::ArrowFunction {
                             params: params,
                             body: body,
-                        })));
+                        })),
+                    );
                 }
                 Tok::Question if prec <= 4 => {
                     let iftrue = self.expr_prec(3)?;
