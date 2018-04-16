@@ -139,7 +139,7 @@ fn decls_from_expr(expr: ExprNode, decls: &mut Vec<ast::VarDecl>) -> ParseResult
 // an arrow function.  It can fail, in inputs like
 //     (x++) => 3
 // where we can't convert x++ into a parameter list.
-fn arrow_params_from_expr(expr: ExprNode, params: &mut ast::ParameterList) -> ParseResult<()> {
+fn arrow_params_from_expr(expr: ExprNode, params: &mut Vec<ast::BindingElement>) -> ParseResult<()> {
     match expr.1 {
         ast::Expr::EmptyParens => { /* ok, no params */ }
         ast::Expr::Ident(sym) => {
@@ -436,19 +436,25 @@ impl<'a> Parser<'a> {
         Ok(match token.tok {
             Tok::Ident => ast::BindingPattern::Name(ast::Symbol::new(self.lexer.text(token))),
             Tok::LBrace => {
-                let mut props: Vec<Rc<ast::Symbol>> = Vec::new();
+                let mut props: Vec<ast::BindingElement> = Vec::new();
                 loop {
                     // BindingProperty
                     let token = self.lex_read()?;
-                    match token.tok {
+                    let pattern = match token.tok {
                         Tok::Ident => {
-                            props.push(ast::Symbol::new(self.lexer.text(token)));
+                            ast::BindingPattern::Name(ast::Symbol::new(self.lexer.text(token)))
                         }
                         _ => {
                             self.lexer.back(token);
                             break;
                         }
+                    };
+                    let mut init: Option<ExprNode> = None;
+                    if self.lex_peek()? == Tok::Eq {
+                        self.lex_read()?;
+                        init = Some(self.expr_prec(3 /* assignment expr */)?);
                     }
+                    props.push((pattern, init));
                     if self.lex_peek()? == Tok::Comma {
                         self.lex_read()?;
                     } else {
@@ -626,7 +632,7 @@ impl<'a> Parser<'a> {
                 Tok::Arrow if prec <= 3 => {
                     let start = expr.0.start;
                     let end = start; // TODO
-                    let mut params: ast::ParameterList = Vec::new();
+                    let mut params: Vec<ast::BindingElement> = Vec::new();
                     arrow_params_from_expr(expr, &mut params)?;
                     let body = if self.lex_peek()? == Tok::LBrace {
                         self.lex_read()?;
@@ -1380,6 +1386,7 @@ x;",
             parse("function f({a,b}) {}");
             parse("function f({a,b,}) {}");
             parse("function f({a} = {}) {}");
+            parse("function f({a = 3} = {}) {}");
         }
 
         #[test]

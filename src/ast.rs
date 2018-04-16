@@ -120,7 +120,7 @@ pub struct Property {
 
 #[derive(Debug)]
 pub struct ObjectBindingPattern {
-    pub props: Vec<Rc<Symbol>>,
+    pub props: Vec<BindingElement>,
 }
 
 #[derive(Debug)]
@@ -135,13 +135,13 @@ pub enum BindingPattern {
     Array(ArrayBindingPattern),
 }
 
-pub type ParameterList = Vec<(BindingPattern, Option<ExprNode>)>;
+pub type BindingElement = (BindingPattern, Option<ExprNode>);
 
 #[derive(Debug)]
 pub struct Function {
     pub scope: Scope,
     pub name: Option<Rc<Symbol>>,
-    pub params: ParameterList,
+    pub params: Vec<BindingElement>,
     pub body: Vec<Stmt>,
 }
 
@@ -153,7 +153,7 @@ pub enum ArrowBody {
 
 #[derive(Debug)]
 pub struct ArrowFunction {
-    pub params: ParameterList,
+    pub params: Vec<BindingElement>,
     pub body: ArrowBody,
 }
 
