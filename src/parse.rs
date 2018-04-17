@@ -85,9 +85,7 @@ fn decl_type_from_tok(tok: Tok) -> ast::VarDeclType {
 // pattern.
 fn binding_from_expr(expr: ExprNode) -> ParseResult<ast::BindingPattern> {
     Ok(match expr.1 {
-        ast::Expr::Ident(sym) => {
-            ast::BindingPattern::Name(sym)
-        }
+        ast::Expr::Ident(sym) => ast::BindingPattern::Name(sym),
         _ => {
             return Err(ParseError {
                 msg: format!("couldn't convert expr into binding"),
@@ -129,9 +127,7 @@ fn arrow_params_from_expr(
                 });
             }
         }
-        ast::Expr::Ident(_) => {
-            params.push((binding_from_expr(expr)?, None))
-        }
+        ast::Expr::Ident(_) => params.push((binding_from_expr(expr)?, None)),
         _ => {
             println!("on: {:?}", expr);
             return Err(ParseError {
@@ -358,14 +354,12 @@ impl<'a> Parser<'a> {
                     })),
                 )
             }
-            Tok::Template => {
-                (
-                    todo_span(),
-                    Expr::Template(Box::new(ast::Template {
-                        literal: self.lexer.text(token),
-                    })),
-                )
-            }
+            Tok::Template => (
+                todo_span(),
+                Expr::Template(Box::new(ast::Template {
+                    literal: self.lexer.text(token),
+                })),
+            ),
             _ => {
                 return Err(self.parse_error(token, "primary expression"));
             }
@@ -911,7 +905,10 @@ impl<'a> Parser<'a> {
                 self.lex_read()?;
                 let decl_type = decl_type_from_tok(tok);
                 let decls = self.bindings()?;
-                ast::ForInit::Decls(ast::VarDecls{typ: decl_type, decls: decls})
+                ast::ForInit::Decls(ast::VarDecls {
+                    typ: decl_type,
+                    decls: decls,
+                })
             }
             _ => {
                 let expr = self.expr()?;
@@ -937,14 +934,14 @@ impl<'a> Parser<'a> {
                         return Err(ParseError {
                             msg: "couldn't parse for-of loop head".into(),
                             at: token.span,
-                        })
+                        });
                     }
-                    let decl = decls.decls.pop().unwrap();  // safe per len() check
+                    let decl = decls.decls.pop().unwrap(); // safe per len() check
                     if let Some(init) = decl.init {
                         return Err(ParseError {
                             msg: "unexpected initializer".into(),
                             at: init.0,
-                        })
+                        });
                     }
                     return Ok(Stmt::ForInOf(Box::new(ast::ForInOf {
                         decl_type: Some(decls.typ),
