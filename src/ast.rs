@@ -108,14 +108,15 @@ pub struct Object {
 // 8) a=b (used to cover alternative syntax for bindings)
 
 #[derive(Debug)]
-pub enum PropertyKey {
+pub enum PropertyName {
     String(String),
     Number(f64),
+    Computed(ExprNode),
 }
 
 #[derive(Debug)]
 pub struct Property {
-    pub name: PropertyKey,
+    pub name: PropertyName,
     pub value: ExprNode,
 }
 

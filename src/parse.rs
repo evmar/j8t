@@ -193,44 +193,54 @@ impl<'a> Parser<'a> {
         Ok((Span::new(start, end), elems))
     }
 
+    fn property_name(&mut self) -> ParseResult<(ast::Span, ast::PropertyName, bool)> {
+        let token = self.lex_read()?;
+        Ok(match token.tok {
+            Tok::Ident => {
+                (
+                    token.span.clone(),
+                    ast::PropertyName::String(self.lexer.text(token)),
+                    true,
+                )
+            }
+            Tok::String => {
+                if let lex::TokData::String(s) = token.data {
+                    (token.span.clone(), ast::PropertyName::String(s), false)
+                } else {
+                    unreachable!();
+                }
+            }
+            Tok::Number => {
+                if let lex::TokData::Number(n) = token.data {
+                    (token.span, ast::PropertyName::Number(n), false)
+                } else {
+                    unreachable!();
+                }
+            }
+            Tok::LSquare => {
+                let expr = self.expr_prec(3)?;
+                self.expect(Tok::RSquare)?;
+                (
+                    token.span.clone(), // ?
+                    ast::PropertyName::Computed(expr),
+                    false
+                )
+            }
+            tok if tok.is_kw() => {
+                (
+                    token.span.clone(),
+                    ast::PropertyName::String(self.lexer.text(token)),
+                    true,
+                )
+            }
+            _ => return Err(self.parse_error(token, "property name")),
+        })
+    }
+
     fn object_literal(&mut self) -> ParseResult<ast::Object> {
         let mut props: Vec<ast::Property> = Vec::new();
-        loop {
-            let (span, name, can_pun) = match self.lex_peek()? {
-                Tok::Ident => {
-                    let token = self.lex_read()?;
-                    (
-                        token.span.clone(),
-                        ast::PropertyKey::String(self.lexer.text(token)),
-                        true,
-                    )
-                }
-                tok if tok.is_kw() => {
-                    let token = self.lex_read()?;
-                    (
-                        token.span.clone(),
-                        ast::PropertyKey::String(self.lexer.text(token)),
-                        true,
-                    )
-                }
-                Tok::String => {
-                    let token = self.lex_read()?;
-                    if let lex::TokData::String(s) = token.data {
-                        (token.span.clone(), ast::PropertyKey::String(s), false)
-                    } else {
-                        unreachable!();
-                    }
-                }
-                Tok::Number => {
-                    let token = self.lex_read()?;
-                    if let lex::TokData::Number(n) = token.data {
-                        (token.span, ast::PropertyKey::Number(n), false)
-                    } else {
-                        unreachable!();
-                    }
-                }
-                _ => break,
-            };
+        while self.lex_peek()? != Tok::RBrace {
+            let (span, name, can_pun) = self.property_name()?;
 
             let prop = match self.lex_peek()? {
                 Tok::Colon => {
@@ -244,7 +254,7 @@ impl<'a> Parser<'a> {
                 Tok::LParen if can_pun => {
                     // a(...) {}
                     let value = match name {
-                        ast::PropertyKey::String(ref s) => {
+                        ast::PropertyName::String(ref s) => {
                             let sym = ast::Symbol::new(s.clone());
                             (
                                 span, // TODO: correct span?
@@ -264,7 +274,7 @@ impl<'a> Parser<'a> {
                     // and we hit the comma or right brace,
                     // and then let the below code handle that.
                     let value = match name {
-                        ast::PropertyKey::String(ref s) => {
+                        ast::PropertyName::String(ref s) => {
                             (span, ast::Expr::Ident(ast::Symbol::new(s.clone())))
                         }
                         _ => unreachable!(),
@@ -286,7 +296,7 @@ impl<'a> Parser<'a> {
             }
             self.lex_read()?;
         }
-        try!(self.expect(Tok::RBrace));
+        self.expect(Tok::RBrace)?;
         Ok(ast::Object { props: props })
     }
 
@@ -384,25 +394,20 @@ impl<'a> Parser<'a> {
         let mut methods: Vec<ast::Function> = Vec::new();
         self.expect(Tok::LBrace)?;
         loop {
-            let token = self.lex_read()?;
-            match token.tok {
-                Tok::Ident => {
-                    let name = Some(ast::Symbol::new(self.lexer.text(token)));
-                    methods.push(self.function_from_paren(name)?);
-                }
+            match self.lex_peek()? {
                 Tok::Semi => {
                     // Stray extra semis are allowed per spec.
+                    self.lex_read()?;
                 }
                 Tok::RBrace => break,
-                tok if tok.is_kw() => {
-                    let name = Some(ast::Symbol::new(self.lexer.text(token)));
-                    methods.push(self.function_from_paren(name)?);
-                }
                 _ => {
-                    return Err(self.parse_error(token, "class body"));
+                    let _name = self.property_name()?;
+                    // TODO: use name.
+                    methods.push(self.function_from_paren(None)?);
                 }
             }
         }
+        self.expect(Tok::RBrace)?;
         Ok(ast::Class {
             name: name,
             extends: extends,
@@ -1452,6 +1457,12 @@ x;",
             parse("x => 3");
             parse("() => 3");
             parse("(a, b, c) => 3");
+        }
+
+        #[test]
+        fn computed_prop() {
+            parse("let x = {[a]: 3};");
+            parse("class X { [a]() {} }");
         }
     }
 }

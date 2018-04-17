@@ -295,7 +295,7 @@ impl<'a> Writer<'a> {
                         // Write the property name, and grab the name string if
                         // it's allowed to be punned.
                         let name = match p.name {
-                            ast::PropertyKey::String(ref s) => {
+                            ast::PropertyName::String(ref s) => {
                                 let quoted = obj_prop_needs_quote(s);
                                 if quoted {
                                     w.token(&format!("{:?}", s))?;
@@ -305,9 +305,12 @@ impl<'a> Writer<'a> {
                                     Some(s)
                                 }
                             }
-                            ast::PropertyKey::Number(ref n) => {
+                            ast::PropertyName::Number(ref n) => {
                                 w.token(&format!("{}", n))?;
                                 None
+                            }
+                            ast::PropertyName::Computed(ref _n) => {
+                                unimplemented!();
                             }
                         };
                         let wrote = if let Some(n) = name {
