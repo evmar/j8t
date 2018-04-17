@@ -101,6 +101,13 @@ fn binding_from_expr(expr: ExprNode) -> ParseResult<ast::BindingPattern> {
                 .collect();
             ast::BindingPattern::Object(ast::ObjectBindingPattern { props: props })
         }
+        ast::Expr::Array(arr) => {
+            let mut elems: Vec<ast::BindingElement> = Vec::new();
+            for elem in arr {
+                elems.push((binding_from_expr(elem)?, None));
+            }
+            ast::BindingPattern::Array(ast::ArrayBindingPattern{elems: elems})
+        }
         _ => {
             return Err(ParseError {
                 msg: format!("couldn't convert expr into binding"),
@@ -191,7 +198,8 @@ fn arrow_params_from_expr(
         ast::Expr::Ident(_)
         | ast::Expr::Assign(_, _)
         | ast::Expr::Spread(_)
-        | ast::Expr::Object(_) => {
+        | ast::Expr::Object(_)
+        | ast::Expr::Array(_) => {
             params.push(arrow_param_from_expr(expr)?);
         }
         _ => {
@@ -207,7 +215,7 @@ fn arrow_params_from_expr(
 
 fn arrow_param_from_expr(expr: ExprNode) -> ParseResult<ast::BindingElement> {
     Ok(match expr.1 {
-        ast::Expr::Ident(_) | ast::Expr::Object(_) => (binding_from_expr(expr)?, None),
+        ast::Expr::Ident(_) | ast::Expr::Object(_) | ast::Expr::Array(_) => (binding_from_expr(expr)?, None),
         ast::Expr::Assign(lhs, rhs) => (binding_from_expr(*lhs)?, Some(*rhs)),
         ast::Expr::Spread(e) => {
             // TODO: spread
@@ -1600,6 +1608,7 @@ x;",
             parse("(a, b, c) => 3");
             parse("(a = 3, b) => 3");
             parse("({x}) => 3");
+            parse("([x]) => 3");
         }
 
         #[test]
