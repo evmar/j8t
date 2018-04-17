@@ -95,6 +95,30 @@ fn binding_from_expr(expr: ExprNode) -> ParseResult<ast::BindingPattern> {
     })
 }
 
+// If expr is a comma node (e.g. (a, b)), return (a, Some(b)).
+// Else return (a, None).
+fn split_commas(expr: ExprNode) -> (ExprNode, Option<ExprNode>) {
+    // To work around ownership, first decide if it's a comma node
+    // and then destructure separately.
+    let is_comma = match expr.1 {
+        ast::Expr::Binary(ref bin) => {
+            bin.op == ast::BinOp::Comma
+        }
+        _ => false,
+    };
+    if is_comma {
+        match expr.1 {
+            ast::Expr::Binary(bin) => {
+                let bin = *bin;
+                let ast::Binary{lhs, rhs, op: _op} = bin;
+                return (lhs, Some(rhs));
+            }
+            _ => unreachable!(),
+        }
+    }
+    (expr, None)
+}
+
 // Parsing arrow functions is tricky.  We don't know we're in an
 // arrow function until we see the => token, so when we see the
 // initial left paren (or the bare identifier) for the param list
@@ -115,19 +139,21 @@ fn arrow_params_from_expr(
 ) -> ParseResult<()> {
     match expr.1 {
         ast::Expr::EmptyParens => { /* ok, no params */ }
-        ast::Expr::Binary(bin) => {
-            let bin = *bin;
-            if bin.op == ast::BinOp::Comma {
-                arrow_params_from_expr(bin.lhs, params)?;
-                arrow_params_from_expr(bin.rhs, params)?;
-            } else {
-                return Err(ParseError {
-                    msg: format!("couldn't convert left side of arrow into parameter list"),
-                    at: expr.0,
-                });
+        ast::Expr::Binary(_) => {
+            let mut expr = expr;
+            loop {
+                let (lhs, rhs) = split_commas(expr);
+                params.push(arrow_param_from_expr(lhs)?);
+                match rhs {
+                    Some(e) => expr = e,
+                    None => break,
+                }
             }
         }
-        ast::Expr::Ident(_) => params.push((binding_from_expr(expr)?, None)),
+        ast::Expr::Ident(_) |
+        ast::Expr::Assign(_, _) => {
+            params.push(arrow_param_from_expr(expr)?);
+        }
         _ => {
             println!("on: {:?}", expr);
             return Err(ParseError {
@@ -137,6 +163,19 @@ fn arrow_params_from_expr(
         }
     }
     Ok(())
+}
+
+fn arrow_param_from_expr(expr: ExprNode) -> ParseResult<ast::BindingElement> {
+    Ok(match expr.1 {
+        ast::Expr::Ident(_) => (binding_from_expr(expr)?, None),
+        ast::Expr::Assign(lhs, rhs) => (binding_from_expr(*lhs)?, Some(*rhs)),
+        e => {
+            return Err(ParseError {
+                msg: format!("couldn't convert arrow arg {:?} into parameter", e),
+                at: expr.0,
+            });
+        }
+    })
 }
 
 impl<'a> Parser<'a> {
@@ -1440,6 +1479,7 @@ x;",
             parse("function f({a,b}) {}");
             parse("function f({a,b,}) {}");
             parse("function f({a} = {}) {}");
+            parse("function f(a = 3) {}");
             parse("function f({a = 3} = {}) {}");
         }
 
@@ -1470,6 +1510,7 @@ x;",
             parse("x => 3");
             parse("() => 3");
             parse("(a, b, c) => 3");
+            parse("(a = 3, b) => 3");
         }
 
         #[test]
