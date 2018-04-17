@@ -132,6 +132,19 @@ fn split_commas(expr: ExprNode) -> (ExprNode, Option<ExprNode>) {
     (expr, None)
 }
 
+// See the ::Call branch of arrow_params_from_expr.
+fn call_is_async(call: &ast::Call) -> bool {
+    match call.func.1 {
+        ast::Expr::Ident(ref s) => {
+            if &*s.name.borrow() == "async" {
+                return true;
+            }
+        }
+        _ => {}
+    }
+    false
+}
+
 // Parsing arrow functions is tricky.  We don't know we're in an
 // arrow function until we see the => token, so when we see the
 // initial left paren (or the bare identifier) for the param list
@@ -161,6 +174,18 @@ fn arrow_params_from_expr(
                     Some(e) => expr = e,
                     None => break,
                 }
+            }
+        }
+        ast::Expr::Call(call) => {
+            if call_is_async(&call) {
+                // async (foo, bar)
+                // parses as a function call.
+                // TODO: async.
+                for arg in call.args {
+                    params.push(arrow_param_from_expr(arg)?);
+                }
+            } else {
+                unimplemented!();
             }
         }
         ast::Expr::Ident(_)
@@ -1604,6 +1629,8 @@ x;",
             parse("let x = async;");
             parse("async function f() {}");
             parse("class C { async f() {} }");
+            parse("async (x, y) => 1");
+            //parse("async f => f;");
         }
 
         #[test]
