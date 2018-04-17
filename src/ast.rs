@@ -122,7 +122,7 @@ pub struct Property {
 
 #[derive(Debug)]
 pub struct ObjectBindingPattern {
-    pub props: Vec<BindingElement>,
+    pub props: Vec<(PropertyName, BindingElement)>,
 }
 
 #[derive(Debug)]

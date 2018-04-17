@@ -196,13 +196,11 @@ impl<'a> Parser<'a> {
     fn property_name(&mut self) -> ParseResult<(ast::Span, ast::PropertyName, bool)> {
         let token = self.lex_read()?;
         Ok(match token.tok {
-            Tok::Ident => {
-                (
-                    token.span.clone(),
-                    ast::PropertyName::String(self.lexer.text(token)),
-                    true,
-                )
-            }
+            Tok::Ident => (
+                token.span.clone(),
+                ast::PropertyName::String(self.lexer.text(token)),
+                true,
+            ),
             Tok::String => {
                 if let lex::TokData::String(s) = token.data {
                     (token.span.clone(), ast::PropertyName::String(s), false)
@@ -223,16 +221,14 @@ impl<'a> Parser<'a> {
                 (
                     token.span.clone(), // ?
                     ast::PropertyName::Computed(expr),
-                    false
+                    false,
                 )
             }
-            tok if tok.is_kw() => {
-                (
-                    token.span.clone(),
-                    ast::PropertyName::String(self.lexer.text(token)),
-                    true,
-                )
-            }
+            tok if tok.is_kw() => (
+                token.span.clone(),
+                ast::PropertyName::String(self.lexer.text(token)),
+                true,
+            ),
             _ => return Err(self.parse_error(token, "property name")),
         })
     }
@@ -423,25 +419,29 @@ impl<'a> Parser<'a> {
             Tok::Ident => ast::BindingPattern::Name(ast::Symbol::new(self.lexer.text(token))),
             Tok::LBrace => {
                 // ObjectBindingPattern
-                let mut props: Vec<ast::BindingElement> = Vec::new();
-                loop {
+                let mut props: Vec<(ast::PropertyName, ast::BindingElement)> = Vec::new();
+                while self.lex_peek()? != Tok::RBrace {
                     // BindingProperty
-                    let token = self.lex_read()?;
-                    let pattern = match token.tok {
-                        Tok::Ident => {
-                            ast::BindingPattern::Name(ast::Symbol::new(self.lexer.text(token)))
-                        }
-                        _ => {
-                            self.lexer.back(token);
-                            break;
+                    let (_, name, can_pun) = self.property_name()?;
+
+                    let binding = if !can_pun || self.lex_peek()? == Tok::Colon {
+                        self.expect(Tok::Colon)?;
+                        self.binding_pattern()?
+                    } else {
+                        match name {
+                            ast::PropertyName::String(ref name) => {
+                                ast::BindingPattern::Name(ast::Symbol::new(name.clone()))
+                            }
+                            _ => unimplemented!(),
                         }
                     };
+
                     let mut init: Option<ExprNode> = None;
                     if self.lex_peek()? == Tok::Eq {
                         self.lex_read()?;
                         init = Some(self.expr_prec(3 /* assignment expr */)?);
                     }
-                    props.push((pattern, init));
+                    props.push((name, (binding, init)));
                     if self.lex_peek()? == Tok::Comma {
                         self.lex_read()?;
                     } else {
@@ -1438,8 +1438,9 @@ x;",
         }
 
         #[test]
-        fn let_binding() {
+        fn object_binding() {
             parse("const {x} = a;");
+            parse("const {x: y} = a;");
         }
 
         #[test]
