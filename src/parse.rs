@@ -397,8 +397,20 @@ impl<'a> Parser<'a> {
                 }
                 Tok::RBrace => break,
                 _ => {
-                    let _name = self.property_name()?;
+                    let (_, mut name, _) = self.property_name()?;
+                    let mut is_static = false;
+                    if self.lex_peek()? != Tok::LParen {
+                        // Check if it was a static property.
+                        name = match name {
+                            ast::PropertyName::String(ref s) if s == "static" => {
+                                is_static = true;
+                                self.property_name()?.1
+                            }
+                            _ => name,
+                        }
+                    }
                     // TODO: use name.
+                    // TODO: use is_static.
                     methods.push(self.function_from_paren(None)?);
                 }
             }
@@ -1464,6 +1476,13 @@ x;",
         fn computed_prop() {
             parse("let x = {[a]: 3};");
             parse("class X { [a]() {} }");
+        }
+
+        #[test]
+        fn static_method() {
+            parse("class X { static f() {} }");
+            parse("class X { static static() {} }");
+            parse("class X { static() {} }");
         }
     }
 }
