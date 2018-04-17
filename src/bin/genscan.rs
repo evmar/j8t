@@ -215,6 +215,7 @@ const BINOPS: StrTab = &[
 ];
 
 const KWS: StrTab = &[
+    ("async", "Async"),
     ("await", "Await"),
     ("break", "Break"),
     ("case", "Case"),
