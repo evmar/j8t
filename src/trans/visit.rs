@@ -32,6 +32,7 @@ pub fn expr_expr<F: FnMut(&mut ast::ExprNode)>(expr: &mut ast::Expr, mut f: F) {
         ast::Expr::Array(ref mut es) => for e in es.iter_mut() {
             f(e);
         },
+        ast::Expr::Spread(ref mut e) => f(e),
         ast::Expr::Object(ref mut obj) => {
             obj.props.iter_mut().for_each(|p| f(&mut p.value));
         }

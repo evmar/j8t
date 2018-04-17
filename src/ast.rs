@@ -69,6 +69,9 @@ pub enum Expr {
     Number(f64),
     String(String),
     Array(Vec<ExprNode>),
+    // The parse of "...a", which can only occur in arrow functions and
+    // in array literals.
+    Spread(Box<ExprNode>),
     Object(Box<Object>),
     Function(Box<Function>),
     Class(Box<Class>),

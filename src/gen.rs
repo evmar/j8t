@@ -289,6 +289,9 @@ impl<'a> Writer<'a> {
             ast::Expr::Array(ref arr) => {
                 self.wrap('[', ']', |w| w.comma(arr, |w, e| w.exprn(e, 0)))?;
             }
+            ast::Expr::Spread(ref e) => {
+                unimplemented!();
+            }
             ast::Expr::Object(ref obj) => {
                 self.brace(|w| {
                     w.comma(&obj.props, |w, p| {

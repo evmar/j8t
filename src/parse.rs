@@ -101,16 +101,14 @@ fn split_commas(expr: ExprNode) -> (ExprNode, Option<ExprNode>) {
     // To work around ownership, first decide if it's a comma node
     // and then destructure separately.
     let is_comma = match expr.1 {
-        ast::Expr::Binary(ref bin) => {
-            bin.op == ast::BinOp::Comma
-        }
+        ast::Expr::Binary(ref bin) => bin.op == ast::BinOp::Comma,
         _ => false,
     };
     if is_comma {
         match expr.1 {
             ast::Expr::Binary(bin) => {
                 let bin = *bin;
-                let ast::Binary{lhs, rhs, op: _op} = bin;
+                let ast::Binary { lhs, rhs, op: _op } = bin;
                 return (lhs, Some(rhs));
             }
             _ => unreachable!(),
@@ -150,8 +148,7 @@ fn arrow_params_from_expr(
                 }
             }
         }
-        ast::Expr::Ident(_) |
-        ast::Expr::Assign(_, _) => {
+        ast::Expr::Ident(_) | ast::Expr::Assign(_, _) | ast::Expr::Spread(_) => {
             params.push(arrow_param_from_expr(expr)?);
         }
         _ => {
@@ -169,6 +166,10 @@ fn arrow_param_from_expr(expr: ExprNode) -> ParseResult<ast::BindingElement> {
     Ok(match expr.1 {
         ast::Expr::Ident(_) => (binding_from_expr(expr)?, None),
         ast::Expr::Assign(lhs, rhs) => (binding_from_expr(*lhs)?, Some(*rhs)),
+        ast::Expr::Spread(e) => {
+            // TODO: spread
+            (binding_from_expr(*e)?, None)
+        }
         e => {
             return Err(ParseError {
                 msg: format!("couldn't convert arrow arg {:?} into parameter", e),
@@ -219,9 +220,13 @@ impl<'a> Parser<'a> {
                     self.lex_read()?;
                 }
                 Tok::Ellipsis => {
-                    self.lex_read()?;
+                    let token = self.lex_read()?;
+                    let expr = self.expr_prec(1)?;
                     // spread TODO
-                    elems.push(self.expr_prec(1)?);
+                    elems.push((
+                        Span::new(token.span.start, expr.0.end),
+                        Expr::Spread(Box::new(expr)),
+                    ));
                 }
                 _ => {
                     elems.push(self.expr_prec(1)?);
@@ -410,6 +415,13 @@ impl<'a> Parser<'a> {
                     literal: self.lexer.text(token),
                 })),
             ),
+            Tok::Ellipsis => {
+                let pat = self.expr_prec(1)?;
+                (
+                    Span::new(token.span.start, pat.0.end),
+                    Expr::Spread(Box::new(pat)),
+                )
+            }
             _ => {
                 return Err(self.parse_error(token, "primary expression"));
             }
@@ -1542,6 +1554,7 @@ x;",
         fn rest_params() {
             parse("function f(...args) {}");
             parse("function f(x, ...[args]) {}");
+            parse("(...args) => 1");
         }
 
         #[test]
