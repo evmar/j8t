@@ -474,20 +474,24 @@ impl<'a> Parser<'a> {
                 }
                 Tok::RBrace => break,
                 _ => {
-                    let (_, mut _name, _) = self.property_name()?;
-                    let mut _is_static = false;
-                    if self.lex_peek()? != Tok::LParen {
-                        // Check if it was a static property.
-                        _name = match _name {
-                            ast::PropertyName::String(ref s) if s == "static" => {
-                                _is_static = true;
-                                self.property_name()?.1
+                    let (_, mut name, _) = self.property_name()?;
+                    let mut is_async = false;
+                    let mut is_static = false;
+                    while self.lex_peek()? != Tok::LParen {
+                        match name {
+                            ast::PropertyName::String(ref s) => {
+                                match &**s {
+                                    "static" => is_static = true,
+                                    "async" => is_async = true,
+                                    _ => break,
+                                }
                             }
-                            _ => _name,
+                            _ => break,
                         }
+                        name = self.property_name()?.1;
                     }
-                    // TODO: use name.
-                    // TODO: use is_static.
+                    // TODO: use is_async, is_static, name.
+                    println!("{} {} {:?}", is_async, is_static, name);
                     methods.push(self.function_from_paren(None)?);
                 }
             }
@@ -1583,6 +1587,12 @@ x;",
         fn spread() {
             parse("[...b]");
             parse("[...b, ...c]");
+        }
+
+        #[test]
+        fn async() {
+            parse("class C { async f() {} }");
+            // parse("async f() {}");
         }
     }
 }
