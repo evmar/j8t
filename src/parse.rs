@@ -394,6 +394,10 @@ impl<'a> Parser<'a> {
                     // Stray extra semis are allowed per spec.
                 }
                 Tok::RBrace => break,
+                tok if tok.is_kw() => {
+                    let name = Some(ast::Symbol::new(self.lexer.text(token)));
+                    methods.push(self.function_from_paren(name)?);
+                }
                 _ => {
                     return Err(self.parse_error(token, "class body"));
                 }
