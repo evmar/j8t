@@ -406,6 +406,12 @@ impl<'a> Parser<'a> {
                     Expr::Object(Box::new(obj)),
                 )
             }
+            Tok::Async => {
+                self.expect(Tok::Function)?;
+                let f = self.function()?;
+                // TODO: mark f as async.
+                (todo_span(), Expr::Function(Box::new(f)))
+            }
             Tok::Function => (todo_span(), Expr::Function(Box::new(self.function()?))),
             Tok::Class => (todo_span(), Expr::Class(Box::new(self.class()?))),
             Tok::LParen => {
@@ -1591,8 +1597,8 @@ x;",
 
         #[test]
         fn async() {
+            parse("async function f() {}");
             parse("class C { async f() {} }");
-            // parse("async f() {}");
         }
     }
 }
