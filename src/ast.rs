@@ -145,6 +145,8 @@ pub type BindingElement = (BindingPattern, Option<ExprNode>);
 #[derive(Debug)]
 pub struct Function {
     pub scope: Scope,
+    pub async: bool,
+    pub is_static: bool,
     pub name: Option<Rc<Symbol>>,
     pub params: Vec<BindingElement>,
     pub body: Vec<Stmt>,

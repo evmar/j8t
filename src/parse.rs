@@ -522,8 +522,10 @@ impl<'a> Parser<'a> {
                         name = self.property_name()?.1;
                     }
                     // TODO: use is_async, is_static, name.
-                    println!("{} {} {:?}", is_async, is_static, name);
-                    methods.push(self.function_from_paren(None)?);
+                    let mut f = self.function_from_paren(None)?;
+                    f.async = is_async;
+                    f.is_static = is_static;
+                    methods.push(f);
                 }
             }
         }
@@ -655,6 +657,8 @@ impl<'a> Parser<'a> {
         Ok(ast::Function {
             scope: ast::Scope::new(),
             name: name,
+            async: false,
+            is_static: false,
             params: params,
             body: body,
         })
