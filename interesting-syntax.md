@@ -13,3 +13,9 @@ class C2 {
 }
 new C2()[0]();
 new C2()['!']();
+
+
+function f(...{length}) {
+  return length;
+}
+f('a', 'b', 'c');  // 3

@@ -546,6 +546,13 @@ impl<'a> Parser<'a> {
         self.expect(Tok::LParen)?;
         let mut params: Vec<(ast::BindingPattern, Option<ExprNode>)> = Vec::new();
         while self.lex_peek()? != Tok::RParen {
+            // TODO: support rest_param.
+            let _rest_param = if self.lex_peek()? == Tok::Ellipsis {
+                self.lex_read()?;
+                true
+            } else {
+                false
+            };
             let binding = self.binding_pattern()?;
             let mut init: Option<ExprNode> = None;
             if self.lex_peek()? == Tok::Eq {
@@ -1524,6 +1531,12 @@ x;",
             parse("class X { static f() {} }");
             parse("class X { static static() {} }");
             parse("class X { static() {} }");
+        }
+
+        #[test]
+        fn rest_params() {
+            parse("function f(...args) {}");
+            parse("function f(x, ...[args]) {}");
         }
     }
 }
