@@ -72,7 +72,6 @@ pub enum Tok {
     Div,
     DivEq,
     Comma,
-    Async,
     Await,
     Break,
     Case,
@@ -170,7 +169,6 @@ impl Tok {
             &Tok::Div => false,
             &Tok::DivEq => false,
             &Tok::Comma => false,
-            &Tok::Async => true,
             &Tok::Await => true,
             &Tok::Break => true,
             &Tok::Case => true,
@@ -466,9 +464,6 @@ pub fn kw(text: &[u8]) -> Tok {
             }
         }
         5 => {
-            if text == "async".as_bytes() {
-                return Tok::Async;
-            }
             if text == "await".as_bytes() {
                 return Tok::Await;
             }

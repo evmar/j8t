@@ -373,16 +373,24 @@ impl<'a> Parser<'a> {
             Tok::Ident => {
                 let span = token.span.clone();
                 let text = self.lexer.text(token);
-                (
-                    span,
-                    match text.as_str() {
-                        "null" => Expr::Null,
-                        "undefined" => Expr::Undefined,
-                        "true" => Expr::Bool(true),
-                        "false" => Expr::Bool(false),
-                        _ => Expr::Ident(ast::Symbol::new(text)),
-                    },
-                )
+                if text == "async" && self.lex_peek()? == Tok::Function {
+                    // How gross!
+                    self.lex_read()?;
+                    let f = self.function()?;
+                    // TODO: mark f as async.
+                    ((todo_span(), Expr::Function(Box::new(f))))
+                } else {
+                    (
+                        span,
+                        match text.as_str() {
+                            "null" => Expr::Null,
+                            "undefined" => Expr::Undefined,
+                            "true" => Expr::Bool(true),
+                            "false" => Expr::Bool(false),
+                            _ => Expr::Ident(ast::Symbol::new(text)),
+                        },
+                    )
+                }
             }
             Tok::Number => {
                 if let lex::TokData::Number(n) = token.data {
@@ -405,12 +413,6 @@ impl<'a> Parser<'a> {
                     Span::new(token.span.start, end),
                     Expr::Object(Box::new(obj)),
                 )
-            }
-            Tok::Async => {
-                self.expect(Tok::Function)?;
-                let f = self.function()?;
-                // TODO: mark f as async.
-                (todo_span(), Expr::Function(Box::new(f)))
             }
             Tok::Function => (todo_span(), Expr::Function(Box::new(self.function()?))),
             Tok::Class => (todo_span(), Expr::Class(Box::new(self.class()?))),
@@ -485,13 +487,11 @@ impl<'a> Parser<'a> {
                     let mut is_static = false;
                     while self.lex_peek()? != Tok::LParen {
                         match name {
-                            ast::PropertyName::String(ref s) => {
-                                match &**s {
-                                    "static" => is_static = true,
-                                    "async" => is_async = true,
-                                    _ => break,
-                                }
-                            }
+                            ast::PropertyName::String(ref s) => match &**s {
+                                "static" => is_static = true,
+                                "async" => is_async = true,
+                                _ => break,
+                            },
                             _ => break,
                         }
                         name = self.property_name()?.1;
@@ -515,7 +515,6 @@ impl<'a> Parser<'a> {
     fn binding_pattern(&mut self) -> ParseResult<ast::BindingPattern> {
         let token = self.lex_read()?;
         Ok(match token.tok {
-            Tok::Ident => ast::BindingPattern::Name(ast::Symbol::new(self.lexer.text(token))),
             Tok::LBrace => {
                 // ObjectBindingPattern
                 let mut props: Vec<(ast::PropertyName, ast::BindingElement)> = Vec::new();
@@ -573,6 +572,10 @@ impl<'a> Parser<'a> {
                 }
                 self.expect(Tok::RSquare)?;
                 ast::BindingPattern::Array(ast::ArrayBindingPattern { elems: elems })
+            }
+            Tok::Ident => ast::BindingPattern::Name(ast::Symbol::new(self.lexer.text(token))),
+            tok if tok.is_kw() => {
+                ast::BindingPattern::Name(ast::Symbol::new(self.lexer.text(token)))
             }
             _ => return Err(self.parse_error(token, "binding element")),
         })
@@ -1597,6 +1600,7 @@ x;",
 
         #[test]
         fn async() {
+            parse("let x = async;");
             parse("async function f() {}");
             parse("class C { async f() {} }");
         }
