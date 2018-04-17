@@ -406,6 +406,7 @@ fn gen_ops() -> io::Result<()> {
         ("+", "Plus"),
         ("--", "PostMinusMinus"), // XXX see hack below.
         ("++", "PostPlusPlus"),
+        ("await", "Await"),
         ("delete", "Delete"),
         ("typeof", "TypeOf"),
         ("void", "Void"),

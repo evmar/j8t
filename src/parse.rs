@@ -671,6 +671,7 @@ impl<'a> Parser<'a> {
             | Tok::Minus
             | Tok::PlusPlus
             | Tok::MinusMinus
+            | Tok::Await
             | Tok::Void
             | Tok::Delete if prec <= 16 =>
             {
@@ -1603,6 +1604,11 @@ x;",
             parse("let x = async;");
             parse("async function f() {}");
             parse("class C { async f() {} }");
+        }
+
+        #[test]
+        fn await() {
+            parse("await x;");
         }
     }
 }
