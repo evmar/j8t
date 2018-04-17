@@ -120,7 +120,7 @@ pub fn number(scanner: &mut Scanner) -> Result<f64> {
     let str = std::str::from_utf8(&scanner.input[start..end]).unwrap();
     match str.parse() {
         Ok(n) => Ok(n),
-        Err(err) => Err(scanner.err(format!("bad number: {:?}", str))),
+        Err(_) => Err(scanner.err(format!("bad number: {:?}", str))),
     }
 }
 

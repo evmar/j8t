@@ -239,8 +239,8 @@ impl<'a> Writer<'a> {
         if let Some(ref name) = c.name {
             self.sym(name)?;
         }
-        self.brace(|w| {
-            for s in c.methods.iter() {
+        self.brace(|_w| {
+            for _s in c.methods.iter() {
                 panic!("class methods");
             }
             Ok(())
@@ -347,14 +347,14 @@ impl<'a> Writer<'a> {
                 let needs_parens = self.ofs == self.statement_start;
                 self.maybe_paren(needs_parens, |w| w.function(f))?;
             }
-            ast::Expr::ArrowFunction(ref f) => {
+            ast::Expr::ArrowFunction(ref _f) => {
                 unimplemented!("arrow gen");
             }
-            ast::Expr::Class(ref c) => {
+            ast::Expr::Class(ref _c) => {
                 unimplemented!("class gen");
             }
             ast::Expr::Regex(ref regex) => self.token(&regex.literal)?,
-            ast::Expr::Template(ref template) => unimplemented!(),
+            ast::Expr::Template(ref _template) => unimplemented!(),
             ast::Expr::Index(ref expr, ref index) => {
                 self.maybe_paren(prec > 19, |w| {
                     w.exprn(expr, 19)?;

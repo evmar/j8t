@@ -989,7 +989,7 @@ impl<'a> Parser<'a> {
                     })
                 }
             };
-            let ast::Binary { lhs, rhs, op } = bin;
+            let ast::Binary { lhs, rhs, op: _op } = bin;
             let loop_var = match lhs.1 {
                 ast::Expr::Ident(name) => ast::BindingPattern::Name(name),
                 _ => unimplemented!(),

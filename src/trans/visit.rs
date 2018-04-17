@@ -162,8 +162,8 @@ pub fn stmt_stmt<F: FnMut(&mut ast::Stmt)>(stmt: &mut ast::Stmt, mut f: F) {
         ast::Stmt::Function(ref mut fun) => for s in fun.body.iter_mut() {
             f(s);
         },
-        ast::Stmt::Class(ref mut class) => for s in class.methods.iter_mut() {
-            panic!("class methods");
+        ast::Stmt::Class(ref mut class) => for _s in class.methods.iter_mut() {
+            unimplemented!("class methods");
         },
 
         ast::Stmt::Return(_)

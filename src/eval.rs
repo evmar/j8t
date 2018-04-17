@@ -183,8 +183,8 @@ fn var_declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
                 scope.bindings.push(name.clone());
             }
         }
-        ast::Stmt::Class(ref class) => {
-            // TODO: class bindings.
+        ast::Stmt::Class(ref _class) => {
+            unimplemented!();
         }
         ast::Stmt::Empty
         | ast::Stmt::Expr(_)
