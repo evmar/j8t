@@ -501,7 +501,7 @@ impl<'a> Writer<'a> {
                 self.paren(|w| {
                     match f.init {
                         ast::ForInit::Empty => {}
-                        ast::ForInit::Expr(ref e) => w.expr(e, -1)?,
+                        ast::ForInit::Expr(ref e) => w.exprn(e, -1)?,
                         ast::ForInit::Decls(ref decls) => {
                             if decls.decls.len() > 0 {
                                 w.token(decls.typ.to_string())?;

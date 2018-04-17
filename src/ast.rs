@@ -268,7 +268,7 @@ pub struct While {
 #[derive(Debug)]
 pub enum ForInit {
     Empty,
-    Expr(Expr),
+    Expr(ExprNode),
     Decls(VarDecls),
 }
 

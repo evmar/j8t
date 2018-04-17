@@ -74,7 +74,7 @@ pub fn expr_expr<F: FnMut(&mut ast::ExprNode)>(expr: &mut ast::Expr, mut f: F) {
 pub fn stmt_expr_forinit<F: FnMut(&mut ast::Expr)>(init: &mut ast::ForInit, f: &mut F) {
     match *init {
         ast::ForInit::Empty => {}
-        ast::ForInit::Expr(ref mut e) => f(e),
+        ast::ForInit::Expr(ref mut e) => f(&mut e.1),
         ast::ForInit::Decls(ref mut decls) => for decl in decls.decls.iter_mut() {
             if let Some((_, ref mut init)) = decl.init {
                 f(init);

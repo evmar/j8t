@@ -67,13 +67,6 @@ impl ParseError {
 
 pub type ParseResult<T> = Result<T, ParseError>;
 
-fn is_for_in_head(expr: &Expr) -> bool {
-    match *expr {
-        ast::Expr::Binary(ref bin) if bin.op == ast::BinOp::In => true,
-        _ => false,
-    }
-}
-
 fn decl_type_from_tok(tok: Tok) -> ast::VarDeclType {
     match tok {
         Tok::Var => ast::VarDeclType::Var,
@@ -83,49 +76,25 @@ fn decl_type_from_tok(tok: Tok) -> ast::VarDeclType {
     }
 }
 
-// Given an expression that occurs after a 'var', extract the vars
-// that were actually declared.
-// E.g. given the input
-//     var x = 3, y
-//         *      *
-// this given the expressions marked *.
-fn decls_from_expr(expr: ExprNode, decls: &mut Vec<ast::VarDecl>) -> ParseResult<()> {
-    match expr.1 {
-        ast::Expr::Ident(name) => {
-            decls.push(ast::VarDecl {
-                pattern: ast::BindingPattern::Name(name),
-                init: None,
-            });
-        }
-        ast::Expr::Assign(lhs, rhs) => match *lhs {
-            (_, ast::Expr::Ident(name)) => {
-                decls.push(ast::VarDecl {
-                    pattern: ast::BindingPattern::Name(name),
-                    init: Some(*rhs),
-                });
-            }
-            _ => panic!("decls_from_expr"),
-        },
-        ast::Expr::Binary(bin) => {
-            let bin = *bin;
-            if bin.op == ast::BinOp::Comma {
-                decls_from_expr(bin.lhs, decls)?;
-                decls_from_expr(bin.rhs, decls)?;
-            } else {
-                return Err(ParseError {
-                    msg: "failed to extract decls".into(),
-                    at: expr.0,
-                });
-            }
+// In some contexts we first parse as an expression but then later decide
+// that it was actually a binding.  For example,
+//   for ([a,b] in x)
+// the whole loop condition first parses as an expression, then we see
+// no following semi and the 'in' and realize it's a for-in loop.
+// So we must then convert the [a,b] half of the expr into a binding
+// pattern.
+fn binding_from_expr(expr: ExprNode) -> ParseResult<ast::BindingPattern> {
+    Ok(match expr.1 {
+        ast::Expr::Ident(sym) => {
+            ast::BindingPattern::Name(sym)
         }
         _ => {
             return Err(ParseError {
-                msg: "failed to extract decls".into(),
+                msg: format!("couldn't convert expr into binding"),
                 at: expr.0,
             });
         }
-    }
-    Ok(())
+    })
 }
 
 // Parsing arrow functions is tricky.  We don't know we're in an
@@ -139,15 +108,15 @@ fn decls_from_expr(expr: ExprNode, decls: &mut Vec<ast::VarDecl>) -> ParseResult
 // an arrow function.  It can fail, in inputs like
 //     (x++) => 3
 // where we can't convert x++ into a parameter list.
+//
+// This differs from binding_from_expr in that it handles comma-separated
+// lists of parameters as well as default value initializers.
 fn arrow_params_from_expr(
     expr: ExprNode,
     params: &mut Vec<ast::BindingElement>,
 ) -> ParseResult<()> {
     match expr.1 {
         ast::Expr::EmptyParens => { /* ok, no params */ }
-        ast::Expr::Ident(sym) => {
-            params.push((ast::BindingPattern::Name(sym), None));
-        }
         ast::Expr::Binary(bin) => {
             let bin = *bin;
             if bin.op == ast::BinOp::Comma {
@@ -159,6 +128,9 @@ fn arrow_params_from_expr(
                     at: expr.0,
                 });
             }
+        }
+        ast::Expr::Ident(_) => {
+            params.push((binding_from_expr(expr)?, None))
         }
         _ => {
             println!("on: {:?}", expr);
@@ -925,86 +897,112 @@ impl<'a> Parser<'a> {
     fn for_stmt(&mut self) -> ParseResult<Stmt> {
         // This is subtle because of the many possible forms of a 'for' statement.
         // See the test.
-        // The important thing to open with is (unfortunately) a parse of the
-        // body as an expr(), not anything more complex, because we need to parse
-        // all of
-        //   for (x = 3; ...
-        //   for (x in y) ...
-        //   for ([x] = 3; ...
-        //   for ([x] in y; ...
 
         self.expect(Tok::LParen)?;
 
+        // Parse the initializer.  If it's a for-of loop, it'll parse up to the
+        // point where the 'of'/'in' occurs.
+        //   for (const a of b
+        //                ^ here.
         let tok = self.lex_peek()?;
-        let init = if tok == Tok::Semi {
-            ast::ForInit::Empty
-        } else {
-            let decl_type = match tok {
-                Tok::Var | Tok::Let | Tok::Const => {
-                    self.lex_read()?;
-                    Some(decl_type_from_tok(tok))
-                }
-                _ => None,
-            };
-            let expr = self.expr()?;
-            if self.lex_peek()? == Tok::Of {
-                // For-of loop.
-                let loop_var = match expr.1 {
-                    ast::Expr::Ident(name) => ast::BindingPattern::Name(name),
-                    _ => {
-                        return Err(ParseError {
-                            msg: "couldn't parse for-of loop head".into(),
-                            at: expr.0,
-                        });
-                    }
-                };
-                self.lex_read()?; // of
+        let init = match tok {
+            Tok::Semi => ast::ForInit::Empty,
+            Tok::Var | Tok::Let | Tok::Const => {
+                self.lex_read()?;
+                let decl_type = decl_type_from_tok(tok);
+                let decls = self.bindings()?;
+                ast::ForInit::Decls(ast::VarDecls{typ: decl_type, decls: decls})
+            }
+            _ => {
                 let expr = self.expr()?;
-                self.expect(Tok::RParen)?;
-                return Ok(Stmt::ForInOf(Box::new(ast::ForInOf {
-                    decl_type: decl_type,
-                    loop_var: loop_var,
-                    in_of: ast::InOf::Of,
-                    expr: expr,
-                    body: self.stmt()?,
-                })));
-            }
-            // Check if it's a for-in loop.
-            // Note: we want to match expr against an expr like
-            //   a in b
-            // and pull out 'a' and 'b', but it's a bit hard with borrowing.
-            // So instead first check if it's a match, then match a second time
-            // to consume it.
-            if is_for_in_head(&expr.1) {
-                let bin = match expr.1 {
-                    ast::Expr::Binary(bin) => *bin,
-                    _ => unreachable!(), // assured by is_for_in_of_head.
-                };
-                let ast::Binary { lhs, rhs, op } = bin;
-                let loop_var = match lhs.1 {
-                    ast::Expr::Ident(name) => ast::BindingPattern::Name(name),
-                    _ => unimplemented!(),
-                };
-                self.expect(Tok::RParen)?;
-                return Ok(Stmt::ForInOf(Box::new(ast::ForInOf {
-                    decl_type: decl_type,
-                    loop_var: loop_var,
-                    in_of: ast::InOf::In,
-                    expr: rhs,
-                    body: self.stmt()?,
-                })));
-            }
-            if let Some(decl_type) = decl_type {
-                let mut decls: Vec<ast::VarDecl> = Vec::new();
-                decls_from_expr(expr, &mut decls)?;
-                ast::ForInit::Decls(ast::VarDecls {
-                    typ: decl_type,
-                    decls: decls,
-                })
-            } else {
-                ast::ForInit::Expr(expr.1)
+                ast::ForInit::Expr(expr)
             }
         };
+
+        // Now check for the 'in/'of' of a for-in-of.
+        let tok = self.lex_peek()?;
+        if tok == Tok::In || tok == Tok::Of {
+            // For-in/of loop.
+            let token = self.lex_read()?;
+            let in_of = match token.tok {
+                Tok::In => ast::InOf::In,
+                Tok::Of => ast::InOf::Of,
+                _ => unreachable!(),
+            };
+            let rhs = self.expr()?;
+            self.expect(Tok::RParen)?;
+            match init {
+                ast::ForInit::Decls(mut decls) => {
+                    if decls.decls.len() != 1 {
+                        return Err(ParseError {
+                            msg: "couldn't parse for-of loop head".into(),
+                            at: token.span,
+                        })
+                    }
+                    let decl = decls.decls.pop().unwrap();  // safe per len() check
+                    if let Some(init) = decl.init {
+                        return Err(ParseError {
+                            msg: "unexpected initializer".into(),
+                            at: init.0,
+                        })
+                    }
+                    return Ok(Stmt::ForInOf(Box::new(ast::ForInOf {
+                        decl_type: Some(decls.typ),
+                        loop_var: decl.pattern,
+                        in_of: in_of,
+                        expr: rhs,
+                        body: self.stmt()?,
+                    })));
+                }
+                ast::ForInit::Expr(expr) => {
+                    let loop_var = binding_from_expr(expr)?;
+                    return Ok(Stmt::ForInOf(Box::new(ast::ForInOf {
+                        decl_type: None,
+                        loop_var: loop_var,
+                        in_of: in_of,
+                        expr: rhs,
+                        body: self.stmt()?,
+                    })));
+                }
+                _ => {
+                    unreachable!();
+                }
+            };
+        };
+
+        // If it's a loop like
+        //   for (x in y)
+        // we parsed the entire 'x in y' as an expr, but we need to back out
+        // and call it a for-in loop as well.
+        if self.lex_peek()? == Tok::RParen {
+            self.lex_read()?;
+            let expr = match init {
+                ast::ForInit::Expr(expr) => expr,
+                _ => unreachable!(),
+            };
+            let bin = match expr.1 {
+                ast::Expr::Binary(bin) => *bin,
+                _ => {
+                    return Err(ParseError {
+                        msg: "couldn't parse for-of loop head".into(),
+                        at: expr.0,
+                    })
+                }
+            };
+            let ast::Binary { lhs, rhs, op } = bin;
+            let loop_var = match lhs.1 {
+                ast::Expr::Ident(name) => ast::BindingPattern::Name(name),
+                _ => unimplemented!(),
+            };
+            return Ok(Stmt::ForInOf(Box::new(ast::ForInOf {
+                decl_type: None,
+                loop_var: loop_var,
+                in_of: ast::InOf::In,
+                expr: rhs,
+                body: self.stmt()?,
+            })));
+        }
+
         self.expect(Tok::Semi)?;
 
         // for (a;b;c) loop.  Lexer is now pointed at 'b'.
@@ -1441,6 +1439,11 @@ x;",
         #[test]
         fn array_binding() {
             parse("const [x] = a;");
+        }
+
+        #[test]
+        fn for_of_binding() {
+            parse("for (const [key, val] of entries) ;");
         }
 
         #[test]
