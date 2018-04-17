@@ -474,16 +474,16 @@ impl<'a> Parser<'a> {
                 }
                 Tok::RBrace => break,
                 _ => {
-                    let (_, mut name, _) = self.property_name()?;
-                    let mut is_static = false;
+                    let (_, mut _name, _) = self.property_name()?;
+                    let mut _is_static = false;
                     if self.lex_peek()? != Tok::LParen {
                         // Check if it was a static property.
-                        name = match name {
+                        _name = match _name {
                             ast::PropertyName::String(ref s) if s == "static" => {
-                                is_static = true;
+                                _is_static = true;
                                 self.property_name()?.1
                             }
-                            _ => name,
+                            _ => _name,
                         }
                     }
                     // TODO: use name.
