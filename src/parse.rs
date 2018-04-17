@@ -282,7 +282,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn object_literal(&mut self) -> ParseResult<ast::Object> {
+    fn object_literal(&mut self) -> ParseResult<(usize, ast::Object)> {
         let mut props: Vec<ast::Property> = Vec::new();
         while self.lex_peek()? != Tok::RBrace {
             let (span, name, can_pun) = self.property_name()?;
@@ -341,8 +341,8 @@ impl<'a> Parser<'a> {
             }
             self.lex_read()?;
         }
-        self.expect(Tok::RBrace)?;
-        Ok(ast::Object { props: props })
+        let end = self.expect(Tok::RBrace)?;
+        Ok((end, ast::Object { props: props }))
     }
 
     // 12.2 Primary Expression
@@ -381,10 +381,13 @@ impl<'a> Parser<'a> {
                 let (span, arr) = self.array_literal(token.span.start)?;
                 (span, Expr::Array(arr))
             }
-            Tok::LBrace => (
-                todo_span(),
-                Expr::Object(Box::new(try!(self.object_literal()))),
-            ),
+            Tok::LBrace => {
+                let (end, obj) = self.object_literal()?;
+                (
+                    Span::new(token.span.start, end),
+                    Expr::Object(Box::new(obj)),
+                )
+            }
             Tok::Function => (todo_span(), Expr::Function(Box::new(self.function()?))),
             Tok::Class => (todo_span(), Expr::Class(Box::new(self.class()?))),
             Tok::LParen => {
