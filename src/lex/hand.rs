@@ -224,6 +224,8 @@ pub fn quoted(s: &mut Scanner, quote: char) -> Result<String> {
                     '\'' => str.push('\'' as u8),
                     '\\' => str.push('\\' as u8),
                     '0' => str.push('\0' as u8),
+                    // Note: this is invalid but accepted by JSCompiler(?).
+                    '/' => str.push('/' as u8),
                     c => return Err(s.err(format!("unknown escape \\{:?}", c))),
                 }
             }
