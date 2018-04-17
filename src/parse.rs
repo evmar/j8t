@@ -86,6 +86,21 @@ fn decl_type_from_tok(tok: Tok) -> ast::VarDeclType {
 fn binding_from_expr(expr: ExprNode) -> ParseResult<ast::BindingPattern> {
     Ok(match expr.1 {
         ast::Expr::Ident(sym) => ast::BindingPattern::Name(sym),
+        ast::Expr::Object(obj) => {
+            let props = obj.props
+                .into_iter()
+                .map(|p| {
+                    let pat = match p.name {
+                        ast::PropertyName::String(ref s) => {
+                            ast::BindingPattern::Name(ast::Symbol::new(s.clone()))
+                        }
+                        _ => unimplemented!(),
+                    };
+                    (p.name, (pat, Some(p.value)))
+                })
+                .collect();
+            ast::BindingPattern::Object(ast::ObjectBindingPattern { props: props })
+        }
         _ => {
             return Err(ParseError {
                 msg: format!("couldn't convert expr into binding"),
@@ -148,7 +163,10 @@ fn arrow_params_from_expr(
                 }
             }
         }
-        ast::Expr::Ident(_) | ast::Expr::Assign(_, _) | ast::Expr::Spread(_) => {
+        ast::Expr::Ident(_)
+        | ast::Expr::Assign(_, _)
+        | ast::Expr::Spread(_)
+        | ast::Expr::Object(_) => {
             params.push(arrow_param_from_expr(expr)?);
         }
         _ => {
@@ -164,7 +182,7 @@ fn arrow_params_from_expr(
 
 fn arrow_param_from_expr(expr: ExprNode) -> ParseResult<ast::BindingElement> {
     Ok(match expr.1 {
-        ast::Expr::Ident(_) => (binding_from_expr(expr)?, None),
+        ast::Expr::Ident(_) | ast::Expr::Object(_) => (binding_from_expr(expr)?, None),
         ast::Expr::Assign(lhs, rhs) => (binding_from_expr(*lhs)?, Some(*rhs)),
         ast::Expr::Spread(e) => {
             // TODO: spread
@@ -1538,6 +1556,7 @@ x;",
             parse("() => 3");
             parse("(a, b, c) => 3");
             parse("(a = 3, b) => 3");
+            parse("({x}) => 3");
         }
 
         #[test]
