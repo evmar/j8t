@@ -218,6 +218,11 @@ impl<'a> Parser<'a> {
                     // elision TODO
                     self.lex_read()?;
                 }
+                Tok::Ellipsis => {
+                    self.lex_read()?;
+                    // spread TODO
+                    elems.push(self.expr_prec(1)?);
+                }
                 _ => {
                     elems.push(self.expr_prec(1)?);
                     if self.lex_peek()? == Tok::Comma {
@@ -1537,6 +1542,12 @@ x;",
         fn rest_params() {
             parse("function f(...args) {}");
             parse("function f(x, ...[args]) {}");
+        }
+
+        #[test]
+        fn spread() {
+            parse("[...b]");
+            parse("[...b, ...c]");
         }
     }
 }
