@@ -253,8 +253,9 @@ impl<'a> Writer<'a> {
                 self.token(&format!("{}", n))?;
                 None
             }
-            ast::PropertyName::Computed(ref _n) => {
-                unimplemented!();
+            ast::PropertyName::Computed(ref prop) => {
+                self.wrap('[', ']', |w| w.exprn(prop, 0))?;
+                None
             }
         })
     }
