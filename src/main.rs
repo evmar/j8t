@@ -143,11 +143,14 @@ fn real_main() -> bool {
         }
     }
 
-    let (t, _) = measure(|| {
-        trans::deblock(&mut module);
-    });
-    if timing {
-        eprintln!("deblock: {}ms", t);
+    // TODO: reenable after ES6 fixes.
+    if false {
+        let (t, _) = measure(|| {
+            trans::deblock(&mut module);
+        });
+        if timing {
+            eprintln!("deblock: {}ms", t);
+        }
     }
 
     let mut w: Box<Write> = if fmt {
