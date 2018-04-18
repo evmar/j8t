@@ -113,44 +113,46 @@ pub fn deblock(module: &mut ast::Module) {
 mod tests {
     use super::*;
     use std::str;
-    use parse::Parser;
-    use gen::Writer;
+    use parse;
+    use gen;
 
-    fn parse(input: &str) -> ast::Module {
-        Parser::new(input.as_bytes()).module().unwrap()
-    }
-
-    fn gen(module: &ast::Module) -> String {
+    fn deblock_to_string(input: &str) -> String {
+        let mut module = parse::Parser::new(input.as_bytes()).module().unwrap();
+        deblock(&mut module);
         let mut buf: Vec<u8> = Vec::new();
         {
-            let mut w = Writer::new(&mut buf);
-            w.module(module).unwrap();
+            let mut w = gen::Writer::new(&mut buf);
+            w.module(&module).unwrap();
         }
         String::from_utf8(buf).unwrap()
     }
 
     #[test]
     fn deblock_if() {
-        let mut sts = parse("if (a) { return b(c) }");
-        deblock(&mut sts);
-        println!("{}", gen(&sts));
+        assert_eq!(
+            deblock_to_string("if (a) { return b(c) }"),
+            "if(a)return b(c)"
+        );
 
-        let mut sts = parse("if (a) { if (b) c; } else d;");
-        deblock(&mut sts);
-        println!("{}", gen(&sts));
+        assert_eq!(
+            deblock_to_string("if (a) { if (b) c; } else d;"),
+            "if(a){if(b)c}else d"
+        );
     }
 
     #[test]
     fn try() {
-        let mut sts = parse("try { x; } catch (e) { y; }");
-        deblock(&mut sts);
-        println!("{}", gen(&sts));
+        assert_eq!(
+            deblock_to_string("try { x; } catch (e) { y; }"),
+            "try{x}catch(e){y}"
+        );
     }
 
     #[test]
     fn nested() {
-        let mut sts = parse("if (a) { if (b) { c; } else if (d) { e } } else if (g) { h }");
-        deblock(&mut sts);
-        println!("{}", gen(&sts));
+        assert_eq!(
+            deblock_to_string("if (a) { if (b) { c; } else if (d) { e } } else if (g) { h }"),
+            "if(a){if(b)c;else if(d)e}else if(g)h"
+        );
     }
 }
