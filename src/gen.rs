@@ -208,13 +208,17 @@ impl<'a> Writer<'a> {
 
     fn function(&mut self, f: &ast::Function) -> Result {
         self.token("function")?;
+        self.function_method_from_name(f)
+    }
+
+    fn function_method_from_name(&mut self, f: &ast::Function) -> Result {
         if let Some(ref name) = f.name {
             self.sym(&name)?;
         }
-        self.function_from_paren(f)
+        self.function_method_from_paren(&f.body)
     }
 
-    fn function_from_paren(&mut self, f: &ast::Function) -> Result {
+    fn function_method_from_paren(&mut self, f: &ast::FunctionMethod) -> Result {
         self.paren(|w| {
             w.comma(&f.params, |w, param| {
                 match *param {
@@ -234,14 +238,41 @@ impl<'a> Writer<'a> {
         Ok(())
     }
 
+    // Return the property name as a string if it's allowed to be bunned.
+    fn property_name<'p>(&mut self, prop: &'p ast::PropertyName) -> io::Result<Option<&'p str>> {
+        Ok(match *prop {
+            ast::PropertyName::String(ref s) => {
+                let quoted = obj_prop_needs_quote(s);
+                if quoted {
+                    self.token(&format!("{:?}", s))?;
+                    None
+                } else {
+                    self.token(s)?;
+                    Some(s)
+                }
+            }
+            ast::PropertyName::Number(ref n) => {
+                self.token(&format!("{}", n))?;
+                None
+            }
+            ast::PropertyName::Computed(ref _n) => {
+                unimplemented!();
+            }
+        })
+    }
+
     fn class(&mut self, c: &ast::Class) -> Result {
         self.token("class")?;
         if let Some(ref name) = c.name {
             self.sym(name)?;
         }
-        self.brace(|_w| {
-            for _s in c.methods.iter() {
-                panic!("class methods");
+        self.brace(|w| {
+            for method in c.methods.iter() {
+                if method.is_static {
+                    w.token("static")?;
+                }
+                w.property_name(&method.name)?;
+                w.function_method_from_paren(&method.body)?;
             }
             Ok(())
         })?;
@@ -297,25 +328,7 @@ impl<'a> Writer<'a> {
                     w.comma(&obj.props, |w, p| {
                         // Write the property name, and grab the name string if
                         // it's allowed to be punned.
-                        let name = match p.name {
-                            ast::PropertyName::String(ref s) => {
-                                let quoted = obj_prop_needs_quote(s);
-                                if quoted {
-                                    w.token(&format!("{:?}", s))?;
-                                    None
-                                } else {
-                                    w.token(s)?;
-                                    Some(s)
-                                }
-                            }
-                            ast::PropertyName::Number(ref n) => {
-                                w.token(&format!("{}", n))?;
-                                None
-                            }
-                            ast::PropertyName::Computed(ref _n) => {
-                                unimplemented!();
-                            }
-                        };
+                        let name = w.property_name(&p.name)?;
                         let wrote = if let Some(n) = name {
                             match p.value.1 {
                                 ast::Expr::Ident(ref v) if *n == *v.name.borrow() => {
@@ -327,7 +340,7 @@ impl<'a> Writer<'a> {
                                         if *n == *fname.name.borrow() {
                                             // TODO: this always clobbers the function name.
                                             // Do we care?
-                                            w.function_from_paren(f)?;
+                                            w.function_method_from_paren(&f.body)?;
                                             true
                                         } else {
                                             false

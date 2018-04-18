@@ -15,7 +15,6 @@
  */
 
 use std;
-use std::rc::Rc;
 use lex;
 use lex::{LexError, Span, Tok, Token};
 use ast;
@@ -106,7 +105,7 @@ fn binding_from_expr(expr: ExprNode) -> ParseResult<ast::BindingPattern> {
             for elem in arr {
                 elems.push((binding_from_expr(elem)?, None));
             }
-            ast::BindingPattern::Array(ast::ArrayBindingPattern{elems: elems})
+            ast::BindingPattern::Array(ast::ArrayBindingPattern { elems: elems })
         }
         _ => {
             return Err(ParseError {
@@ -215,7 +214,9 @@ fn arrow_params_from_expr(
 
 fn arrow_param_from_expr(expr: ExprNode) -> ParseResult<ast::BindingElement> {
     Ok(match expr.1 {
-        ast::Expr::Ident(_) | ast::Expr::Object(_) | ast::Expr::Array(_) => (binding_from_expr(expr)?, None),
+        ast::Expr::Ident(_) | ast::Expr::Object(_) | ast::Expr::Array(_) => {
+            (binding_from_expr(expr)?, None)
+        }
         ast::Expr::Assign(lhs, rhs) => (binding_from_expr(*lhs)?, Some(*rhs)),
         ast::Expr::Spread(e) => {
             // TODO: spread
@@ -349,19 +350,14 @@ impl<'a> Parser<'a> {
                 }
                 Tok::LParen if can_pun => {
                     // a(...) {}
-                    let value = match name {
-                        ast::PropertyName::String(ref s) => {
-                            let sym = ast::Symbol::new(s.clone());
-                            (
-                                span, // TODO: correct span?
-                                ast::Expr::Function(Box::new(self.function_from_paren(Some(sym))?)),
-                            )
-                        }
-                        _ => unreachable!(),
-                    };
+                    let func = ast::Expr::Function(Box::new(self.function()?));
+                    // TODO: name the function?
                     ast::Property {
                         name: name,
-                        value: value,
+                        value: (
+                            Span::new(span.start, span.end), // TODO
+                            func,
+                        ),
                     }
                 }
                 _ if can_pun => {
@@ -505,7 +501,7 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        let mut methods: Vec<ast::Function> = Vec::new();
+        let mut methods: Vec<ast::Method> = Vec::new();
         self.expect(Tok::LBrace)?;
         loop {
             match self.lex_peek()? {
@@ -530,10 +526,13 @@ impl<'a> Parser<'a> {
                         name = self.property_name()?.1;
                     }
                     // TODO: use is_async, is_static, name.
-                    let mut f = self.function_from_paren(None)?;
+                    let mut f = self.function_method_from_paren()?;
                     f.async = is_async;
-                    f.is_static = is_static;
-                    methods.push(f);
+                    methods.push(ast::Method {
+                        name: name,
+                        is_static: is_static,
+                        body: f,
+                    });
                 }
             }
         }
@@ -625,10 +624,13 @@ impl<'a> Parser<'a> {
             }
             _ => None,
         };
-        self.function_from_paren(name)
+        Ok(ast::Function {
+            name: name,
+            body: self.function_method_from_paren()?,
+        })
     }
 
-    fn function_from_paren(&mut self, name: Option<Rc<ast::Symbol>>) -> ParseResult<ast::Function> {
+    fn function_method_from_paren(&mut self) -> ParseResult<ast::FunctionMethod> {
         self.expect(Tok::LParen)?;
         let mut params: Vec<(ast::BindingPattern, Option<ExprNode>)> = Vec::new();
         while self.lex_peek()? != Tok::RParen {
@@ -662,11 +664,9 @@ impl<'a> Parser<'a> {
         }
         self.expect(Tok::RBrace)?;
 
-        Ok(ast::Function {
+        Ok(ast::FunctionMethod {
             scope: ast::Scope::new(),
-            name: name,
             async: false,
-            is_static: false,
             params: params,
             body: body,
         })

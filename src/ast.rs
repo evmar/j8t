@@ -142,14 +142,26 @@ pub enum BindingPattern {
 
 pub type BindingElement = (BindingPattern, Option<ExprNode>);
 
+// Attributes shared by functions and methods.
 #[derive(Debug)]
-pub struct Function {
+pub struct FunctionMethod {
     pub scope: Scope,
     pub async: bool,
-    pub is_static: bool,
-    pub name: Option<Rc<Symbol>>,
     pub params: Vec<BindingElement>,
     pub body: Vec<Stmt>,
+}
+
+#[derive(Debug)]
+pub struct Function {
+    pub name: Option<Rc<Symbol>>,
+    pub body: FunctionMethod,
+}
+
+#[derive(Debug)]
+pub struct Method {
+    pub is_static: bool,
+    pub name: PropertyName,
+    pub body: FunctionMethod,
 }
 
 #[derive(Debug)]
@@ -168,7 +180,7 @@ pub struct ArrowFunction {
 pub struct Class {
     pub name: Option<Rc<Symbol>>,
     pub extends: Option<ExprNode>,
-    pub methods: Vec<Function>,
+    pub methods: Vec<Method>,
 }
 
 #[derive(Debug)]

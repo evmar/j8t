@@ -58,7 +58,7 @@ fn is_block(s: &ast::Stmt) -> bool {
 fn deblock_expr(expr: &mut ast::Expr) {
     match *expr {
         ast::Expr::Function(ref mut func) => {
-            for s in func.body.iter_mut() {
+            for s in func.body.body.iter_mut() {
                 deblock_stmt(s, /* parent is try */ false);
             }
         }
@@ -153,6 +153,14 @@ mod tests {
         assert_eq!(
             deblock_to_string("if (a) { if (b) { c; } else if (d) { e } } else if (g) { h }"),
             "if(a){if(b)c;else if(d)e}else if(g)h"
+        );
+    }
+
+    #[test]
+    fn class() {
+        assert_eq!(
+            deblock_to_string("class C { f() { if (a) { b; } } }"),
+            "class C{f(){if(a)b}}"
         );
     }
 }
