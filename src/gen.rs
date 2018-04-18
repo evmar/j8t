@@ -388,9 +388,7 @@ impl<'a> Writer<'a> {
                     }
                 })?;
             }
-            ast::Expr::Class(ref _c) => {
-                unimplemented!("class gen");
-            }
+            ast::Expr::Class(ref class) => self.class(class)?,
             ast::Expr::Regex(ref regex) => self.token(&regex.literal)?,
             ast::Expr::Template(ref _template) => unimplemented!(),
             ast::Expr::Index(ref expr, ref index) => {
