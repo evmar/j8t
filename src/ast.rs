@@ -140,6 +140,15 @@ pub enum BindingPattern {
     Array(ArrayBindingPattern),
 }
 
+impl BindingPattern {
+    pub fn is_name(&self) -> bool {
+        match *self {
+            BindingPattern::Name(_) => true,
+            _ => false,
+        }
+    }
+}
+
 pub type BindingElement = (BindingPattern, Option<ExprNode>);
 
 // Attributes shared by functions and methods.

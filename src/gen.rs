@@ -222,10 +222,7 @@ impl<'a> Writer<'a> {
         self.paren(|w| {
             w.comma(&f.params, |w, &(ref param, ref init)| {
                 w.binding_pattern(param)?;
-                if let Some(ref init) = *init {
-                    w.token("=")?;
-                    w.exprn(init, 3)?;
-                }
+                w.maybe_init(init)?;
                 Ok(())
             })
         })?;
@@ -367,8 +364,29 @@ impl<'a> Writer<'a> {
                 let needs_parens = self.ofs == self.statement_start;
                 self.maybe_paren(needs_parens, |w| w.function(f))?;
             }
-            ast::Expr::ArrowFunction(ref _f) => {
-                unimplemented!("arrow gen");
+            ast::Expr::ArrowFunction(ref f) => {
+                self.maybe_paren(prec > 3, |w| {
+                    let needs_parens = f.params.len() == 1 && f.params[0].0.is_name();
+                    w.maybe_paren(needs_parens, |w| {
+                        w.comma(&f.params, |w, &(ref pat, ref init)| {
+                            w.binding_pattern(pat)?;
+                            w.maybe_init(init)?;
+                            Ok(())
+                        })
+                    })?;
+                    w.token("=>")?;
+                    match f.body {
+                        ast::ArrowBody::Expr(ref expr) => w.exprn(expr, 3),
+                        ast::ArrowBody::Stmts(ref stmts) => {
+                            w.brace(|w| {
+                                for s in stmts.iter() {
+                                    w.stmt(s)?;
+                                }
+                                Ok(())
+                            })
+                        }
+                    }
+                })?;
             }
             ast::Expr::Class(ref _c) => {
                 unimplemented!("class gen");
@@ -455,6 +473,14 @@ impl<'a> Writer<'a> {
         Ok(())
     }
 
+    fn maybe_init(&mut self, init: &Option<ExprNode>) -> Result {
+        if let Some(ref init) = *init {
+            self.token("=")?;
+            self.exprn(init, 3)?;
+        }
+        Ok(())
+    }
+
     fn binding_pattern(&mut self, pattern: &ast::BindingPattern) -> Result {
         match *pattern {
             ast::BindingPattern::Name(ref name) => self.sym(name)?,
@@ -463,10 +489,7 @@ impl<'a> Writer<'a> {
                     w.property_name(name)?;
                     w.token(":")?;
                     w.binding_pattern(pat)?;
-                    if let Some(ref init) = *init {
-                        w.token("=")?;
-                        w.exprn(init, 3)?;
-                    }
+                    w.maybe_init(init)?;
                     Ok(())
                 })
             })?,
