@@ -302,6 +302,13 @@ impl<'a> Writer<'a> {
         Ok(())
     }
 
+    fn template(&mut self, template: &ast::Template) -> Result {
+        self.write_char('`')?;
+        self.write(template.literal.as_bytes())?;
+        self.write_char('`')?;
+        Ok(())
+    }
+
     fn exprn(&mut self, e: &ExprNode, prec: i8) -> Result {
         self.expr(&e.1, prec)
     }
@@ -390,7 +397,7 @@ impl<'a> Writer<'a> {
             }
             ast::Expr::Class(ref class) => self.class(class)?,
             ast::Expr::Regex(ref regex) => self.token(&regex.literal)?,
-            ast::Expr::Template(ref _template) => unimplemented!(),
+            ast::Expr::Template(ref template) => self.template(template)?,
             ast::Expr::Index(ref expr, ref index) => {
                 self.maybe_paren(prec > 19, |w| {
                     w.exprn(expr, 19)?;
