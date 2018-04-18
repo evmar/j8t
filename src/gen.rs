@@ -498,7 +498,13 @@ impl<'a> Writer<'a> {
                     Ok(())
                 })
             })?,
-            _ => unimplemented!("binding pattern {:?}", pattern),
+            ast::BindingPattern::Array(ref arr) => self.wrap('[', ']', |w| {
+                w.comma(&arr.elems, |w, &(ref pat, ref init)| {
+                    w.binding_pattern(pat)?;
+                    w.maybe_init(init)?;
+                    Ok(())
+                })
+            })?,
         }
         Ok(())
     }
