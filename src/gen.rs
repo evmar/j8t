@@ -123,7 +123,7 @@ fn punc_needs_space(last: u8, next: u8) -> bool {
 
 fn obj_prop_needs_quote(name: &str) -> bool {
     // TODO: reserved words(?)
-    name.bytes().any(|c| class(c) != CharClass::Letter)
+    name.len() == 0 || name.bytes().any(|c| class(c) != CharClass::Letter)
 }
 
 impl<'a> Writer<'a> {
