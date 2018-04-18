@@ -221,22 +221,7 @@ impl<'a> Writer<'a> {
     fn function_method_from_paren(&mut self, f: &ast::FunctionMethod) -> Result {
         self.paren(|w| {
             w.comma(&f.params, |w, &(ref param, ref init)| {
-                match *param {
-                    ast::BindingPattern::Name(ref name) => w.sym(name)?,
-                    ast::BindingPattern::Object(ref obj) => w.brace(|w| {
-                        w.comma(&obj.props, |w, &(ref name, (ref pat, ref init))| {
-                            w.property_name(name)?;
-                            w.token(":")?;
-                            w.binding_pattern(pat)?;
-                            if let Some(ref init) = *init {
-                                w.token("=")?;
-                                w.exprn(init, 3)?;
-                            }
-                            Ok(())
-                        })
-                    })?,
-                    _ => unimplemented!("function binding param {:?}", param),
-                }
+                w.binding_pattern(param)?;
                 if let Some(ref init) = *init {
                     w.token("=")?;
                     w.exprn(init, 3)?;
@@ -472,10 +457,20 @@ impl<'a> Writer<'a> {
 
     fn binding_pattern(&mut self, pattern: &ast::BindingPattern) -> Result {
         match *pattern {
-            ast::BindingPattern::Name(ref name) => {
-                self.sym(name)?;
-            }
-            _ => unimplemented!(),
+            ast::BindingPattern::Name(ref name) => self.sym(name)?,
+            ast::BindingPattern::Object(ref obj) => self.brace(|w| {
+                w.comma(&obj.props, |w, &(ref name, (ref pat, ref init))| {
+                    w.property_name(name)?;
+                    w.token(":")?;
+                    w.binding_pattern(pat)?;
+                    if let Some(ref init) = *init {
+                        w.token("=")?;
+                        w.exprn(init, 3)?;
+                    }
+                    Ok(())
+                })
+            })?,
+            _ => unimplemented!("binding pattern {:?}", pattern),
         }
         Ok(())
     }
