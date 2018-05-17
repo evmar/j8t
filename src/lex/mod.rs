@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-mod scan;
 mod hand;
-mod scanner;
 mod lexer;
+mod scan;
+mod scanner;
 
-pub use self::scan::{Tok, TokData};
 pub use self::lexer::{Lexer, Span, Token};
+pub use self::scan::{Tok, TokData};
 pub use self::scanner::{Context, LexError};

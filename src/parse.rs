@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-use std;
-use lex;
-use lex::{LexError, Span, Tok, Token};
 use ast;
 use ast::{Expr, ExprNode, Stmt};
+use lex;
+use lex::{LexError, Span, Tok, Token};
+use std;
 
 fn todo_span() -> Span {
     Span::new(0, 0)

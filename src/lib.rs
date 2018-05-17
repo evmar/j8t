@@ -16,10 +16,10 @@
 
 extern crate getopts;
 
-pub mod lex;
-pub mod parse;
 pub mod ast;
-pub mod gen;
-mod ops;
-pub mod trans;
 pub mod eval;
+pub mod gen;
+pub mod lex;
+mod ops;
+pub mod parse;
+pub mod trans;

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
 
 pub use lex::Span;
 
@@ -210,8 +210,8 @@ pub struct Call {
     pub args: Vec<ExprNode>,
 }
 
-pub use ops::UnOp;
 pub use ops::BinOp;
+pub use ops::UnOp;
 
 #[derive(Debug)]
 pub struct Binary {

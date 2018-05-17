@@ -18,11 +18,11 @@ extern crate getopts;
 extern crate j8t;
 
 use j8t::ast;
+use j8t::eval;
+use j8t::gen;
 use j8t::lex::Tok;
 use j8t::parse::*;
-use j8t::gen;
 use j8t::trans;
-use j8t::eval;
 use std::io;
 use std::io::Read;
 use std::io::Write;

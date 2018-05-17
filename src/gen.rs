@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-use std::io;
-use std::io::Write;
 use ast;
 use ast::{Expr, ExprNode};
+use std::io;
+use std::io::Write;
 
 trait Prec {
     fn prec(&self) -> i8;
@@ -386,14 +386,12 @@ impl<'a> Writer<'a> {
                     w.token("=>")?;
                     match f.body {
                         ast::ArrowBody::Expr(ref expr) => w.exprn(expr, 3),
-                        ast::ArrowBody::Stmts(ref stmts) => {
-                            w.brace(|w| {
-                                for s in stmts.iter() {
-                                    w.stmt(s)?;
-                                }
-                                Ok(())
-                            })
-                        }
+                        ast::ArrowBody::Stmts(ref stmts) => w.brace(|w| {
+                            for s in stmts.iter() {
+                                w.stmt(s)?;
+                            }
+                            Ok(())
+                        }),
                     }
                 })?;
             }
@@ -695,8 +693,8 @@ impl<'a> Writer<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::str;
     use parse::Parser;
+    use std::str;
 
     fn codegen(input: &str) -> String {
         let parse = Parser::new(input.as_bytes()).stmts().unwrap();

@@ -112,9 +112,9 @@ pub fn deblock(module: &mut ast::Module) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::str;
-    use parse;
     use gen;
+    use parse;
+    use std::str;
 
     fn deblock_to_string(input: &str) -> String {
         let mut module = parse::Parser::new(input.as_bytes()).module().unwrap();

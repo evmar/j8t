@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-use std::rc::Rc;
 use ast;
 use parse::Parser;
+use std::rc::Rc;
 use trans::visit;
 
 const EXTERNS: &'static str = r#"
