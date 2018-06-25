@@ -51,10 +51,10 @@ impl FmtWrite {
             .stdin(std::process::Stdio::piped())
             .spawn()?;
         let w = Box::new(c.stdin.take().unwrap());
-        Ok((FmtWrite {
+        Ok(FmtWrite {
             child: c,
             w: Some(w),
-        }))
+        })
     }
 }
 
