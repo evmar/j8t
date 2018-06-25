@@ -45,14 +45,14 @@ impl ParseError {
         }
     }
 
-    pub fn print(&self, l: &lex::Lexer) {
+    pub fn print(&self, l: &lex::Lexer, w: &mut std::io::Write) -> std::io::Result<()> {
         let lex::Context {
             line,
             col,
             source_line,
         } = l.scan.context(self.at.start);
-        eprintln!("ERROR:{}:{}: {}", line, col, self.msg);
-        eprintln!("{}", std::str::from_utf8(source_line).unwrap());
+        write!(w, "ERROR:{}:{}: {}\n", line, col, self.msg)?;
+        write!(w, "{}\n", std::str::from_utf8(source_line).unwrap())?;
         let mut mark = String::new();
         for _ in 0..col - 1 {
             mark.push(' ');
@@ -60,7 +60,8 @@ impl ParseError {
         for _ in self.at.start..self.at.end {
             mark.push('^');
         }
-        eprintln!("{}", mark);
+        write!(w, "{}\n", mark)?;
+        Ok(())
     }
 }
 
