@@ -107,12 +107,11 @@ impl<'a> Scanner<'a> {
             }
         }
         let mut line_end = line_start;
-        for i in pos..std::cmp::min(pos + 80, self.input.len()) {
+        for i in pos..std::cmp::min(pos + 80, self.input.len()+1) {
+            line_end = i;
             match scan.read() as char {
                 '\n' | '\0' => break,
-                _ => {
-                    line_end = i;
-                }
+                _ => {}
             }
         }
         return Context {
