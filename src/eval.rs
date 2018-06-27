@@ -101,6 +101,7 @@ fn load_externs() -> ast::Scope {
     return scope;
 }
 
+/// decl_names adds all the new names declared in a VarDecls to a Scope.
 fn decl_names(decls: &ast::VarDecls, scope: &mut ast::Scope) {
     for decl in decls.decls.iter() {
         match decl.pattern {
@@ -112,6 +113,8 @@ fn decl_names(decls: &ast::VarDecls, scope: &mut ast::Scope) {
     }
 }
 
+/// var_declared_names gathers all 'var' declared names in a statement
+/// and adds them to a Scope.
 fn var_declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
     // Follows the definition of VarDeclaredNames in the spec.
     match *stmt {
@@ -192,12 +195,6 @@ fn var_declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
         | ast::Stmt::Break(_)
         | ast::Stmt::Return(_)
         | ast::Stmt::Throw(_) => {}
-    }
-}
-
-fn collect_scope(stmts: &[ast::Stmt], scope: &mut ast::Scope) {
-    for s in stmts.iter() {
-        var_declared_names(s, scope);
     }
 }
 
@@ -306,7 +303,9 @@ impl<'a> Visit<'a> {
                 _ => unimplemented!(),
             }
         }
-        collect_scope(&mut func.func.body, &mut env.scope);
+        for s in func.func.body.iter_mut() {
+            var_declared_names(s, &mut env.scope);
+        }
         for s in func.func.body.iter_mut() {
             self.stmt(&env, s);
         }
@@ -385,6 +384,21 @@ impl<'a> Visit<'a> {
             }
         }
     }
+
+    fn module(&mut self, module: &mut ast::Module) {
+        let mut env = Env {
+            scope: ast::Scope::new(),
+            parent: None,
+            name_gen: NameGen::new(),
+        };
+        for s in module.stmts.iter_mut() {
+            var_declared_names(s, &mut env.scope);
+        }
+        for s in module.stmts.iter_mut() {
+            self.stmt(&env, s);
+        }
+        module.scope = env.scope;
+    }
 }
 
 pub fn scope(module: &mut ast::Module, debug: bool) {
@@ -394,15 +408,5 @@ pub fn scope(module: &mut ast::Module, debug: bool) {
         globals: &mut externs,
         debug_rename: debug,
     };
-    let mut env = Env {
-        scope: ast::Scope::new(),
-        parent: None,
-        name_gen: NameGen::new(),
-    };
-
-    collect_scope(&mut module.stmts, &mut env.scope);
-    for s in module.stmts.iter_mut() {
-        visit.stmt(&env, s);
-    }
-    module.scope = env.scope;
+    visit.module(module);
 }
