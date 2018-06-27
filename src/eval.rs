@@ -282,20 +282,24 @@ struct Visit<'a> {
 
 impl<'a> Visit<'a> {
     fn function<'e>(&mut self, env: &Env<'e>, func: &mut ast::Function, expr: bool) {
+        self.func(env, func.name.clone(), &mut func.func, expr);
+    }
+
+    fn func<'e>(&mut self, env: &Env<'e>, name: Option<Rc<ast::Symbol>>, func: &mut ast::Func, expr: bool) {
         let mut env = env.new_scope();
-        if let Some(ref name) = func.name {
+        if let Some(name) = name {
             // The function name is itself in scope within the function,
             // for cases like:
             //   let x = (function foo() { ... foo(); });
             // See note 2 in 14.1.21.
             if expr {
-                env.scope.bindings.push(name.clone());
+                env.scope.bindings.push(name);
             }
         }
         let mut args = ast::Symbol::new("arguments");
         Rc::get_mut(&mut args).unwrap().renameable = false;
         env.scope.bindings.push(args);
-        for param in func.func.params.iter() {
+        for param in func.params.iter() {
             match *param {
                 (ast::BindingPattern::Name(ref name), _) => {
                     env.scope.bindings.push(name.clone());
@@ -303,10 +307,10 @@ impl<'a> Visit<'a> {
                 _ => unimplemented!(),
             }
         }
-        for s in func.func.body.iter_mut() {
+        for s in func.body.iter_mut() {
             var_declared_names(s, &mut env.scope);
         }
-        for s in func.func.body.iter_mut() {
+        for s in func.body.iter_mut() {
             self.stmt(&env, s);
         }
         for s in env.scope.bindings.iter() {
@@ -316,7 +320,7 @@ impl<'a> Visit<'a> {
             self.all_syms.push(s.clone());
         }
         env.rename(self.debug_rename);
-        func.func.scope = env.scope;
+        func.scope = env.scope;
     }
 
     fn resolve<'e>(
