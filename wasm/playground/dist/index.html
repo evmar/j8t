@@ -1,0 +1,57 @@
+<!doctype html>
+<head>
+  <style>
+   html {
+     height: 100%;
+     margin: 0;
+     padding: 0;
+     font-family: sans-serif;
+   }
+   body {
+     box-sizing: border-box;
+     height: 100%;
+     margin: 0;
+     padding: 1ex;
+     display: flex;
+     flex-direction: column;
+   }
+   h1 {
+     font-weight: normal;
+     margin: 0.5ex 0;
+   }
+   main {
+     flex: 1;
+     display: flex;
+   }
+   #input {
+     flex: 1;
+     padding: 1ex;
+     overflow-y: scroll;
+   }
+   #output {
+     flex: 1;
+     padding: 1ex;
+     margin: 0;
+     margin-left: 2ex;
+     white-space: pre-wrap;
+     overflow-y: scroll;
+   }
+  </style>
+<body>
+  <header>
+    <h1 style='display:inline'>j8t playground</h1>
+    <button id=load>load</button>
+  </header>
+  <main>
+    <textarea id=input rows=10 cols=60>function demo() {
+  for (i in list) {
+    if (i == 3) {
+      return;
+    }
+  }
+}
+</textarea>
+<pre id=output></pre>
+  </main>
+  <script src='js/bundle.js'></script>
+</body>

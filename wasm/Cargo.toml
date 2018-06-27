@@ -1,0 +1,11 @@
+[package]
+name = "j8tw"
+version = "0.1.0"
+authors = ["Evan Martin <evan.martin@gmail.com>"]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+j8t = { path = "../" }
+wasm-bindgen = "0.2"

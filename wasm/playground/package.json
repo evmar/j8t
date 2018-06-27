@@ -1,0 +1,12 @@
+{
+  "scripts": {
+    "build": "webpack --mode=production",
+    "serve": "webpack-dev-server --host=$(hostname -I) --content-base=dist"
+  },
+  "dependencies": {
+    "monaco-editor": "^0.13.1",
+    "webpack": "^4.11.1",
+    "webpack-cli": "^3.0.3",
+    "webpack-dev-server": "^3.1.4"
+  }
+}
