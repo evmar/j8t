@@ -18,6 +18,7 @@ use ast;
 use parse::Parser;
 use std::rc::Rc;
 use trans::visit;
+use rename::rename;
 
 const EXTERNS: &'static str = r#"
 var Array;
@@ -198,43 +199,9 @@ fn var_declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
     }
 }
 
-const NAME_GEN_ALPHABET: &'static [u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$";
-
-struct NameGen {
-    i: usize,
-}
-
-impl NameGen {
-    fn new() -> NameGen {
-        NameGen { i: 0 }
-    }
-    fn clone(&self) -> NameGen {
-        NameGen { i: self.i }
-    }
-    fn new_name(&mut self) -> String {
-        let mut i = self.i;
-        self.i += 1;
-        let mut name: String = String::new();
-        name.push(NAME_GEN_ALPHABET[i % NAME_GEN_ALPHABET.len()] as char);
-        i /= NAME_GEN_ALPHABET.len();
-        let ext_len = NAME_GEN_ALPHABET.len() + 10;
-        while i > 0 {
-            let ci = i % ext_len;
-            i /= ext_len;
-            name.push(if ci < NAME_GEN_ALPHABET.len() {
-                NAME_GEN_ALPHABET[ci]
-            } else {
-                b"01234567890"[ci - NAME_GEN_ALPHABET.len()]
-            } as char);
-        }
-        return name;
-    }
-}
-
 struct Env<'p> {
     scope: ast::Scope,
     parent: Option<&'p Env<'p>>,
-    name_gen: NameGen,
 }
 
 impl<'p> Env<'p> {
@@ -258,26 +225,12 @@ impl<'p> Env<'p> {
         Env {
             scope: ast::Scope::new(),
             parent: Some(self),
-            name_gen: self.name_gen.clone(),
-        }
-    }
-
-    fn rename(&mut self, debug: bool) {
-        for (i, s) in self.scope.bindings.iter_mut().enumerate() {
-            let new_name = if debug {
-                format!("{}{}", s.name.borrow(), i)
-            } else {
-                self.name_gen.new_name()
-            };
-            *s.name.borrow_mut() = new_name;
         }
     }
 }
 
 struct Visit<'a> {
-    all_syms: Vec<Rc<ast::Symbol>>,
     globals: &'a mut ast::Scope,
-    debug_rename: bool,
 }
 
 impl<'a> Visit<'a> {
@@ -313,13 +266,6 @@ impl<'a> Visit<'a> {
         for s in func.body.iter_mut() {
             self.stmt(&env, s);
         }
-        for s in env.scope.bindings.iter() {
-            if !s.renameable {
-                continue;
-            }
-            self.all_syms.push(s.clone());
-        }
-        env.rename(self.debug_rename);
         func.scope = env.scope;
     }
 
@@ -393,7 +339,6 @@ impl<'a> Visit<'a> {
         let mut env = Env {
             scope: ast::Scope::new(),
             parent: None,
-            name_gen: NameGen::new(),
         };
         for s in module.stmts.iter_mut() {
             var_declared_names(s, &mut env.scope);
@@ -408,9 +353,9 @@ impl<'a> Visit<'a> {
 pub fn scope(module: &mut ast::Module, debug: bool) {
     let mut externs = load_externs();
     let mut visit = Visit {
-        all_syms: vec![],
         globals: &mut externs,
-        debug_rename: debug,
     };
     visit.module(module);
+
+    rename(module, debug);
 }

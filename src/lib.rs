@@ -22,4 +22,5 @@ pub mod gen;
 pub mod lex;
 mod ops;
 pub mod parse;
+pub mod rename;
 pub mod trans;
