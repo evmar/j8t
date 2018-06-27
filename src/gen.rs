@@ -208,17 +208,17 @@ impl<'a> Writer<'a> {
 
     fn function(&mut self, f: &ast::Function) -> Result {
         self.token("function")?;
-        self.function_method_from_name(f)
+        self.func_from_name(f)
     }
 
-    fn function_method_from_name(&mut self, f: &ast::Function) -> Result {
+    fn func_from_name(&mut self, f: &ast::Function) -> Result {
         if let Some(ref name) = f.name {
             self.sym(&name)?;
         }
-        self.function_method_from_paren(&f.body)
+        self.func_from_paren(&f.func)
     }
 
-    fn function_method_from_paren(&mut self, f: &ast::FunctionMethod) -> Result {
+    fn func_from_paren(&mut self, f: &ast::Func) -> Result {
         self.paren(|w| {
             w.comma(&f.params, |w, &(ref param, ref init)| {
                 w.binding_pattern(param)?;
@@ -271,7 +271,7 @@ impl<'a> Writer<'a> {
                     w.token("static")?;
                 }
                 w.property_name(&method.name)?;
-                w.function_method_from_paren(&method.body)?;
+                w.func_from_paren(&method.func)?;
             }
             Ok(())
         })?;
@@ -347,7 +347,7 @@ impl<'a> Writer<'a> {
                                         if *n == *fname.name.borrow() {
                                             // TODO: this always clobbers the function name.
                                             // Do we care?
-                                            w.function_method_from_paren(&f.body)?;
+                                            w.func_from_paren(&f.func)?;
                                             true
                                         } else {
                                             false

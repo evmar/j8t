@@ -527,12 +527,12 @@ impl<'a> Parser<'a> {
                         name = self.property_name()?.1;
                     }
                     // TODO: use is_async, is_static, name.
-                    let mut f = self.function_method_from_paren()?;
+                    let mut f = self.func_from_paren()?;
                     f.async = is_async;
                     methods.push(ast::Method {
                         name: name,
                         is_static: is_static,
-                        body: f,
+                        func: f,
                     });
                 }
             }
@@ -627,11 +627,11 @@ impl<'a> Parser<'a> {
         };
         Ok(ast::Function {
             name: name,
-            body: self.function_method_from_paren()?,
+            func: self.func_from_paren()?,
         })
     }
 
-    fn function_method_from_paren(&mut self) -> ParseResult<ast::FunctionMethod> {
+    fn func_from_paren(&mut self) -> ParseResult<ast::Func> {
         self.expect(Tok::LParen)?;
         let mut params: Vec<(ast::BindingPattern, Option<ExprNode>)> = Vec::new();
         while self.lex_peek()? != Tok::RParen {
@@ -665,7 +665,7 @@ impl<'a> Parser<'a> {
         }
         self.expect(Tok::RBrace)?;
 
-        Ok(ast::FunctionMethod {
+        Ok(ast::Func {
             scope: ast::Scope::new(),
             async: false,
             params: params,

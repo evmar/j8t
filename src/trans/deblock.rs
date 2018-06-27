@@ -58,7 +58,7 @@ fn is_block(s: &ast::Stmt) -> bool {
 fn deblock_expr(expr: &mut ast::Expr) {
     match *expr {
         ast::Expr::Function(ref mut func) => {
-            for s in func.body.body.iter_mut() {
+            for s in func.func.body.iter_mut() {
                 deblock_stmt(s, /* parent is try */ false);
             }
         }

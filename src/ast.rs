@@ -163,7 +163,7 @@ pub type BindingElement = (BindingPattern, Option<ExprNode>);
 
 /// Attributes shared by functions and methods.
 #[derive(Debug)]
-pub struct FunctionMethod {
+pub struct Func {
     pub scope: Scope,
     pub async: bool,
     pub params: Vec<BindingElement>,
@@ -173,14 +173,14 @@ pub struct FunctionMethod {
 #[derive(Debug)]
 pub struct Function {
     pub name: Option<Rc<Symbol>>,
-    pub body: FunctionMethod,
+    pub func: Func,
 }
 
 #[derive(Debug)]
 pub struct Method {
     pub is_static: bool,
     pub name: PropertyName,
-    pub body: FunctionMethod,
+    pub func: Func,
 }
 
 #[derive(Debug)]

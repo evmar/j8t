@@ -160,11 +160,11 @@ pub fn stmt_stmt<F: FnMut(&mut ast::Stmt)>(stmt: &mut ast::Stmt, mut f: F) {
                 f(finally);
             }
         }
-        ast::Stmt::Function(ref mut fun) => for s in fun.body.body.iter_mut() {
+        ast::Stmt::Function(ref mut fun) => for s in fun.func.body.iter_mut() {
             f(s);
         },
         ast::Stmt::Class(ref mut class) => for m in class.methods.iter_mut() {
-            for s in m.body.body.iter_mut() {
+            for s in m.func.body.iter_mut() {
                 f(s);
             }
         },
