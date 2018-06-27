@@ -19,9 +19,15 @@ use std::rc::Rc;
 
 pub use lex::Span;
 
+/// Symbol represents a resolved lexical symbol.
+/// E.g. in
+///   let x = 3;
+///   x
+/// both 'x' will refer to the same Symbol.
 #[derive(Debug)]
 pub struct Symbol {
     pub name: RefCell<String>,
+    /// False if the symbol's name is significant and cannot be changed, e.g. 'arguments'.
     pub renameable: bool,
 }
 
@@ -34,6 +40,7 @@ impl Symbol {
     }
 }
 
+/// Scope is a single lexical scope: a collection symbols.
 #[derive(Debug)]
 pub struct Scope {
     pub bindings: Vec<Rc<Symbol>>,
@@ -45,6 +52,8 @@ impl Scope {
             bindings: Vec::new(),
         }
     }
+
+    /// resolve looks up a symbol by name.
     pub fn resolve(&self, sym: &Rc<Symbol>) -> Option<Rc<Symbol>> {
         let name = sym.name.borrow();
         self.bindings
@@ -95,6 +104,7 @@ pub enum Expr {
 
 pub type ExprNode = (Span, Expr);
 
+/// Object literal.
 #[derive(Debug)]
 pub struct Object {
     pub props: Vec<Property>,
@@ -151,7 +161,7 @@ impl BindingPattern {
 
 pub type BindingElement = (BindingPattern, Option<ExprNode>);
 
-// Attributes shared by functions and methods.
+/// Attributes shared by functions and methods.
 #[derive(Debug)]
 pub struct FunctionMethod {
     pub scope: Scope,
