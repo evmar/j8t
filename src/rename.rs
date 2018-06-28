@@ -33,20 +33,41 @@ impl NameGen {
     fn new_name(&mut self) -> String {
         let mut i = self.i;
         self.i += 1;
-        let mut name: String = String::new();
-        name.push(NAME_GEN_ALPHABET[i % NAME_GEN_ALPHABET.len()] as char);
-        i /= NAME_GEN_ALPHABET.len();
+        let mut name: Vec<u8> = Vec::new();
+
         let ext_len = NAME_GEN_ALPHABET.len() + 10;
-        while i > 0 {
+        while i >= NAME_GEN_ALPHABET.len() {
             let ci = i % ext_len;
             i /= ext_len;
             name.push(if ci < NAME_GEN_ALPHABET.len() {
                 NAME_GEN_ALPHABET[ci]
             } else {
                 b"01234567890"[ci - NAME_GEN_ALPHABET.len()]
-            } as char);
+            });
         }
-        return name;
+        name.push(NAME_GEN_ALPHABET[i % NAME_GEN_ALPHABET.len()]);
+        name.reverse();
+
+        return String::from_utf8_lossy(&name).into();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn name_gen() {
+        let mut n = NameGen::new();
+        assert_eq!(n.new_name(), "a");
+        assert_eq!(n.new_name(), "b");
+        assert_eq!(n.new_name(), "c");
+        n.i = 26+26;
+        assert_eq!(n.new_name(), "_");
+        assert_eq!(n.new_name(), "$");
+        assert_eq!(n.new_name(), "a0");
+        assert_eq!(n.new_name(), "a1");
+        n.i = 26+26+2+10;
+        assert_eq!(n.new_name(), "ba");
     }
 }
 
