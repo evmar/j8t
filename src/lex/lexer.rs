@@ -16,12 +16,12 @@
 
 // The Lexer type, which reads JS tokens from an input Scanner.
 
-use lex::Tok;
 use lex::hand;
 use lex::scan;
 use lex::scan::TokData;
 use lex::scanner;
 use lex::scanner::Result;
+use lex::Tok;
 use std;
 
 #[derive(Clone, Debug)]

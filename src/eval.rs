@@ -16,9 +16,9 @@
 
 use ast;
 use parse::Parser;
+use rename::rename;
 use std::rc::Rc;
 use trans::visit;
-use rename::rename;
 
 const EXTERNS: &'static str = r#"
 var Array;
@@ -238,7 +238,13 @@ impl<'a> Visit<'a> {
         self.func(env, func.name.clone(), &mut func.func, expr);
     }
 
-    fn func<'e>(&mut self, env: &Env<'e>, name: Option<Rc<ast::Symbol>>, func: &mut ast::Func, expr: bool) {
+    fn func<'e>(
+        &mut self,
+        env: &Env<'e>,
+        name: Option<Rc<ast::Symbol>>,
+        func: &mut ast::Func,
+        expr: bool,
+    ) {
         let mut env = env.new_scope();
         if let Some(name) = name {
             // The function name is itself in scope within the function,
