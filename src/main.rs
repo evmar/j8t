@@ -126,7 +126,7 @@ fn real_main() -> bool {
     let (t, mut module) = match measure(|| p.module()) {
         (t, Ok(stmts)) => (t, stmts),
         (_, Err(err)) => {
-            err.print(&p.lexer, &mut std::io::stdout()).unwrap();
+            print!("{}", err.pretty(&p.lexer));
             return false;
         }
     };

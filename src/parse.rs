@@ -19,6 +19,7 @@ use ast::{Expr, ExprNode, Stmt};
 use lex;
 use lex::{LexError, Span, Tok, Token};
 use std;
+use std::fmt::Write;
 
 fn todo_span() -> Span {
     Span::new(0, 0)
@@ -45,23 +46,23 @@ impl ParseError {
         }
     }
 
-    pub fn print(&self, l: &lex::Lexer, w: &mut std::io::Write) -> std::io::Result<()> {
+    pub fn pretty(&self, l: &lex::Lexer) -> String {
         let lex::Context {
             line,
             col,
             source_line,
         } = l.scan.context(self.at.start);
-        write!(w, "ERROR:{}:{}: {}\n", line, col, self.msg)?;
-        write!(w, "{}\n", std::str::from_utf8(source_line).unwrap())?;
-        let mut mark = String::new();
+        let mut msg = String::new();
+        write!(msg, "ERROR:{}:{}: {}\n", line, col, self.msg).unwrap();
+        write!(msg, "{}\n", std::str::from_utf8(source_line).unwrap()).unwrap();
         for _ in 0..col - 1 {
-            mark.push(' ');
+            msg.push(' ');
         }
         for _ in self.at.start..self.at.end {
-            mark.push('^');
+            msg.push('^');
         }
-        write!(w, "{}\n", mark)?;
-        Ok(())
+        msg.push('\n');
+        msg
     }
 }
 

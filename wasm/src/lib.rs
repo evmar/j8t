@@ -15,11 +15,7 @@ pub fn j8tw(code: &str) -> String {
     let mut p = j8t::parse::Parser::new(code.as_bytes());
     let mut module = match p.module() {
         Ok(stmts) => stmts,
-        Err(err) => {
-            let mut buf = Vec::<u8>::new();
-            err.print(&p.lexer, &mut buf).unwrap();
-            return String::from_utf8_lossy(&buf).into();
-        }
+        Err(err) => return err.pretty(&p.lexer),
     };
 
     j8t::trans::deblock(&mut module);
