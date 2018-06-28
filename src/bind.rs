@@ -16,7 +16,6 @@
 
 use ast;
 use parse::Parser;
-use rename::rename;
 use std::rc::Rc;
 use trans::visit;
 
@@ -364,12 +363,10 @@ impl<'a> Visit<'a> {
     }
 }
 
-pub fn scope(module: &mut ast::Module, debug: bool) {
+pub fn bind(module: &mut ast::Module) {
     let mut externs = load_externs();
     let mut visit = Visit {
         globals: &mut externs,
     };
     visit.module(module);
-
-    rename(module, debug);
 }

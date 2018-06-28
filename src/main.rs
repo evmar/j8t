@@ -18,10 +18,11 @@ extern crate getopts;
 extern crate j8t;
 
 use j8t::ast;
-use j8t::eval;
+use j8t::bind;
 use j8t::gen;
 use j8t::lex::Tok;
 use j8t::parse::*;
+use j8t::rename;
 use j8t::trans;
 use std::io;
 use std::io::Read;
@@ -136,7 +137,8 @@ fn real_main() -> bool {
 
     if rename {
         let (t, _) = measure(|| {
-            eval::scope(&mut module, debug_rename);
+            bind::bind(&mut module);
+            rename::rename(&mut module, debug_rename);
         });
         if timing {
             eprintln!("scope: {}ms", t);
