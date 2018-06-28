@@ -61,20 +61,31 @@ fn rename_scope(gen: &mut NameGen, scope: &mut ast::Scope, debug: bool) {
     }
 }
 
+fn rename_func(gen: &mut NameGen, func: &mut ast::Func, debug: bool) {
+    let mut gen = gen.clone();
+    rename_scope(&mut gen, &mut func.scope, debug);
+    for stmt in func.body.iter_mut() {
+        rename_stmt(&mut gen, stmt, debug);
+    }
+}
+
 fn rename_stmt(gen: &mut NameGen, stmt: &mut ast::Stmt, debug: bool) {
     match *stmt {
         ast::Stmt::Function(ref mut fun) => {
-            let mut gen = gen.clone();
-            rename_scope(&mut gen, &mut fun.func.scope, debug);
-            for stmt in fun.func.body.iter_mut() {
-                rename_stmt(&mut gen, stmt, debug);
-            }
+            rename_func(gen, &mut fun.func, debug);
             // TODO: expressions, e.g. function f(a=(function()...)) {}
         }
         _ => {
             visit::stmt_stmt(stmt, |s| rename_stmt(gen, s, debug));
-            // TODO: expressions
         }
+    }
+    visit::stmt_expr(stmt, |e| rename_expr(gen, e, debug));
+}
+
+fn rename_expr(gen: &mut NameGen, expr: &mut ast::Expr, debug: bool) {
+    match *expr {
+        ast::Expr::Function(ref mut fun) => rename_func(gen, &mut fun.func, debug),
+        _ => visit::expr_expr(expr, |(_, e)| rename_expr(gen, e, debug)),
     }
 }
 
