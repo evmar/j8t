@@ -18,6 +18,9 @@ pub fn j8tw(code: &str) -> String {
         Err(err) => return err.pretty(&p.lexer),
     };
 
+    let debug_rename = false;
+    j8t::eval::scope(&mut module, debug_rename);
+
     j8t::trans::deblock(&mut module);
 
     let mut output = Vec::<u8>::new();
