@@ -38,6 +38,9 @@ impl Symbol {
             renameable: true,
         })
     }
+    pub fn name(&self) -> String {
+        self.name.borrow().clone()
+    }
 }
 
 /// Scope is a single lexical scope: a collection symbols.
@@ -258,6 +261,31 @@ pub enum Stmt {
 
     Function(Box<Function>),
     Class(Box<Class>),
+}
+
+impl Stmt {
+    pub fn kind(&self) -> &'static str {
+        match *self {
+            Stmt::Block(_) => "block",
+            Stmt::Var(_) => "var",
+            Stmt::Empty => "empty",
+            Stmt::Expr(_) => "expr",
+            Stmt::If(_) => "if",
+            Stmt::While(_) => "while",
+            Stmt::DoWhile(_) => "dowhile",
+            Stmt::For(_) => "for",
+            Stmt::ForInOf(_) => "for-in",
+            Stmt::Switch(_) => "switch",
+            Stmt::Continue(_) => "continue",
+            Stmt::Break(_) => "break",
+            Stmt::Return(_) => "return",
+            Stmt::Label(_) => "label",
+            Stmt::Throw(_) => "throw",
+            Stmt::Try(_) => "try",
+            Stmt::Function(_) => "function",
+            Stmt::Class(_) => "class",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

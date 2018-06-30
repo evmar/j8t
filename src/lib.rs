@@ -18,6 +18,7 @@ extern crate getopts;
 
 pub mod ast;
 pub mod bind;
+pub mod eval;
 pub mod gen;
 pub mod lex;
 mod ops;

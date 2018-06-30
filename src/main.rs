@@ -19,6 +19,7 @@ extern crate j8t;
 
 use j8t::ast;
 use j8t::bind;
+use j8t::eval;
 use j8t::gen;
 use j8t::lex::Tok;
 use j8t::parse::*;
@@ -133,6 +134,20 @@ fn real_main() -> bool {
     };
     if timing {
         eprintln!("parse: {}ms", t);
+    }
+
+    let (t, _) = measure(|| {
+        bind::bind(&mut module);
+    });
+    if timing {
+        eprintln!("bind: {}ms", t);
+    }
+
+    let (t, _) = measure(|| {
+        // eval::eval(&module);
+    });
+    if timing {
+        eprintln!("eval: {}ms", t);
     }
 
     if rename {
