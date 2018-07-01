@@ -61,12 +61,12 @@ mod tests {
         assert_eq!(n.new_name(), "a");
         assert_eq!(n.new_name(), "b");
         assert_eq!(n.new_name(), "c");
-        n.i = 26+26;
+        n.i = 26 + 26;
         assert_eq!(n.new_name(), "_");
         assert_eq!(n.new_name(), "$");
         assert_eq!(n.new_name(), "a0");
         assert_eq!(n.new_name(), "a1");
-        n.i = 26+26+2+10;
+        n.i = 26 + 26 + 2 + 10;
         assert_eq!(n.new_name(), "ba");
     }
 }
