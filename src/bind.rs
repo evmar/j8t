@@ -275,7 +275,11 @@ impl<'a> Visit<'a> {
         // See if anyone used 'arguments', and if not, drop it from the scope.
         // Maybe it'd be better to leave arguments out and only create
         // it if it's needed, hm.
-        let args = env.scope.bindings.iter().position(|s| *s.name.borrow() == "arguments").unwrap();
+        let args = env.scope
+            .bindings
+            .iter()
+            .position(|s| *s.name.borrow() == "arguments")
+            .unwrap();
         if Rc::strong_count(&env.scope.bindings[args]) == 1 {
             env.scope.bindings.swap_remove(args);
         }
