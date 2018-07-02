@@ -198,102 +198,19 @@ fn var_declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
     }
 }
 
-struct Env<'p> {
-    scope: ast::Scope,
-    parent: Option<&'p Env<'p>>,
+struct Visit {
+    scopes: Vec<ast::Scope>,
 }
 
-impl<'p> Env<'p> {
-    fn resolve<'a, 'b>(&'a self, sym: &ast::RefSym) -> Option<ast::RefSym> {
-        let mut s: &Env<'p> = self;
-        loop {
-            if let Some(sym) = s.scope.resolve(sym) {
-                return Some(sym);
+impl Visit {
+    /// Resolve a symbol against the current scopes, overwriting the symbol if found.
+    /// Returns false if the symbol failed to resolve (indicating a bug!).
+    fn resolve(&mut self, sym: &mut ast::RefSym, create_global: bool) -> bool {
+        for scope in self.scopes.iter().rev() {
+            if let Some(r) = scope.resolve(sym) {
+                *sym = r;
+                return true;
             }
-            if let Some(parent) = s.parent {
-                s = parent;
-            } else {
-                return None;
-            }
-        }
-    }
-
-    // Note tricky type here! The new scope's type param is a
-    // lifetime that self outlives.
-    fn new_scope<'b, 's: 'b>(&'s self) -> Env<'b> {
-        Env {
-            scope: ast::Scope::new(),
-            parent: Some(self),
-        }
-    }
-}
-
-struct Visit<'a> {
-    globals: &'a mut ast::Scope,
-}
-
-impl<'a> Visit<'a> {
-    fn function<'e>(&mut self, env: &Env<'e>, func: &mut ast::Function, expr: bool) {
-        self.func(env, func.name.clone(), &mut func.func, expr);
-    }
-
-    fn func<'e>(
-        &mut self,
-        env: &Env<'e>,
-        name: Option<ast::RefSym>,
-        func: &mut ast::Func,
-        expr: bool,
-    ) {
-        let mut env = env.new_scope();
-        if let Some(name) = name {
-            // The function name is itself in scope within the function,
-            // for cases like:
-            //   let x = (function foo() { ... foo(); });
-            // See note 2 in 14.1.21.
-            if expr {
-                env.scope.bindings.push(name);
-            }
-        }
-        let args = ast::Symbol::new("arguments");
-        args.borrow_mut().renameable = false;
-        env.scope.bindings.push(args);
-        for param in func.params.iter() {
-            match *param {
-                (ast::BindingPattern::Name(ref name), _) => {
-                    env.scope.bindings.push(name.clone());
-                }
-                _ => unimplemented!(),
-            }
-        }
-        for s in func.body.iter_mut() {
-            var_declared_names(s, &mut env.scope);
-        }
-        for s in func.body.iter_mut() {
-            self.stmt(&env, s);
-        }
-
-        // See if anyone used 'arguments', and if not, drop it from the scope.
-        // Maybe it'd be better to leave arguments out and only create
-        // it if it's needed, hm.
-        let args = env.scope
-            .bindings
-            .iter()
-            .position(|s| s.borrow().name == "arguments")
-            .unwrap();
-        if Rc::strong_count(&env.scope.bindings[args]) == 1 {
-            env.scope.bindings.swap_remove(args);
-        }
-        func.scope = env.scope;
-    }
-
-    fn resolve<'e>(&mut self, env: &Env<'e>, sym: &mut ast::RefSym, create_global: bool) -> bool {
-        if let Some(new) = env.resolve(&sym) {
-            *sym = new;
-            return true;
-        }
-        if let Some(new) = self.globals.resolve(&sym) {
-            *sym = new;
-            return true;
         }
         if create_global {
             {
@@ -301,22 +218,77 @@ impl<'a> Visit<'a> {
                 eprintln!("inferred global: {}", sym.name);
                 sym.renameable = false;
             }
-            self.globals.bindings.push(sym.clone());
+            self.scopes[0].bindings.push(sym.clone());
             return true;
         }
-        return false;
+        false
     }
 
-    fn expr<'e>(&mut self, env: &Env<'e>, en: &mut ast::ExprNode) {
+    fn function(&mut self, func: &mut ast::Function, expr: bool) {
+        self.func(func.name.clone(), &mut func.func, expr);
+    }
+
+    fn func(
+        &mut self,
+        name: Option<ast::RefSym>,
+        func: &mut ast::Func,
+        expr: bool,
+    ) {
+        let mut scope = ast::Scope::new();
+        if let Some(name) = name {
+            // The function name is itself in scope within the function,
+            // for cases like:
+            //   let x = (function foo() { ... foo(); });
+            // See note 2 in 14.1.21.
+            if expr {
+                scope.bindings.push(name);
+            }
+        }
+        let args = ast::Symbol::new("arguments");
+        args.borrow_mut().renameable = false;
+        scope.bindings.push(args);
+        for param in func.params.iter() {
+            match *param {
+                (ast::BindingPattern::Name(ref name), _) => {
+                    scope.bindings.push(name.clone());
+                }
+                _ => unimplemented!(),
+            }
+        }
+        for s in func.body.iter_mut() {
+            var_declared_names(s, &mut scope);
+        }
+
+        self.scopes.push(scope);
+        for s in func.body.iter_mut() {
+            self.stmt(s);
+        }
+        scope = self.scopes.pop().unwrap();
+
+        // See if anyone used 'arguments', and if not, drop it from the scope.
+        // Maybe it'd be better to leave arguments out and only create
+        // it if it's needed, hm.
+        let args = scope
+            .bindings
+            .iter()
+            .position(|s| s.borrow().name == "arguments")
+            .unwrap();
+        if Rc::strong_count(&scope.bindings[args]) == 1 {
+            scope.bindings.swap_remove(args);
+        }
+        func.scope = scope;
+    }
+
+    fn expr(&mut self, en: &mut ast::ExprNode) {
         match en.expr {
             ast::Expr::Ident(ref mut sym) => {
-                if !self.resolve(env, sym, false) {
+                if !self.resolve(sym, false) {
                     panic!("could not resolve {:?} {:?}", sym.borrow().name, en.span);
                 }
                 return;
             }
             ast::Expr::Function(ref mut func) => {
-                self.function(env, func, /* expression */ true);
+                self.function(func, /* expression */ true);
                 return;
             }
             ast::Expr::TypeOf(ref mut en) => {
@@ -324,48 +296,47 @@ impl<'a> Visit<'a> {
                 //   typeof exports
                 // which may refer to a global.
                 if let ast::Expr::Ident(ref mut sym) = en.expr {
-                    self.resolve(env, sym, true);
+                    self.resolve(sym, true);
                     return;
                 }
             }
             _ => {}
         }
-        visit::expr_expr(en, |en| self.expr(env, en));
+        visit::expr_expr(en, |en| self.expr(en));
     }
 
-    fn stmt<'e>(&mut self, env: &Env<'e>, stmt: &mut ast::Stmt) {
+    fn stmt<'e>(&mut self, stmt: &mut ast::Stmt) {
         match *stmt {
             ast::Stmt::Function(ref mut func) => {
-                self.function(env, func, /* expression */ false);
+                self.function(func, /* expression */ false);
             }
             _ => {
                 visit::stmt_expr(stmt, |en| {
-                    self.expr(env, en);
+                    self.expr(en);
                 });
-                visit::stmt_stmt(stmt, |s| self.stmt(env, s));
+                visit::stmt_stmt(stmt, |s| self.stmt(s));
             }
         }
     }
 
     fn module(&mut self, module: &mut ast::Module) {
-        let mut env = Env {
-            scope: ast::Scope::new(),
-            parent: None,
-        };
+        let mut scope = ast::Scope::new();
         for s in module.stmts.iter_mut() {
-            var_declared_names(s, &mut env.scope);
+            var_declared_names(s, &mut scope);
         }
+        self.scopes.push(scope);
         for s in module.stmts.iter_mut() {
-            self.stmt(&env, s);
+            self.stmt(s);
         }
-        module.scope = env.scope;
+        module.scope = self.scopes.pop().unwrap();
     }
 }
 
 pub fn bind(module: &mut ast::Module) {
-    let mut externs = load_externs();
     let mut visit = Visit {
-        globals: &mut externs,
+        scopes: Vec::new(),
     };
+    visit.scopes.push(load_externs());
     visit.module(module);
+    assert_eq!(visit.scopes.len(), 1);
 }
