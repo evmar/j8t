@@ -204,7 +204,7 @@ struct Env<'p> {
 }
 
 impl<'p> Env<'p> {
-    fn resolve<'a, 'b>(&'a self, sym: &Rc<ast::Symbol>) -> Option<Rc<ast::Symbol>> {
+    fn resolve<'a, 'b>(&'a self, sym: &ast::RefSym) -> Option<ast::RefSym> {
         let mut s: &Env<'p> = self;
         loop {
             if let Some(sym) = s.scope.resolve(sym) {
@@ -240,7 +240,7 @@ impl<'a> Visit<'a> {
     fn func<'e>(
         &mut self,
         env: &Env<'e>,
-        name: Option<Rc<ast::Symbol>>,
+        name: Option<ast::RefSym>,
         func: &mut ast::Func,
         expr: bool,
     ) {
@@ -254,8 +254,8 @@ impl<'a> Visit<'a> {
                 env.scope.bindings.push(name);
             }
         }
-        let mut args = ast::Symbol::new("arguments");
-        Rc::get_mut(&mut args).unwrap().renameable = false;
+        let args = ast::Symbol::new("arguments");
+        args.borrow_mut().renameable = false;
         env.scope.bindings.push(args);
         for param in func.params.iter() {
             match *param {
@@ -278,7 +278,7 @@ impl<'a> Visit<'a> {
         let args = env.scope
             .bindings
             .iter()
-            .position(|s| *s.name.borrow() == "arguments")
+            .position(|s| s.borrow().name == "arguments")
             .unwrap();
         if Rc::strong_count(&env.scope.bindings[args]) == 1 {
             env.scope.bindings.swap_remove(args);
@@ -289,7 +289,7 @@ impl<'a> Visit<'a> {
     fn resolve<'e>(
         &mut self,
         env: &Env<'e>,
-        sym: &mut Rc<ast::Symbol>,
+        sym: &mut ast::RefSym,
         create_global: bool,
     ) -> bool {
         if let Some(new) = env.resolve(&sym) {
@@ -301,11 +301,12 @@ impl<'a> Visit<'a> {
             return true;
         }
         if create_global {
-            eprintln!("inferred global: {}", sym.name.borrow());
-            let mut new = ast::Symbol::new(sym.name.borrow().clone());
-            Rc::get_mut(&mut new).unwrap().renameable = false;
-            self.globals.bindings.push(new.clone());
-            *sym = new;
+            {
+                let mut sym = sym.borrow_mut();
+                eprintln!("inferred global: {}", sym.name);
+                sym.renameable = false;
+            }
+            self.globals.bindings.push(sym.clone());
             return true;
         }
         return false;
@@ -315,7 +316,7 @@ impl<'a> Visit<'a> {
         match *expr {
             ast::Expr::Ident(ref mut sym) => {
                 if !self.resolve(env, sym, false) {
-                    panic!("could not resolve {:?} {:?}", sym.name.borrow(), span);
+                    panic!("could not resolve {:?} {:?}", sym.borrow().name, span);
                 }
                 return;
             }

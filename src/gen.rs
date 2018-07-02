@@ -164,8 +164,8 @@ impl<'a> Writer<'a> {
         Ok(())
     }
 
-    fn sym(&mut self, s: &ast::Symbol) -> Result {
-        let str = &*s.name.borrow();
+    fn sym(&mut self, s: &ast::RefSym) -> Result {
+        let str = &*s.borrow().name;
         self.token(str)
     }
 
@@ -338,13 +338,13 @@ impl<'a> Writer<'a> {
                         let name = w.property_name(&p.name)?;
                         let wrote = if let Some(n) = name {
                             match p.value.1 {
-                                ast::Expr::Ident(ref v) if *n == *v.name.borrow() => {
+                                ast::Expr::Ident(ref v) if *n == *v.borrow().name => {
                                     // omit; implied by property name.
                                     true
                                 }
                                 ast::Expr::Function(ref f) => {
                                     if let Some(ref fname) = f.name {
-                                        if *n == *fname.name.borrow() {
+                                        if *n == *fname.borrow().name {
                                             // TODO: this always clobbers the function name.
                                             // Do we care?
                                             w.func_from_paren(&f.func)?;
@@ -682,7 +682,7 @@ impl<'a> Writer<'a> {
         if false {
             self.write(b"/*\n")?;
             for b in scope.bindings.iter() {
-                self.write(format!("{}\n", b.name.borrow()).as_bytes())?;
+                self.write(format!("{}\n", b.borrow().name).as_bytes())?;
             }
             self.write(b"*/\n")?;
         }

@@ -26,31 +26,30 @@ pub use lex::Span;
 /// both 'x' will refer to the same Symbol.
 #[derive(Debug)]
 pub struct Symbol {
-    pub name: RefCell<String>,
+    pub name: String,
     /// False if the symbol's name is significant and cannot be changed, e.g. 'arguments'.
     pub renameable: bool,
     pub write: bool,
     pub read: bool,
 }
 
+pub type RefSym = Rc<RefCell<Symbol>>;
+
 impl Symbol {
-    pub fn new<S: Into<String>>(name: S) -> Rc<Symbol> {
-        Rc::new(Symbol {
-            name: RefCell::new(String::from(name.into())),
+    pub fn new<S: Into<String>>(name: S) -> RefSym {
+        Rc::new(RefCell::new(Symbol {
+            name: String::from(name.into()),
             renameable: true,
             read: false,
             write: false,
-        })
-    }
-    pub fn name(&self) -> String {
-        self.name.borrow().clone()
+        }))
     }
 }
 
 /// Scope is a single lexical scope: a collection symbols.
 #[derive(Debug)]
 pub struct Scope {
-    pub bindings: Vec<Rc<Symbol>>,
+    pub bindings: Vec<RefSym>,
 }
 
 impl Scope {
@@ -61,11 +60,11 @@ impl Scope {
     }
 
     /// resolve looks up a symbol by name.
-    pub fn resolve(&self, sym: &Rc<Symbol>) -> Option<Rc<Symbol>> {
-        let name = sym.name.borrow();
+    pub fn resolve(&self, sym: &RefSym) -> Option<RefSym> {
+        let name = &sym.borrow().name;
         self.bindings
             .iter()
-            .find(|s| *s.name.borrow() == *name)
+            .find(|s| *s.borrow().name == *name)
             .map(|t| t.clone())
     }
 }
@@ -78,7 +77,7 @@ pub enum Expr {
 
     // 12.2 Primary Expression
     This,
-    Ident(Rc<Symbol>),
+    Ident(RefSym),
     Null,
     Undefined, // Note: not part of the grammar, hmm.
     Bool(bool),
@@ -184,7 +183,7 @@ pub struct ArrayBindingPattern {
 
 #[derive(Debug)]
 pub enum BindingPattern {
-    Name(Rc<Symbol>),
+    Name(RefSym),
     Object(ObjectBindingPattern),
     Array(ArrayBindingPattern),
 }
@@ -211,7 +210,7 @@ pub struct Func {
 
 #[derive(Debug)]
 pub struct Function {
-    pub name: Option<Rc<Symbol>>,
+    pub name: Option<RefSym>,
     pub func: Func,
 }
 
@@ -236,7 +235,7 @@ pub struct ArrowFunction {
 
 #[derive(Debug)]
 pub struct Class {
-    pub name: Option<Rc<Symbol>>,
+    pub name: Option<RefSym>,
     pub extends: Option<ExprNode>,
     pub methods: Vec<Method>,
 }

@@ -144,7 +144,7 @@ fn split_commas(expr: ExprNode) -> (ExprNode, Option<ExprNode>) {
 fn call_is_async(call: &ast::Call) -> bool {
     match call.func.1 {
         ast::Expr::Ident(ref s) => {
-            if &*s.name.borrow() == "async" {
+            if &*s.borrow().name == "async" {
                 return true;
             }
         }
