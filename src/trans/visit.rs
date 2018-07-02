@@ -79,7 +79,11 @@ pub fn expr<V: Visit>(en: &mut ast::ExprNode, v: &mut V) {
 
 pub fn stmt<V: Visit>(stmt: &mut ast::Stmt, v: &mut V) {
     match *stmt {
-        // ast::Stmt::Block(Vec<Stmt>),
+        ast::Stmt::Block(ref mut stmts) => {
+            for s in stmts.iter_mut() {
+                v.stmt(s);
+            }
+        }
         ast::Stmt::Var(ref mut decls) => {
             for d in decls.decls.iter_mut() {
                 if let Some(ref mut e) = d.init {
@@ -89,7 +93,13 @@ pub fn stmt<V: Visit>(stmt: &mut ast::Stmt, v: &mut V) {
         }
         // ast::Stmt::Empty,
         ast::Stmt::Expr(ref mut e) => v.expr(e),
-        // ast::Stmt::If(Box<If>),
+        ast::Stmt::If(ref mut i) => {
+            v.expr(&mut i.cond);
+            v.stmt(&mut i.iftrue);
+            if let Some(ref mut else_) = i.else_ {
+                v.stmt(else_);
+            }
+        }
         // ast::Stmt::While(Box<While>),
         // ast::Stmt::DoWhile(Box<While>),
         // ast::Stmt::For(Box<For>),
@@ -97,14 +107,30 @@ pub fn stmt<V: Visit>(stmt: &mut ast::Stmt, v: &mut V) {
         // ast::Stmt::Switch(Box<Switch>),
         // ast::Stmt::Continue(Option<String>),
         // ast::Stmt::Break(Option<String>),
-        // ast::Stmt::Return(Option<Box<Expr>>),
+        ast::Stmt::Return(ref mut e) => {
+            if let Some(en) = e {
+                v.expr(en);
+            }
+        }
         // ast::Stmt::Label(Box<Label>),
         // ast::Stmt::Throw(Box<Expr>),
-        // ast::Stmt::Try(Box<Try>),
+        ast::Stmt::Try(ref mut t) => {
+            v.stmt(&mut t.block);
+            if let Some((_, ref mut catch)) = t.catch {
+                v.stmt(catch);
+            }
+            if let Some(ref mut finally) = t.finally {
+                v.stmt(finally);
+            }
+        }
         ast::Stmt::Function(ref mut f) => {
             func(&mut f.func, v);
         }
-        // ast::Stmt::Class(Box<Class>),
+        ast::Stmt::Class(ref mut class) => {
+            for m in class.methods.iter_mut() {
+                func(&mut m.func, v);
+            }
+        }
         _ => unimplemented!("{}", stmt.kind()),
     }
 }

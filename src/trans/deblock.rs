@@ -55,58 +55,62 @@ fn is_block(s: &ast::Stmt) -> bool {
     }
 }
 
-fn deblock_expr(en: &mut ast::ExprNode) {
-    match en.expr {
-        ast::Expr::Function(ref mut func) => {
-            for s in func.func.body.iter_mut() {
-                deblock_stmt(s, /* parent is try */ false);
+struct Deblock {}
+impl visit::Visit for Deblock {
+    fn expr(&mut self, en: &mut ast::ExprNode) {
+        match en.expr {
+            ast::Expr::Function(ref mut func) => {
+                visit::func(&mut func.func, self);
             }
+            _ => visit::expr(en, self),
         }
-        _ => visit::expr_expr(en, |e| deblock_expr(e)),
     }
-}
 
-fn deblock_stmt(stmt: &mut ast::Stmt, parent_is_try: bool) {
-    // A try-catch statement syntactically must have braces.
-    // Special-case it here.
-    // TODO: one idea is to have Stmt::Block for syntactic blocks,
-    // and Stmt::List or whatever for cases where it's a list of statements
-    // that are not semantically a block. This might also help with handling
-    // lexical scope (where blocks might handle differently than braced syntax).
-    let is_try = if let ast::Stmt::Try(_) = *stmt {
-        true
-    } else {
-        false
-    };
-
-    visit::stmt_expr(stmt, deblock_expr);
-    visit::stmt_stmt(stmt, |s| deblock_stmt(s, is_try));
-
-    *stmt = match *stmt {
-        // An "if" statement with an "else" must be careful to brace if the
-        // body can consume the "else".
-        ast::Stmt::If(ref mut i) => {
-            if !is_block(&i.iftrue) && i.else_.is_some() && consumes_dangling_else(&i.iftrue) {
-                let mut e = ast::Stmt::Empty;
-                std::mem::swap(&mut e, &mut i.iftrue);
-                i.iftrue = ast::Stmt::Block(vec![e]);
-            }
-            return;
+    fn stmt(&mut self, stmt: &mut ast::Stmt) {
+        if let ast::Stmt::Try(_) = stmt {
+            // A try-catch statement syntactically must have braces.
+            // Special-case it here.
+        } else {
+            visit::stmt(stmt, self);
         }
-        ast::Stmt::Block(ref mut stmts) => {
-            if stmts.len() != 1 || parent_is_try {
+
+        *stmt = match *stmt {
+            // An "if" statement with an "else" must be careful to brace if the
+            // body can consume the "else".
+            ast::Stmt::If(ref mut i) => {
+                if !is_block(&i.iftrue) && i.else_.is_some() && consumes_dangling_else(&i.iftrue) {
+                    let mut e = ast::Stmt::Empty;
+                    std::mem::swap(&mut e, &mut i.iftrue);
+                    i.iftrue = ast::Stmt::Block(vec![e]);
+                }
                 return;
             }
-            stmts.pop().unwrap()
+            ast::Stmt::Try(ref mut try) => {
+                // Don't visit the contained blocks directly, but rather only visit the
+                // children of the blocks.
+                visit::stmt(&mut try.block, self);
+                if let Some((_, ref mut catch)) = try.catch {
+                    visit::stmt(catch, self);
+                }
+                if let Some(ref mut finally) = try.finally {
+                    visit::stmt(finally, self);
+                }
+                return;
+            }
+            ast::Stmt::Block(ref mut stmts) => {
+                if stmts.len() != 1 {
+                    return;
+                }
+                stmts.pop().unwrap()
+            }
+            _ => return,
         }
-        _ => return,
     }
 }
 
 pub fn deblock(module: &mut ast::Module) {
-    for s in module.stmts.iter_mut() {
-        deblock_stmt(s, /* parent is try */ false);
-    }
+    let mut d = Deblock {};
+    visit::module(module, &mut d);
 }
 
 #[cfg(test)]

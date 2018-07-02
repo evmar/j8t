@@ -228,12 +228,7 @@ impl Visit {
         self.func(func.name.clone(), &mut func.func, expr);
     }
 
-    fn func(
-        &mut self,
-        name: Option<ast::RefSym>,
-        func: &mut ast::Func,
-        expr: bool,
-    ) {
+    fn func(&mut self, name: Option<ast::RefSym>, func: &mut ast::Func, expr: bool) {
         let mut scope = ast::Scope::new();
         if let Some(name) = name {
             // The function name is itself in scope within the function,
@@ -333,9 +328,7 @@ impl Visit {
 }
 
 pub fn bind(module: &mut ast::Module) {
-    let mut visit = Visit {
-        scopes: Vec::new(),
-    };
+    let mut visit = Visit { scopes: Vec::new() };
     visit.scopes.push(load_externs());
     visit.module(module);
     assert_eq!(visit.scopes.len(), 1);
