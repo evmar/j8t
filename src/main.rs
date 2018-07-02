@@ -144,7 +144,7 @@ fn real_main() -> bool {
     }
 
     let (t, _) = measure(|| {
-        eval::eval(&module);
+        eval::eval(&mut module);
     });
     if timing {
         eprintln!("eval: {}ms", t);

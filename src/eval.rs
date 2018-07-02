@@ -17,17 +17,17 @@
 use ast;
 
 trait Visit {
-    fn expr(&mut self, expr: &ast::Expr);
-    fn stmt(&mut self, stmt: &ast::Stmt);
+    fn expr(&mut self, expr: &mut ast::Expr);
+    fn stmt(&mut self, stmt: &mut ast::Stmt);
 }
 
-fn visit_func<V: Visit>(func: &ast::Func, v: &mut V) {
-    for s in func.body.iter() {
+fn visit_func<V: Visit>(func: &mut ast::Func, v: &mut V) {
+    for s in func.body.iter_mut() {
         v.stmt(s);
     }
 }
 
-fn visit_expr<V: Visit>(expr: &ast::Expr, v: &mut V) {
+fn visit_expr<V: Visit>(expr: &mut ast::Expr, v: &mut V) {
     match *expr {
         ast::Expr::EmptyParens
         | ast::Expr::This
@@ -44,9 +44,9 @@ fn visit_expr<V: Visit>(expr: &ast::Expr, v: &mut V) {
         // Spread(Box<ExprNode>),
         // Object(Box<Object>),
         // Function(Box<Function>),
-        ast::Expr::Class(ref c) => {
-            for m in c.methods.iter() {
-                visit_func(&m.func, v);
+        ast::Expr::Class(ref mut c) => {
+            for m in c.methods.iter_mut() {
+                visit_func(&mut m.func, v);
             }
         }
         // ArrowFunction(Box<ArrowFunction>),
@@ -57,10 +57,10 @@ fn visit_expr<V: Visit>(expr: &ast::Expr, v: &mut V) {
     // Index(Box<ExprNode>, Box<ExprNode>),
     // Field(Box<ExprNode>, String),
     // New(Box<ExprNode>),
-        ast::Expr::Call(ref c) => {
-            v.expr(&c.func.1);
-            for a in c.args.iter() {
-                v.expr(&a.1);
+        ast::Expr::Call(ref mut c) => {
+            v.expr(&mut c.func.1);
+            for a in c.args.iter_mut() {
+                v.expr(&mut a.1);
             }
         }
 
@@ -69,19 +69,26 @@ fn visit_expr<V: Visit>(expr: &ast::Expr, v: &mut V) {
         // Binary(Box<Binary>),
         // TypeOf(Box<ExprNode>),
         // Ternary(Box<Ternary>),
-        ast::Expr::Assign(ref e1, ref e2) => {
-            v.expr(&e1.1);
-            v.expr(&e2.1);
+        ast::Expr::Assign(ref mut e1, ref mut e2) => {
+            v.expr(&mut e1.1);
+            v.expr(&mut e2.1);
         }
         _ => unimplemented!("{}", expr.kind()),
     }
 }
-fn visit_stmt<V: Visit>(stmt: &ast::Stmt, v: &mut V) {
+
+fn visit_stmt<V: Visit>(stmt: &mut ast::Stmt, v: &mut V) {
     match *stmt {
         // ast::Stmt::Block(Vec<Stmt>),
-        // ast::Stmt::Var(Box<VarDecls>),
+        ast::Stmt::Var(ref mut decls) => {
+            for d in decls.decls.iter_mut() {
+                if let Some(ref mut e) = d.init {
+                    v.expr(&mut e.1);
+                }
+            }
+        }
         // ast::Stmt::Empty,
-        ast::Stmt::Expr((_, ref e)) => v.expr(e),
+        ast::Stmt::Expr((_, ref mut e)) => v.expr(e),
         // ast::Stmt::If(Box<If>),
         // ast::Stmt::While(Box<While>),
         // ast::Stmt::DoWhile(Box<While>),
@@ -94,29 +101,51 @@ fn visit_stmt<V: Visit>(stmt: &ast::Stmt, v: &mut V) {
         // ast::Stmt::Label(Box<Label>),
         // ast::Stmt::Throw(Box<Expr>),
         // ast::Stmt::Try(Box<Try>),
-        ast::Stmt::Function(ref f) => {
-            visit_func(&f.func, v);
+        ast::Stmt::Function(ref mut f) => {
+            visit_func(&mut f.func, v);
         }
         // ast::Stmt::Class(Box<Class>),
         _ => unimplemented!("{}", stmt.kind()),
     }
 }
 
+fn visit_module<V: Visit>(module: &mut ast::Module, v: &mut V) {
+    for stmt in module.stmts.iter_mut() {
+        v.stmt(stmt);
+    }
+}
+
 struct Eval {}
 impl Visit for Eval {
-    fn expr(&mut self, expr: &ast::Expr) {
-        visit_expr(expr, self);
+    fn expr(&mut self, expr: &mut ast::Expr) {
+        match *expr {
+            ast::Expr::Ident(ref mut sym) => {
+                sym.borrow_mut().read = true;
+            }
+            ast::Expr::Assign(ref mut e1, ref mut e2) => {
+                match e1.1 {
+                    ast::Expr::Ident(ref mut sym) => {
+                        sym.borrow_mut().write = true;
+                    }
+                    _ => visit_expr(&mut e1.1, self),
+                }
+                visit_expr(&mut e2.1, self);
+            }
+            _ => visit_expr(expr, self),
+        }
     }
 
-    fn stmt(&mut self, stmt: &ast::Stmt) {
+    fn stmt(&mut self, stmt: &mut ast::Stmt) {
         match *stmt {
-            ast::Stmt::Var(ref decls) => {
-                for decl in decls.decls.iter() {
+            ast::Stmt::Var(ref mut decls) => {
+                for decl in decls.decls.iter_mut() {
                     match decl.pattern {
-                        ast::BindingPattern::Name(ref name) => println!("decl {:?}", name),
+                        ast::BindingPattern::Name(ref mut name) => {
+                            println!("decl {:?}", name);
+                        }
                         _ => unimplemented!(),
                     }
-                    if let Some((_, ref init)) = decl.init {
+                    if let Some((_, ref mut init)) = decl.init {
                         self.expr(init);
                     }
                 }
@@ -128,15 +157,35 @@ impl Visit for Eval {
     }
 }
 
-impl Eval {
-    fn module(&mut self, module: &ast::Module) {
-        for stmt in module.stmts.iter() {
-            self.stmt(stmt);
+struct Dead {}
+impl Visit for Dead {
+    fn expr(&mut self, expr: &mut ast::Expr) {
+        match *expr {
+            ast::Expr::Function(ref f) => {
+                for b in f.func.scope.bindings.iter() {
+                    println!("{:?}", b);
+                }
+            }
+            _ => {}
         }
+        visit_expr(expr, self);
+    }
+    fn stmt(&mut self, stmt: &mut ast::Stmt) {
+        match *stmt {
+            ast::Stmt::Function(ref f) => {
+                for b in f.func.scope.bindings.iter() {
+                    println!("dead: {:?}", b);
+                }
+            }
+            _ => {}
+        }
+        visit_stmt(stmt, self);
     }
 }
 
-pub fn eval(module: &ast::Module) {
+pub fn eval(module: &mut ast::Module) {
     let mut e = Eval {};
-    e.module(module);
+    visit_module(module, &mut e);
+    let mut d = Dead {};
+    visit_module(module, &mut d);
 }
