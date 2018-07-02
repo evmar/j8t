@@ -18,6 +18,7 @@ use ast;
 use ast::ExprNode;
 use std::io;
 use std::io::Write;
+use std::rc::Rc;
 
 trait Prec {
     fn prec(&self) -> i8;
@@ -475,7 +476,7 @@ impl<'a> Writer<'a> {
         Ok(())
     }
 
-    fn maybe_init(&mut self, init: &Option<ExprNode>) -> Result {
+    fn maybe_init(&mut self, init: &Option<Rc<ExprNode>>) -> Result {
         if let Some(ref init) = *init {
             self.token("=")?;
             self.expr(init, 3)?;
@@ -603,7 +604,7 @@ impl<'a> Writer<'a> {
                         match c.expr {
                             Some(ref c) => {
                                 w.token("case")?;
-                                w.expr(c, -1)?;
+                                w.exprn(c, -1)?;
                             }
                             None => w.token("default")?,
                         }

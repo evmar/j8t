@@ -19,6 +19,7 @@ use ast::{Expr, ExprNode, Stmt};
 use lex;
 use lex::{LexError, Span, Tok, Token};
 use std;
+use std::rc::Rc;
 use std::fmt::Write;
 
 fn todo_span() -> Span {
@@ -84,12 +85,12 @@ fn decl_type_from_tok(tok: Tok) -> ast::VarDeclType {
 // no following semi and the 'in' and realize it's a for-in loop.
 // So we must then convert the [a,b] half of the expr into a binding
 // pattern.
-fn binding_from_expr(en: ExprNode) -> ParseResult<ast::BindingPattern> {
+fn binding_from_expr(en: Rc<ExprNode>) -> ParseResult<ast::BindingPattern> {
     Ok(match en.expr {
-        ast::Expr::Ident(sym) => ast::BindingPattern::Name(sym),
-        ast::Expr::Object(obj) => {
+        ast::Expr::Ident(ref sym) => ast::BindingPattern::Name(sym.clone()),
+        ast::Expr::Object(ref obj) => {
             let props = obj.props
-                .into_iter()
+                .iter()
                 .map(|p| {
                     let pat = match p.name {
                         ast::PropertyName::String(ref s) => {
@@ -97,22 +98,22 @@ fn binding_from_expr(en: ExprNode) -> ParseResult<ast::BindingPattern> {
                         }
                         _ => unimplemented!(),
                     };
-                    (p.name, (pat, Some(p.value)))
+                    (p.name.clone(), (pat, Some(p.value.clone())))
                 })
                 .collect();
             ast::BindingPattern::Object(ast::ObjectBindingPattern { props: props })
         }
-        ast::Expr::Array(arr) => {
+        ast::Expr::Array(ref arr) => {
             let mut elems: Vec<ast::BindingElement> = Vec::new();
             for elem in arr {
-                elems.push((binding_from_expr(elem)?, None));
+                elems.push((binding_from_expr(elem.clone())?, None));
             }
             ast::BindingPattern::Array(ast::ArrayBindingPattern { elems: elems })
         }
         _ => {
             return Err(ParseError {
                 msg: format!("couldn't convert expr into binding"),
-                at: en.span,
+                at: en.span.clone(),
             });
         }
     })
@@ -120,24 +121,13 @@ fn binding_from_expr(en: ExprNode) -> ParseResult<ast::BindingPattern> {
 
 // If expr is a comma node (e.g. (a, b)), return (a, Some(b)).
 // Else return (a, None).
-fn split_commas(en: ExprNode) -> (ExprNode, Option<ExprNode>) {
-    // To work around ownership, first decide if it's a comma node
-    // and then destructure separately.
-    let is_comma = match en.expr {
-        ast::Expr::Binary(ref bin) => bin.op == ast::BinOp::Comma,
-        _ => false,
-    };
-    if is_comma {
-        match en.expr {
-            ast::Expr::Binary(bin) => {
-                let bin = *bin;
-                let ast::Binary { lhs, rhs, op: _op } = bin;
-                return (lhs, Some(rhs));
-            }
-            _ => unreachable!(),
+fn split_commas(en: Rc<ExprNode>) -> (Rc<ExprNode>, Option<Rc<ExprNode>>) {
+    if let ast::Expr::Binary(ref bin) = en.expr {
+        if bin.op == ast::BinOp::Comma {
+            return (bin.lhs.clone(), Some(bin.rhs.clone()))
         }
     }
-    (en, None)
+    return (en, None)
 }
 
 // See the ::Call branch of arrow_params_from_expr.
@@ -167,7 +157,7 @@ fn call_is_async(call: &ast::Call) -> bool {
 //
 // This differs from binding_from_expr in that it handles comma-separated
 // lists of parameters as well as default value initializers.
-fn arrow_params_from_expr(en: ExprNode, params: &mut Vec<ast::BindingElement>) -> ParseResult<()> {
+fn arrow_params_from_expr(en: Rc<ExprNode>, params: &mut Vec<ast::BindingElement>) -> ParseResult<()> {
     match en.expr {
         ast::Expr::EmptyParens => { /* ok, no params */ }
         ast::Expr::Binary(_) => {
@@ -181,13 +171,14 @@ fn arrow_params_from_expr(en: ExprNode, params: &mut Vec<ast::BindingElement>) -
                 }
             }
         }
-        ast::Expr::Call(call) => {
-            if call_is_async(&call) {
+        ast::Expr::Call(_) => {
+            let call = match en.expr { ast::Expr::Call(ref c) => c, _ => unreachable!() };
+            if call_is_async(call) {
                 // async (foo, bar)
                 // parses as a function call.
                 // TODO: async.
-                for arg in call.args {
-                    params.push(arrow_param_from_expr(arg)?);
+                for arg in call.args.iter() {
+                    params.push(arrow_param_from_expr(arg.clone())?);
                 }
             } else {
                 unimplemented!();
@@ -204,27 +195,27 @@ fn arrow_params_from_expr(en: ExprNode, params: &mut Vec<ast::BindingElement>) -
             println!("on: {:?}", en);
             return Err(ParseError {
                 msg: format!("couldn't convert left side of arrow into parameter list"),
-                at: en.span,
+                at: en.span.clone(),
             });
         }
-    }
+    };
     Ok(())
 }
 
-fn arrow_param_from_expr(en: ExprNode) -> ParseResult<ast::BindingElement> {
+fn arrow_param_from_expr(en: Rc<ExprNode>) -> ParseResult<ast::BindingElement> {
     Ok(match en.expr {
         ast::Expr::Ident(_) | ast::Expr::Object(_) | ast::Expr::Array(_) => {
-            (binding_from_expr(en)?, None)
+            (binding_from_expr(en.clone())?, None)
         }
-        ast::Expr::Assign(lhs, rhs) => (binding_from_expr(*lhs)?, Some(*rhs)),
-        ast::Expr::Spread(e) => {
+        ast::Expr::Assign(ref lhs, ref rhs) => (binding_from_expr(lhs.clone())?, Some(rhs.clone())),
+        ast::Expr::Spread(ref e) => {
             // TODO: spread
-            (binding_from_expr(*e)?, None)
+            (binding_from_expr(e.clone())?, None)
         }
-        e => {
+        _ => {
             return Err(ParseError {
-                msg: format!("couldn't convert arrow arg {:?} into parameter", e),
-                at: en.span,
+                msg: format!("couldn't convert arrow arg {:?} into parameter", en.expr),
+                at: en.span.clone(),
             });
         }
     })
@@ -261,8 +252,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn array_literal(&mut self, start: usize) -> ParseResult<(Span, Vec<ExprNode>)> {
-        let mut elems: Vec<ExprNode> = Vec::new();
+    fn array_literal(&mut self, start: usize) -> ParseResult<(Span, Vec<Rc<ExprNode>>)> {
+        let mut elems = Vec::new();
         loop {
             match self.lex_peek()? {
                 Tok::RSquare => break,
@@ -274,10 +265,10 @@ impl<'a> Parser<'a> {
                     let token = self.lex_read()?;
                     let expr = self.expr_prec(1)?;
                     // spread TODO
-                    elems.push(ExprNode {
+                    elems.push(Rc::new(ExprNode {
                         span: Span::new(token.span.start, expr.span.end),
-                        expr: Expr::Spread(Box::new(expr)),
-                    });
+                        expr: Expr::Spread(expr),
+                    }));
                 }
                 _ => {
                     elems.push(self.expr_prec(1)?);
@@ -353,10 +344,10 @@ impl<'a> Parser<'a> {
                     // TODO: name the function?
                     ast::Property {
                         name: name,
-                        value: ExprNode {
+                        value: Rc::new(ExprNode {
                             span: Span::new(span.start, span.end), // TODO
                             expr: func,
-                        },
+                        }),
                     }
                 }
                 _ if can_pun => {
@@ -365,10 +356,10 @@ impl<'a> Parser<'a> {
                     // and we hit the comma or right brace,
                     // and then let the below code handle that.
                     let value = match name {
-                        ast::PropertyName::String(ref s) => ExprNode {
-                            span: span,
-                            expr: ast::Expr::Ident(ast::Symbol::new(s.clone())),
-                        },
+                        ast::PropertyName::String(ref s) => ast::ExprNode::new(
+                            span,
+                            ast::Expr::Ident(ast::Symbol::new(s.clone())),
+                        ),
                         _ => unreachable!(),
                     };
                     ast::Property {
@@ -395,13 +386,13 @@ impl<'a> Parser<'a> {
     // 12.2 Primary Expression
     // TODO: we need to allow this to fail to handle 'case' clauses in switch properly.
     // Need a primary_expr_opt() that this calls.
-    fn primary_expr(&mut self) -> ParseResult<ExprNode> {
+    fn primary_expr(&mut self) -> ParseResult<Rc<ExprNode>> {
         let token = self.lex_read()?;
         Ok(match token.tok {
-            Tok::This => ExprNode {
-                span: token.span,
-                expr: Expr::This,
-            },
+            Tok::This => ExprNode::new(
+                token.span,
+                Expr::This,
+            ),
             Tok::Ident => {
                 let span = token.span.clone();
                 let text = self.lexer.text(token);
@@ -480,7 +471,7 @@ impl<'a> Parser<'a> {
                 let pat = self.expr_prec(1)?;
                 ExprNode::new(
                     Span::new(token.span.start, pat.span.end),
-                    Expr::Spread(Box::new(pat)),
+                    Expr::Spread(pat),
                 )
             }
             _ => {
@@ -571,7 +562,7 @@ impl<'a> Parser<'a> {
                         }
                     };
 
-                    let mut init: Option<ExprNode> = None;
+                    let mut init: Option<Rc<ExprNode>> = None;
                     if self.lex_peek()? == Tok::Eq {
                         self.lex_read()?;
                         init = Some(self.expr_prec(3 /* assignment expr */)?);
@@ -595,7 +586,7 @@ impl<'a> Parser<'a> {
                         break;
                     }
                     let pattern = self.binding_pattern()?;
-                    let mut init: Option<ExprNode> = None;
+                    let mut init: Option<Rc<ExprNode>> = None;
                     if self.lex_peek()? == Tok::Eq {
                         self.lex_read()?;
                         init = Some(self.expr_prec(3 /* assignment expr */)?);
@@ -635,7 +626,7 @@ impl<'a> Parser<'a> {
 
     fn func_from_paren(&mut self) -> ParseResult<ast::Func> {
         self.expect(Tok::LParen)?;
-        let mut params: Vec<(ast::BindingPattern, Option<ExprNode>)> = Vec::new();
+        let mut params: Vec<(ast::BindingPattern, Option<Rc<ExprNode>>)> = Vec::new();
         while self.lex_peek()? != Tok::RParen {
             // TODO: support rest_param.
             let _rest_param = if self.lex_peek()? == Tok::Ellipsis {
@@ -645,7 +636,7 @@ impl<'a> Parser<'a> {
                 false
             };
             let binding = self.binding_pattern()?;
-            let mut init: Option<ExprNode> = None;
+            let mut init: Option<Rc<ExprNode>> = None;
             if self.lex_peek()? == Tok::Eq {
                 self.lex_read()?;
                 init = Some(self.expr_prec(3 /* assignment expr */)?);
@@ -675,8 +666,8 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn function_call(&mut self, func: ExprNode) -> ParseResult<ExprNode> {
-        let mut params: Vec<ExprNode> = Vec::new();
+    fn function_call(&mut self, func: Rc<ExprNode>) -> ParseResult<Rc<ExprNode>> {
+        let mut params = Vec::new();
         loop {
             if self.lex_peek()? == Tok::RParen {
                 break;
@@ -698,13 +689,13 @@ impl<'a> Parser<'a> {
         ))
     }
 
-    fn expr_prec(&mut self, prec: usize) -> ParseResult<ExprNode> {
+    fn expr_prec(&mut self, prec: usize) -> ParseResult<Rc<ExprNode>> {
         // prec is precedence:
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Operator_Precedence
 
         // Parse a unary preceding op, or the primary expression itself.
         let token = self.lex_read()?;
-        let mut expr = match token.tok {
+        let mut expr: Rc<ExprNode> = match token.tok {
             Tok::Not
             | Tok::BNot
             | Tok::Plus
@@ -718,21 +709,21 @@ impl<'a> Parser<'a> {
                 let expr = self.expr_prec(16)?;
                 ExprNode::new(
                     Span::new(token.span.start, expr.span.end),
-                    Expr::Unary(ast::UnOp::from_tok(token.tok), Box::new(expr)),
+                    Expr::Unary(ast::UnOp::from_tok(token.tok), expr),
                 )
             }
             Tok::TypeOf if prec <= 16 => {
                 let expr = self.expr_prec(16)?;
                 ExprNode::new(
                     Span::new(token.span.start, expr.span.end),
-                    Expr::TypeOf(Box::new(expr)),
+                    Expr::TypeOf(expr),
                 )
             }
             Tok::New if prec <= 18 => {
                 let expr = self.expr_prec(18)?;
                 ExprNode::new(
                     Span::new(token.span.start, expr.span.end),
-                    Expr::New(Box::new(expr)),
+                    Expr::New(expr),
                 )
             }
             _ => {
@@ -760,7 +751,7 @@ impl<'a> Parser<'a> {
                     let rhs = self.expr_prec(3)?;
                     expr = ExprNode::new(
                         Span::new(expr.span.start, rhs.span.end),
-                        Expr::Assign(Box::new(expr), Box::new(rhs)),
+                        Expr::Assign(expr, rhs),
                     );
                 }
                 Tok::PlusEq
@@ -939,13 +930,13 @@ impl<'a> Parser<'a> {
                 Tok::PlusPlus if prec <= 17 => {
                     expr = ExprNode::new(
                         Span::new(expr.span.start, token.span.end),
-                        Expr::Unary(ast::UnOp::PostPlusPlus, Box::new(expr)),
+                        Expr::Unary(ast::UnOp::PostPlusPlus, expr),
                     )
                 }
                 Tok::MinusMinus if prec <= 17 => {
                     expr = ExprNode::new(
                         Span::new(expr.span.start, token.span.end),
-                        Expr::Unary(ast::UnOp::PostMinusMinus, Box::new(expr)),
+                        Expr::Unary(ast::UnOp::PostMinusMinus, expr),
                     )
                 }
                 Tok::Dot if prec <= 19 => {
@@ -955,14 +946,14 @@ impl<'a> Parser<'a> {
                     }
                     let span = Span::new(expr.span.start, token.span.end);
                     let field = self.lexer.text(token);
-                    expr = ExprNode::new(span, Expr::Field(Box::new(expr), field));
+                    expr = ExprNode::new(span, Expr::Field(expr, field));
                 }
                 Tok::LSquare if prec <= 19 => {
                     let index = self.expr()?;
                     let end = self.expect(Tok::RSquare)?;
                     expr = ExprNode::new(
                         Span::new(index.span.start, end),
-                        Expr::Index(Box::new(expr), Box::new(index)),
+                        Expr::Index(expr, index),
                     );
                 }
                 Tok::LParen if prec <= 19 => {
@@ -976,7 +967,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn expr(&mut self) -> ParseResult<ExprNode> {
+    pub fn expr(&mut self) -> ParseResult<Rc<ExprNode>> {
         self.expr_prec(0)
     }
 
@@ -1099,7 +1090,7 @@ impl<'a> Parser<'a> {
                     if let Some(init) = decl.init {
                         return Err(ParseError {
                             msg: "unexpected initializer".into(),
-                            at: init.span,
+                            at: init.span.clone(),
                         });
                     }
                     return Ok(Stmt::ForInOf(Box::new(ast::ForInOf {
@@ -1132,29 +1123,29 @@ impl<'a> Parser<'a> {
         // and call it a for-in loop as well.
         if self.lex_peek()? == Tok::RParen {
             self.lex_read()?;
-            let expr = match init {
-                ast::ForInit::Expr(expr) => expr,
+            let en = match init {
+                ast::ForInit::Expr(en) => en,
                 _ => unreachable!(),
             };
-            let bin = match expr.expr {
-                ast::Expr::Binary(bin) => *bin,
+            let bin = match en.expr {
+                ast::Expr::Binary(ref bin) => bin,
                 _ => {
                     return Err(ParseError {
                         msg: "couldn't parse for-of loop head".into(),
-                        at: expr.span,
+                        at: en.span.clone(),
                     })
                 }
             };
-            let ast::Binary { lhs, rhs, op: _op } = bin;
-            let loop_var = match lhs.expr {
-                ast::Expr::Ident(name) => ast::BindingPattern::Name(name),
+            // let ast::Binary { lhs, rhs, op: _op } = bin;
+            let loop_var = match bin.lhs.expr {
+                ast::Expr::Ident(ref name) => ast::BindingPattern::Name(name.clone()),
                 _ => unimplemented!(),
             };
             return Ok(Stmt::ForInOf(Box::new(ast::ForInOf {
                 decl_type: None,
                 loop_var: loop_var,
                 in_of: ast::InOf::In,
-                expr: rhs,
+                expr: bin.rhs.clone(),
                 body: self.stmt()?,
             })));
         }
@@ -1333,15 +1324,15 @@ impl<'a> Parser<'a> {
                 } else {
                     let expr = self.expr()?;
                     self.expect_semi()?;
-                    Stmt::Return(Some(Box::new(expr)))
+                    Stmt::Return(Some(expr))
                 }
             }
             Tok::Throw => {
-                let expr = Box::new(self.expr()?);
+                let expr = self.expr()?;
                 self.expect_semi()?;
                 Stmt::Throw(expr)
             }
-            Tok::Try => Stmt::Try(Box::new(try!(self.try()))),
+            Tok::Try => Stmt::Try(Box::new(self.try()?)),
             t => {
                 if t == Tok::Ident && self.lex_peek()? == Tok::Colon {
                     // Note: we have to read two tokens(!) to spot a label statement.

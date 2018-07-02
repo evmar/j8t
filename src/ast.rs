@@ -83,10 +83,10 @@ pub enum Expr {
     Bool(bool),
     Number(f64),
     String(String),
-    Array(Vec<ExprNode>),
+    Array(Vec<Rc<ExprNode>>),
     // The parse of "...a", which can only occur in arrow functions and
     // in array literals.
-    Spread(Box<ExprNode>),
+    Spread(Rc<ExprNode>),
     Object(Box<Object>),
     Function(Box<Function>),
     Class(Box<Class>),
@@ -95,17 +95,17 @@ pub enum Expr {
     Template(Box<Template>),
 
     // 12.3 Left-Hand-Side Expressions
-    Index(Box<ExprNode>, Box<ExprNode>),
-    Field(Box<ExprNode>, String),
-    New(Box<ExprNode>),
+    Index(Rc<ExprNode>, Rc<ExprNode>),
+    Field(Rc<ExprNode>, String),
+    New(Rc<ExprNode>),
     Call(Box<Call>),
 
     // Various other operators.
-    Unary(UnOp, Box<ExprNode>),
+    Unary(UnOp, Rc<ExprNode>),
     Binary(Box<Binary>),
-    TypeOf(Box<ExprNode>),
+    TypeOf(Rc<ExprNode>),
     Ternary(Box<Ternary>),
-    Assign(Box<ExprNode>, Box<ExprNode>),
+    Assign(Rc<ExprNode>, Rc<ExprNode>),
 }
 
 impl Expr {
@@ -146,11 +146,11 @@ pub struct ExprNode {
     pub expr: Expr,
 }
 impl ExprNode {
-    pub fn new(span: Span, expr: Expr) -> ExprNode {
-        ExprNode {
+    pub fn new(span: Span, expr: Expr) -> Rc<ExprNode> {
+        Rc::new(ExprNode {
             span: span,
             expr: expr,
-        }
+        })
     }
 }
 
@@ -170,17 +170,17 @@ pub struct Object {
 // 7) get/set a(b) {}
 // 8) a=b (used to cover alternative syntax for bindings)
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub enum PropertyName {
     String(String),
     Number(f64),
-    Computed(ExprNode),
+    Computed(Rc<ExprNode>),
 }
 
 #[derive(Debug)]
 pub struct Property {
     pub name: PropertyName,
-    pub value: ExprNode,
+    pub value: Rc<ExprNode>,
 }
 
 #[derive(Debug)]
@@ -209,7 +209,7 @@ impl BindingPattern {
     }
 }
 
-pub type BindingElement = (BindingPattern, Option<ExprNode>);
+pub type BindingElement = (BindingPattern, Option<Rc<ExprNode>>);
 
 /// Attributes shared by functions and methods.
 #[derive(Debug)]
@@ -235,7 +235,7 @@ pub struct Method {
 
 #[derive(Debug)]
 pub enum ArrowBody {
-    Expr(ExprNode),
+    Expr(Rc<ExprNode>),
     Stmts(Vec<Stmt>),
 }
 
@@ -248,7 +248,7 @@ pub struct ArrowFunction {
 #[derive(Debug)]
 pub struct Class {
     pub name: Option<RefSym>,
-    pub extends: Option<ExprNode>,
+    pub extends: Option<Rc<ExprNode>>,
     pub methods: Vec<Method>,
 }
 
@@ -266,8 +266,8 @@ pub struct Template {
 
 #[derive(Debug)]
 pub struct Call {
-    pub func: ExprNode,
-    pub args: Vec<ExprNode>,
+    pub func: Rc<ExprNode>,
+    pub args: Vec<Rc<ExprNode>>,
 }
 
 pub use ops::BinOp;
@@ -276,15 +276,15 @@ pub use ops::UnOp;
 #[derive(Debug)]
 pub struct Binary {
     pub op: BinOp,
-    pub lhs: ExprNode,
-    pub rhs: ExprNode,
+    pub lhs: Rc<ExprNode>,
+    pub rhs: Rc<ExprNode>,
 }
 
 #[derive(Debug)]
 pub struct Ternary {
-    pub condition: ExprNode,
-    pub iftrue: ExprNode,
-    pub iffalse: ExprNode,
+    pub condition: Rc<ExprNode>,
+    pub iftrue: Rc<ExprNode>,
+    pub iffalse: Rc<ExprNode>,
 }
 
 #[derive(Debug)]
@@ -292,7 +292,7 @@ pub enum Stmt {
     Block(Vec<Stmt>),
     Var(Box<VarDecls>),
     Empty,
-    Expr(ExprNode),
+    Expr(Rc<ExprNode>),
     If(Box<If>),
     While(Box<While>),
     DoWhile(Box<While>),
@@ -301,9 +301,9 @@ pub enum Stmt {
     Switch(Box<Switch>),
     Continue(Option<String>),
     Break(Option<String>),
-    Return(Option<Box<ExprNode>>),
+    Return(Option<Rc<ExprNode>>),
     Label(Box<Label>),
-    Throw(Box<ExprNode>),
+    Throw(Rc<ExprNode>),
     Try(Box<Try>),
 
     Function(Box<Function>),
@@ -355,7 +355,7 @@ impl VarDeclType {
 #[derive(Debug)]
 pub struct VarDecl {
     pub pattern: BindingPattern,
-    pub init: Option<ExprNode>,
+    pub init: Option<Rc<ExprNode>>,
 }
 
 #[derive(Debug)]
@@ -366,29 +366,29 @@ pub struct VarDecls {
 
 #[derive(Debug)]
 pub struct If {
-    pub cond: ExprNode,
+    pub cond: Rc<ExprNode>,
     pub iftrue: Stmt,
     pub else_: Option<Stmt>,
 }
 
 #[derive(Debug)]
 pub struct While {
-    pub cond: ExprNode,
+    pub cond: Rc<ExprNode>,
     pub body: Stmt,
 }
 
 #[derive(Debug)]
 pub enum ForInit {
     Empty,
-    Expr(ExprNode),
+    Expr(Rc<ExprNode>),
     Decls(VarDecls),
 }
 
 #[derive(Debug)]
 pub struct For {
     pub init: ForInit,
-    pub cond: Option<ExprNode>,
-    pub iter: Option<ExprNode>,
+    pub cond: Option<Rc<ExprNode>>,
+    pub iter: Option<Rc<ExprNode>>,
     pub body: Stmt,
 }
 
@@ -403,19 +403,19 @@ pub struct ForInOf {
     pub decl_type: Option<VarDeclType>,
     pub loop_var: BindingPattern,
     pub in_of: InOf,
-    pub expr: ExprNode,
+    pub expr: Rc<ExprNode>,
     pub body: Stmt,
 }
 
 #[derive(Debug)]
 pub struct Case {
-    pub expr: Option<ExprNode>,
+    pub expr: Option<Rc<ExprNode>>,
     pub stmts: Vec<Stmt>,
 }
 
 #[derive(Debug)]
 pub struct Switch {
-    pub expr: ExprNode,
+    pub expr: Rc<ExprNode>,
     pub cases: Vec<Case>,
 }
 
