@@ -1396,15 +1396,15 @@ mod tests {
     fn parse_expr(input: &str) -> Expr {
         println!("parse_expr: {:?}", input);
         let mut p = Parser::new(input.as_bytes());
-        let (_, expr) = match p.expr() {
+        let en = match p.expr() {
             Err(err) => {
                 panic!("{}", err.pretty(&p.lexer));
             }
-            Ok(expr) => expr,
+            Ok(en) => en,
         };
-        println!("result: {:?}", expr);
+        println!("result: {:?}", en);
         p.expect(Tok::EOF).unwrap();
-        expr
+        en.expr
     }
 
     fn parse(input: &str) -> Vec<Stmt> {
@@ -1430,8 +1430,8 @@ mod tests {
     fn assoc() {
         let expr = parse_expr("a + b + c");
         match expr {
-            Expr::Binary(ref bin) => match bin.lhs {
-                (_, Expr::Binary(_)) => {}
+            Expr::Binary(ref bin) => match bin.lhs.expr {
+                Expr::Binary(_) => {}
                 _ => panic!("fail"),
             },
             _ => panic!("fail"),

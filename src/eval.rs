@@ -142,7 +142,7 @@ impl Visit for Eval {
                 for decl in decls.decls.iter_mut() {
                     match decl.pattern {
                         ast::BindingPattern::Name(ref mut name) => {
-                            //println!("decl {:?}", name);
+                            println!("decl {:?}", name);
                         }
                         _ => unimplemented!(),
                     }
