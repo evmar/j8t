@@ -29,6 +29,8 @@ pub struct Symbol {
     pub name: RefCell<String>,
     /// False if the symbol's name is significant and cannot be changed, e.g. 'arguments'.
     pub renameable: bool,
+    pub write: bool,
+    pub read: bool,
 }
 
 impl Symbol {
@@ -36,6 +38,8 @@ impl Symbol {
         Rc::new(Symbol {
             name: RefCell::new(String::from(name.into())),
             renameable: true,
+            read: false,
+            write: false,
         })
     }
     pub fn name(&self) -> String {
@@ -103,6 +107,38 @@ pub enum Expr {
     TypeOf(Box<ExprNode>),
     Ternary(Box<Ternary>),
     Assign(Box<ExprNode>, Box<ExprNode>),
+}
+
+impl Expr {
+    pub fn kind(&self) -> &'static str {
+        match *self {
+            Expr::EmptyParens => "empty parens",
+            Expr::This => "this",
+            Expr::Ident(_) => "ident",
+            Expr::Null => "null",
+            Expr::Undefined => "undefined",
+            Expr::Bool(_) => "bool",
+            Expr::Number(_) => "number",
+            Expr::String(_) => "string",
+            Expr::Array(_) => "array",
+            Expr::Spread(_) => "spread",
+            Expr::Object(_) => "object",
+            Expr::Function(_) => "function",
+            Expr::Class(_) => "class",
+            Expr::ArrowFunction(_) => "arrow",
+            Expr::Regex(_) => "regex",
+            Expr::Template(_) => "template",
+            Expr::Index(_, _) => "index",
+            Expr::Field(_, _) => "field",
+            Expr::New(_) => "new",
+            Expr::Call(_) => "call",
+            Expr::Unary(_, _) => "unary",
+            Expr::Binary(_) => "binary",
+            Expr::TypeOf(_) => "typeof",
+            Expr::Ternary(_) => "ternary",
+            Expr::Assign(_, _) => "assign",
+        }
+    }
 }
 
 pub type ExprNode = (Span, Expr);
