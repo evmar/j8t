@@ -806,6 +806,7 @@ mod tests {
     #[test]
     fn object() {
         // TODO: parens around obj literal.
+        // TODO: function punning.
         assert_eq!(
             codegen(
                 r"({
@@ -818,7 +819,7 @@ mod tests {
   'with space': function() {},
 });",
             ),
-            "{plain:0,0:number,string:1,pun,func(){},explicit_func:function(){},\"with space\":function(){}}"
+            "{plain:0,0:number,string:1,pun,func:function(){},explicit_func:function(){},\"with space\":function(){}}"
         );
     }
 }
