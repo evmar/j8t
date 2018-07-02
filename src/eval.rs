@@ -15,6 +15,7 @@
  */
 
 use ast;
+use std;
 
 trait Visit {
     fn expr(&mut self, expr: &mut ast::Expr);
@@ -141,7 +142,7 @@ impl Visit for Eval {
                 for decl in decls.decls.iter_mut() {
                     match decl.pattern {
                         ast::BindingPattern::Name(ref mut name) => {
-                            println!("decl {:?}", name);
+                            //println!("decl {:?}", name);
                         }
                         _ => unimplemented!(),
                     }
@@ -157,29 +158,59 @@ impl Visit for Eval {
     }
 }
 
+fn is_dead(s: &ast::RefSym) -> bool {
+    !s.borrow().read
+}
+
 struct Dead {}
 impl Visit for Dead {
     fn expr(&mut self, expr: &mut ast::Expr) {
-        match *expr {
-            ast::Expr::Function(ref f) => {
-                for b in f.func.scope.bindings.iter() {
-                    println!("{:?}", b);
+        let new = match *expr {
+            ast::Expr::Assign(ref mut e1, ref mut e2) => {
+                match e1.1 {
+                    ast::Expr::Ident(ref mut sym) => {
+                        if is_dead(sym) {
+                            let mut new = Box::new((ast::Span::new(0,0), ast::Expr::Null));
+                            std::mem::swap(&mut new, e2);
+                            Some(new.1)
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None
                 }
             }
-            _ => {}
+            _ => None
+        };
+        if let Some(new) = new {
+            println!("dead: {}", expr.kind());
+            *expr = new;
+        } else {
+            visit_expr(expr, self);
         }
-        visit_expr(expr, self);
     }
     fn stmt(&mut self, stmt: &mut ast::Stmt) {
-        match *stmt {
+        let new = match *stmt {
             ast::Stmt::Function(ref f) => {
-                for b in f.func.scope.bindings.iter() {
-                    println!("dead: {:?}", b);
+                if let Some(ref name) = f.name {
+                    //println!("{:?}", f.name);
+                    if is_dead(name) {
+                        Some(ast::Stmt::Empty)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
                 }
             }
-            _ => {}
+            _ => None,
+        };
+        if let Some(new) = new {
+            println!("dead: {}", stmt.kind());
+            *stmt = new;
+        } else {
+            visit_stmt(stmt, self);
         }
-        visit_stmt(stmt, self);
     }
 }
 
