@@ -55,14 +55,14 @@ fn is_block(s: &ast::Stmt) -> bool {
     }
 }
 
-fn deblock_expr(expr: &mut ast::Expr) {
-    match *expr {
+fn deblock_expr(en: &mut ast::ExprNode) {
+    match en.expr {
         ast::Expr::Function(ref mut func) => {
             for s in func.func.body.iter_mut() {
                 deblock_stmt(s, /* parent is try */ false);
             }
         }
-        _ => visit::expr_expr(expr, |e| deblock_expr(&mut e.1)),
+        _ => visit::expr_expr(en, |e| deblock_expr(e)),
     }
 }
 

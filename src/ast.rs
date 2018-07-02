@@ -140,7 +140,19 @@ impl Expr {
     }
 }
 
-pub type ExprNode = (Span, Expr);
+#[derive(Debug)]
+pub struct ExprNode {
+    pub span: Span,
+    pub expr: Expr,
+}
+impl ExprNode {
+    pub fn new(span: Span, expr: Expr) -> ExprNode {
+        ExprNode {
+            span: span,
+            expr: expr,
+        }
+    }
+}
 
 /// Object literal.
 #[derive(Debug)]
@@ -289,9 +301,9 @@ pub enum Stmt {
     Switch(Box<Switch>),
     Continue(Option<String>),
     Break(Option<String>),
-    Return(Option<Box<Expr>>),
+    Return(Option<Box<ExprNode>>),
     Label(Box<Label>),
-    Throw(Box<Expr>),
+    Throw(Box<ExprNode>),
     Try(Box<Try>),
 
     Function(Box<Function>),
@@ -354,14 +366,14 @@ pub struct VarDecls {
 
 #[derive(Debug)]
 pub struct If {
-    pub cond: Expr,
+    pub cond: ExprNode,
     pub iftrue: Stmt,
     pub else_: Option<Stmt>,
 }
 
 #[derive(Debug)]
 pub struct While {
-    pub cond: Expr,
+    pub cond: ExprNode,
     pub body: Stmt,
 }
 
@@ -375,8 +387,8 @@ pub enum ForInit {
 #[derive(Debug)]
 pub struct For {
     pub init: ForInit,
-    pub cond: Option<Expr>,
-    pub iter: Option<Expr>,
+    pub cond: Option<ExprNode>,
+    pub iter: Option<ExprNode>,
     pub body: Stmt,
 }
 
@@ -403,7 +415,7 @@ pub struct Case {
 
 #[derive(Debug)]
 pub struct Switch {
-    pub expr: Expr,
+    pub expr: ExprNode,
     pub cases: Vec<Case>,
 }
 

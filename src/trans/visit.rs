@@ -16,8 +16,8 @@
 
 use ast;
 
-pub fn expr_expr<F: FnMut(&mut ast::ExprNode)>(expr: &mut ast::Expr, mut f: F) {
-    match *expr {
+pub fn expr_expr<F: FnMut(&mut ast::ExprNode)>(en: &mut ast::ExprNode, mut f: F) {
+    match en.expr {
         ast::Expr::EmptyParens => unreachable!(),
         ast::Expr::This
         | ast::Expr::Ident(_)
@@ -72,19 +72,19 @@ pub fn expr_expr<F: FnMut(&mut ast::ExprNode)>(expr: &mut ast::Expr, mut f: F) {
     }
 }
 
-pub fn stmt_expr_forinit<F: FnMut(&mut ast::Expr)>(init: &mut ast::ForInit, f: &mut F) {
+pub fn stmt_expr_forinit<F: FnMut(&mut ast::ExprNode)>(init: &mut ast::ForInit, f: &mut F) {
     match *init {
         ast::ForInit::Empty => {}
-        ast::ForInit::Expr(ref mut e) => f(&mut e.1),
+        ast::ForInit::Expr(ref mut e) => f(e),
         ast::ForInit::Decls(ref mut decls) => for decl in decls.decls.iter_mut() {
-            if let Some((_, ref mut init)) = decl.init {
-                f(init);
+            if let Some(ref mut en) = decl.init {
+                f(en);
             }
         },
     }
 }
 
-pub fn stmt_expr<F: FnMut(&mut ast::Expr)>(stmt: &mut ast::Stmt, mut f: F) {
+pub fn stmt_expr<F: FnMut(&mut ast::ExprNode)>(stmt: &mut ast::Stmt, mut f: F) {
     match *stmt {
         ast::Stmt::If(ref mut if_) => {
             f(&mut if_.cond);
@@ -102,10 +102,10 @@ pub fn stmt_expr<F: FnMut(&mut ast::Expr)>(stmt: &mut ast::Stmt, mut f: F) {
             }
         }
         ast::Stmt::ForInOf(ref mut for_) => {
-            f(&mut for_.expr.1);
+            f(&mut for_.expr);
         }
         ast::Stmt::Switch(ref mut sw) => f(&mut sw.expr),
-        ast::Stmt::Expr(ref mut e) => f(&mut e.1),
+        ast::Stmt::Expr(ref mut e) => f(e),
         ast::Stmt::Return(ref mut e) => {
             if let Some(ref mut e) = *e {
                 f(e);
@@ -114,8 +114,8 @@ pub fn stmt_expr<F: FnMut(&mut ast::Expr)>(stmt: &mut ast::Stmt, mut f: F) {
         ast::Stmt::Throw(ref mut e) => f(e),
 
         ast::Stmt::Var(ref mut decls) => for decl in decls.decls.iter_mut() {
-            if let Some((_, ref mut init)) = decl.init {
-                f(init);
+            if let Some(ref mut en) = decl.init {
+                f(en);
             }
         },
 

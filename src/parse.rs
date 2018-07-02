@@ -84,8 +84,8 @@ fn decl_type_from_tok(tok: Tok) -> ast::VarDeclType {
 // no following semi and the 'in' and realize it's a for-in loop.
 // So we must then convert the [a,b] half of the expr into a binding
 // pattern.
-fn binding_from_expr(expr: ExprNode) -> ParseResult<ast::BindingPattern> {
-    Ok(match expr.1 {
+fn binding_from_expr(en: ExprNode) -> ParseResult<ast::BindingPattern> {
+    Ok(match en.expr {
         ast::Expr::Ident(sym) => ast::BindingPattern::Name(sym),
         ast::Expr::Object(obj) => {
             let props = obj.props
@@ -112,7 +112,7 @@ fn binding_from_expr(expr: ExprNode) -> ParseResult<ast::BindingPattern> {
         _ => {
             return Err(ParseError {
                 msg: format!("couldn't convert expr into binding"),
-                at: expr.0,
+                at: en.span,
             });
         }
     })
@@ -120,15 +120,15 @@ fn binding_from_expr(expr: ExprNode) -> ParseResult<ast::BindingPattern> {
 
 // If expr is a comma node (e.g. (a, b)), return (a, Some(b)).
 // Else return (a, None).
-fn split_commas(expr: ExprNode) -> (ExprNode, Option<ExprNode>) {
+fn split_commas(en: ExprNode) -> (ExprNode, Option<ExprNode>) {
     // To work around ownership, first decide if it's a comma node
     // and then destructure separately.
-    let is_comma = match expr.1 {
+    let is_comma = match en.expr {
         ast::Expr::Binary(ref bin) => bin.op == ast::BinOp::Comma,
         _ => false,
     };
     if is_comma {
-        match expr.1 {
+        match en.expr {
             ast::Expr::Binary(bin) => {
                 let bin = *bin;
                 let ast::Binary { lhs, rhs, op: _op } = bin;
@@ -137,12 +137,12 @@ fn split_commas(expr: ExprNode) -> (ExprNode, Option<ExprNode>) {
             _ => unreachable!(),
         }
     }
-    (expr, None)
+    (en, None)
 }
 
 // See the ::Call branch of arrow_params_from_expr.
 fn call_is_async(call: &ast::Call) -> bool {
-    match call.func.1 {
+    match call.func.expr {
         ast::Expr::Ident(ref s) => {
             if &*s.borrow().name == "async" {
                 return true;
@@ -167,19 +167,16 @@ fn call_is_async(call: &ast::Call) -> bool {
 //
 // This differs from binding_from_expr in that it handles comma-separated
 // lists of parameters as well as default value initializers.
-fn arrow_params_from_expr(
-    expr: ExprNode,
-    params: &mut Vec<ast::BindingElement>,
-) -> ParseResult<()> {
-    match expr.1 {
+fn arrow_params_from_expr(en: ExprNode, params: &mut Vec<ast::BindingElement>) -> ParseResult<()> {
+    match en.expr {
         ast::Expr::EmptyParens => { /* ok, no params */ }
         ast::Expr::Binary(_) => {
-            let mut expr = expr;
+            let mut en = en;
             loop {
-                let (lhs, rhs) = split_commas(expr);
+                let (lhs, rhs) = split_commas(en);
                 params.push(arrow_param_from_expr(lhs)?);
                 match rhs {
-                    Some(e) => expr = e,
+                    Some(e) => en = e,
                     None => break,
                 }
             }
@@ -201,23 +198,23 @@ fn arrow_params_from_expr(
         | ast::Expr::Spread(_)
         | ast::Expr::Object(_)
         | ast::Expr::Array(_) => {
-            params.push(arrow_param_from_expr(expr)?);
+            params.push(arrow_param_from_expr(en)?);
         }
         _ => {
-            println!("on: {:?}", expr);
+            println!("on: {:?}", en);
             return Err(ParseError {
                 msg: format!("couldn't convert left side of arrow into parameter list"),
-                at: expr.0,
+                at: en.span,
             });
         }
     }
     Ok(())
 }
 
-fn arrow_param_from_expr(expr: ExprNode) -> ParseResult<ast::BindingElement> {
-    Ok(match expr.1 {
+fn arrow_param_from_expr(en: ExprNode) -> ParseResult<ast::BindingElement> {
+    Ok(match en.expr {
         ast::Expr::Ident(_) | ast::Expr::Object(_) | ast::Expr::Array(_) => {
-            (binding_from_expr(expr)?, None)
+            (binding_from_expr(en)?, None)
         }
         ast::Expr::Assign(lhs, rhs) => (binding_from_expr(*lhs)?, Some(*rhs)),
         ast::Expr::Spread(e) => {
@@ -227,7 +224,7 @@ fn arrow_param_from_expr(expr: ExprNode) -> ParseResult<ast::BindingElement> {
         e => {
             return Err(ParseError {
                 msg: format!("couldn't convert arrow arg {:?} into parameter", e),
-                at: expr.0,
+                at: en.span,
             });
         }
     })
@@ -277,10 +274,10 @@ impl<'a> Parser<'a> {
                     let token = self.lex_read()?;
                     let expr = self.expr_prec(1)?;
                     // spread TODO
-                    elems.push((
-                        Span::new(token.span.start, expr.0.end),
-                        Expr::Spread(Box::new(expr)),
-                    ));
+                    elems.push(ExprNode {
+                        span: Span::new(token.span.start, expr.span.end),
+                        expr: Expr::Spread(Box::new(expr)),
+                    });
                 }
                 _ => {
                     elems.push(self.expr_prec(1)?);
@@ -356,10 +353,10 @@ impl<'a> Parser<'a> {
                     // TODO: name the function?
                     ast::Property {
                         name: name,
-                        value: (
-                            Span::new(span.start, span.end), // TODO
-                            func,
-                        ),
+                        value: ExprNode {
+                            span: Span::new(span.start, span.end), // TODO
+                            expr: func,
+                        },
                     }
                 }
                 _ if can_pun => {
@@ -368,9 +365,10 @@ impl<'a> Parser<'a> {
                     // and we hit the comma or right brace,
                     // and then let the below code handle that.
                     let value = match name {
-                        ast::PropertyName::String(ref s) => {
-                            (span, ast::Expr::Ident(ast::Symbol::new(s.clone())))
-                        }
+                        ast::PropertyName::String(ref s) => ExprNode {
+                            span: span,
+                            expr: ast::Expr::Ident(ast::Symbol::new(s.clone())),
+                        },
                         _ => unreachable!(),
                     };
                     ast::Property {
@@ -400,7 +398,10 @@ impl<'a> Parser<'a> {
     fn primary_expr(&mut self) -> ParseResult<ExprNode> {
         let token = self.lex_read()?;
         Ok(match token.tok {
-            Tok::This => (token.span, Expr::This),
+            Tok::This => ExprNode {
+                span: token.span,
+                expr: Expr::This,
+            },
             Tok::Ident => {
                 let span = token.span.clone();
                 let text = self.lexer.text(token);
@@ -409,9 +410,9 @@ impl<'a> Parser<'a> {
                     self.lex_read()?;
                     let f = self.function()?;
                     // TODO: mark f as async.
-                    ((todo_span(), Expr::Function(Box::new(f))))
+                    ExprNode::new(todo_span(), Expr::Function(Box::new(f)))
                 } else {
-                    (
+                    ExprNode::new(
                         span,
                         match text.as_str() {
                             "null" => Expr::Null,
@@ -425,32 +426,32 @@ impl<'a> Parser<'a> {
             }
             Tok::Number => {
                 if let lex::TokData::Number(n) = token.data {
-                    (token.span, Expr::Number(n))
+                    ExprNode::new(token.span, Expr::Number(n))
                 } else {
                     unreachable!();
                 }
             }
             Tok::String => {
                 let span = token.span.clone();
-                (span, Expr::String(self.lexer.text(token)))
+                ExprNode::new(span, Expr::String(self.lexer.text(token)))
             }
             Tok::LSquare => {
                 let (span, arr) = self.array_literal(token.span.start)?;
-                (span, Expr::Array(arr))
+                ExprNode::new(span, Expr::Array(arr))
             }
             Tok::LBrace => {
                 let (end, obj) = self.object_literal()?;
-                (
+                ExprNode::new(
                     Span::new(token.span.start, end),
                     Expr::Object(Box::new(obj)),
                 )
             }
-            Tok::Function => (todo_span(), Expr::Function(Box::new(self.function()?))),
-            Tok::Class => (todo_span(), Expr::Class(Box::new(self.class()?))),
+            Tok::Function => ExprNode::new(todo_span(), Expr::Function(Box::new(self.function()?))),
+            Tok::Class => ExprNode::new(todo_span(), Expr::Class(Box::new(self.class()?))),
             Tok::LParen => {
                 if self.lex_peek()? == Tok::RParen {
                     let tok = self.lex_read()?;
-                    (tok.span, Expr::EmptyParens)
+                    ExprNode::new(tok.span, Expr::EmptyParens)
                 } else {
                     let r = self.expr()?;
                     self.expect(Tok::RParen)?;
@@ -462,14 +463,14 @@ impl<'a> Parser<'a> {
                     Err(err) => panic!(err),
                     Ok(literal) => literal,
                 };
-                (
+                ExprNode::new(
                     todo_span(),
                     Expr::Regex(Box::new(ast::Regex {
                         literal: String::from(literal),
                     })),
                 )
             }
-            Tok::Template => (
+            Tok::Template => ExprNode::new(
                 todo_span(),
                 Expr::Template(Box::new(ast::Template {
                     literal: self.lexer.text(token),
@@ -477,8 +478,8 @@ impl<'a> Parser<'a> {
             ),
             Tok::Ellipsis => {
                 let pat = self.expr_prec(1)?;
-                (
-                    Span::new(token.span.start, pat.0.end),
+                ExprNode::new(
+                    Span::new(token.span.start, pat.span.end),
                     Expr::Spread(Box::new(pat)),
                 )
             }
@@ -688,8 +689,8 @@ impl<'a> Parser<'a> {
             break;
         }
         let end = self.expect(Tok::RParen)?;
-        Ok((
-            Span::new(func.0.start, end),
+        Ok(ExprNode::new(
+            Span::new(func.span.start, end),
             Expr::Call(Box::new(ast::Call {
                 func: func,
                 args: params,
@@ -715,22 +716,22 @@ impl<'a> Parser<'a> {
             | Tok::Delete if prec <= 16 =>
             {
                 let expr = self.expr_prec(16)?;
-                (
-                    Span::new(token.span.start, expr.0.end),
+                ExprNode::new(
+                    Span::new(token.span.start, expr.span.end),
                     Expr::Unary(ast::UnOp::from_tok(token.tok), Box::new(expr)),
                 )
             }
             Tok::TypeOf if prec <= 16 => {
                 let expr = self.expr_prec(16)?;
-                (
-                    Span::new(token.span.start, expr.0.end),
+                ExprNode::new(
+                    Span::new(token.span.start, expr.span.end),
                     Expr::TypeOf(Box::new(expr)),
                 )
             }
             Tok::New if prec <= 18 => {
                 let expr = self.expr_prec(18)?;
-                (
-                    Span::new(token.span.start, expr.0.end),
+                ExprNode::new(
+                    Span::new(token.span.start, expr.span.end),
                     Expr::New(Box::new(expr)),
                 )
             }
@@ -746,8 +747,8 @@ impl<'a> Parser<'a> {
             match token.tok {
                 Tok::Comma if prec <= 0 => {
                     let rhs = self.expr_prec(0)?;
-                    expr = (
-                        Span::new(expr.0.start, rhs.0.end),
+                    expr = ExprNode::new(
+                        Span::new(expr.span.start, rhs.span.end),
                         Expr::Binary(Box::new(ast::Binary {
                             op: ast::BinOp::Comma,
                             lhs: expr,
@@ -757,8 +758,8 @@ impl<'a> Parser<'a> {
                 }
                 Tok::Eq if prec <= 3 => {
                     let rhs = self.expr_prec(3)?;
-                    expr = (
-                        Span::new(expr.0.start, rhs.0.end),
+                    expr = ExprNode::new(
+                        Span::new(expr.span.start, rhs.span.end),
                         Expr::Assign(Box::new(expr), Box::new(rhs)),
                     );
                 }
@@ -777,8 +778,8 @@ impl<'a> Parser<'a> {
                 | Tok::OrEq if prec <= 3 =>
                 {
                     let rhs = self.expr_prec(3)?;
-                    expr = (
-                        Span::new(expr.0.start, rhs.0.end),
+                    expr = ExprNode::new(
+                        Span::new(expr.span.start, rhs.span.end),
                         Expr::Binary(Box::new(ast::Binary {
                             op: ast::BinOp::from_tok(token.tok),
                             lhs: expr,
@@ -787,7 +788,7 @@ impl<'a> Parser<'a> {
                     );
                 }
                 Tok::Arrow if prec <= 3 => {
-                    let start = expr.0.start;
+                    let start = expr.span.start;
                     let end = start; // TODO
                     let mut params: Vec<ast::BindingElement> = Vec::new();
                     arrow_params_from_expr(expr, &mut params)?;
@@ -802,7 +803,7 @@ impl<'a> Parser<'a> {
                     } else {
                         ast::ArrowBody::Expr(self.expr_prec(3 /* assignment expr */)?)
                     };
-                    expr = (
+                    expr = ExprNode::new(
                         Span::new(start, end),
                         Expr::ArrowFunction(Box::new(ast::ArrowFunction {
                             params: params,
@@ -814,8 +815,8 @@ impl<'a> Parser<'a> {
                     let iftrue = self.expr_prec(3)?;
                     self.expect(Tok::Colon)?;
                     let iffalse = self.expr_prec(3)?;
-                    expr = (
-                        Span::new(expr.0.start, iffalse.0.end),
+                    expr = ExprNode::new(
+                        Span::new(expr.span.start, iffalse.span.end),
                         Expr::Ternary(Box::new(ast::Ternary {
                             condition: expr,
                             iftrue: iftrue,
@@ -825,8 +826,8 @@ impl<'a> Parser<'a> {
                 }
                 Tok::OrOr if prec <= 5 => {
                     let rhs = self.expr_prec(5)?;
-                    expr = (
-                        Span::new(expr.0.start, rhs.0.end),
+                    expr = ExprNode::new(
+                        Span::new(expr.span.start, rhs.span.end),
                         Expr::Binary(Box::new(ast::Binary {
                             op: ast::BinOp::OrOr,
                             lhs: expr,
@@ -836,8 +837,8 @@ impl<'a> Parser<'a> {
                 }
                 Tok::AndAnd if prec <= 6 => {
                     let rhs = self.expr_prec(6)?;
-                    expr = (
-                        Span::new(expr.0.start, rhs.0.end),
+                    expr = ExprNode::new(
+                        Span::new(expr.span.start, rhs.span.end),
                         Expr::Binary(Box::new(ast::Binary {
                             op: ast::BinOp::AndAnd,
                             lhs: expr,
@@ -847,8 +848,8 @@ impl<'a> Parser<'a> {
                 }
                 Tok::BOr if prec <= 7 => {
                     let rhs = self.expr_prec(7)?;
-                    expr = (
-                        Span::new(expr.0.start, rhs.0.end),
+                    expr = ExprNode::new(
+                        Span::new(expr.span.start, rhs.span.end),
                         Expr::Binary(Box::new(ast::Binary {
                             op: ast::BinOp::BOr,
                             lhs: expr,
@@ -858,8 +859,8 @@ impl<'a> Parser<'a> {
                 }
                 Tok::Xor if prec <= 8 => {
                     let rhs = self.expr_prec(8)?;
-                    expr = (
-                        Span::new(expr.0.start, rhs.0.end),
+                    expr = ExprNode::new(
+                        Span::new(expr.span.start, rhs.span.end),
                         Expr::Binary(Box::new(ast::Binary {
                             op: ast::BinOp::Xor,
                             lhs: expr,
@@ -869,8 +870,8 @@ impl<'a> Parser<'a> {
                 }
                 Tok::BAnd if prec <= 9 => {
                     let rhs = self.expr_prec(9)?;
-                    expr = (
-                        Span::new(expr.0.start, rhs.0.end),
+                    expr = ExprNode::new(
+                        Span::new(expr.span.start, rhs.span.end),
                         Expr::Binary(Box::new(ast::Binary {
                             op: ast::BinOp::BAnd,
                             lhs: expr,
@@ -880,8 +881,8 @@ impl<'a> Parser<'a> {
                 }
                 Tok::EqEq | Tok::NEq | Tok::EqEqEq | Tok::NEqEq if prec <= 10 => {
                     let rhs = self.expr_prec(11)?;
-                    expr = (
-                        Span::new(expr.0.start, rhs.0.end),
+                    expr = ExprNode::new(
+                        Span::new(expr.span.start, rhs.span.end),
                         Expr::Binary(Box::new(ast::Binary {
                             op: ast::BinOp::from_tok(token.tok),
                             lhs: expr,
@@ -893,8 +894,8 @@ impl<'a> Parser<'a> {
                     if prec <= 11 =>
                 {
                     let rhs = self.expr_prec(11)?;
-                    expr = (
-                        Span::new(expr.0.start, rhs.0.end),
+                    expr = ExprNode::new(
+                        Span::new(expr.span.start, rhs.span.end),
                         Expr::Binary(Box::new(ast::Binary {
                             op: ast::BinOp::from_tok(token.tok),
                             lhs: expr,
@@ -904,8 +905,8 @@ impl<'a> Parser<'a> {
                 }
                 Tok::LTLT | Tok::GTGT | Tok::GTGTGT if prec <= 12 => {
                     let rhs = self.expr_prec(12)?;
-                    expr = (
-                        Span::new(expr.0.start, rhs.0.end),
+                    expr = ExprNode::new(
+                        Span::new(expr.span.start, rhs.span.end),
                         Expr::Binary(Box::new(ast::Binary {
                             op: ast::BinOp::from_tok(token.tok),
                             lhs: expr,
@@ -915,8 +916,8 @@ impl<'a> Parser<'a> {
                 }
                 Tok::Plus | Tok::Minus if prec <= 13 => {
                     let rhs = self.expr_prec(14)?;
-                    expr = (
-                        Span::new(expr.0.start, rhs.0.end),
+                    expr = ExprNode::new(
+                        Span::new(expr.span.start, rhs.span.end),
                         Expr::Binary(Box::new(ast::Binary {
                             op: ast::BinOp::from_tok(token.tok),
                             lhs: expr,
@@ -926,8 +927,8 @@ impl<'a> Parser<'a> {
                 }
                 Tok::Star | Tok::Div | Tok::Percent if prec <= 14 => {
                     let rhs = self.expr_prec(15)?;
-                    expr = (
-                        Span::new(expr.0.start, rhs.0.end),
+                    expr = ExprNode::new(
+                        Span::new(expr.span.start, rhs.span.end),
                         Expr::Binary(Box::new(ast::Binary {
                             op: ast::BinOp::from_tok(token.tok),
                             lhs: expr,
@@ -936,14 +937,14 @@ impl<'a> Parser<'a> {
                     );
                 }
                 Tok::PlusPlus if prec <= 17 => {
-                    expr = (
-                        Span::new(expr.0.start, token.span.end),
+                    expr = ExprNode::new(
+                        Span::new(expr.span.start, token.span.end),
                         Expr::Unary(ast::UnOp::PostPlusPlus, Box::new(expr)),
                     )
                 }
                 Tok::MinusMinus if prec <= 17 => {
-                    expr = (
-                        Span::new(expr.0.start, token.span.end),
+                    expr = ExprNode::new(
+                        Span::new(expr.span.start, token.span.end),
                         Expr::Unary(ast::UnOp::PostMinusMinus, Box::new(expr)),
                     )
                 }
@@ -952,15 +953,15 @@ impl<'a> Parser<'a> {
                     if token.tok != Tok::Ident && !token.tok.is_kw() {
                         return Err(self.parse_error(token, "member"));
                     }
-                    let span = Span::new(expr.0.start, token.span.end);
+                    let span = Span::new(expr.span.start, token.span.end);
                     let field = self.lexer.text(token);
-                    expr = (span, Expr::Field(Box::new(expr), field));
+                    expr = ExprNode::new(span, Expr::Field(Box::new(expr), field));
                 }
                 Tok::LSquare if prec <= 19 => {
                     let index = self.expr()?;
                     let end = self.expect(Tok::RSquare)?;
-                    expr = (
-                        Span::new(index.0.start, end),
+                    expr = ExprNode::new(
+                        Span::new(index.span.start, end),
                         Expr::Index(Box::new(expr), Box::new(index)),
                     );
                 }
@@ -1016,7 +1017,7 @@ impl<'a> Parser<'a> {
             None
         };
         Ok(ast::If {
-            cond: cond.1,
+            cond: cond,
             iftrue: iftrue,
             else_: else_,
         })
@@ -1028,7 +1029,7 @@ impl<'a> Parser<'a> {
         self.expect(Tok::RParen)?;
         let body = self.stmt()?;
         Ok(ast::While {
-            cond: cond.1,
+            cond: cond,
             body: body,
         })
     }
@@ -1041,7 +1042,7 @@ impl<'a> Parser<'a> {
         self.expect(Tok::RParen)?;
         self.expect_semi()?;
         Ok(ast::While {
-            cond: cond.1,
+            cond: cond,
             body: body,
         })
     }
@@ -1098,7 +1099,7 @@ impl<'a> Parser<'a> {
                     if let Some(init) = decl.init {
                         return Err(ParseError {
                             msg: "unexpected initializer".into(),
-                            at: init.0,
+                            at: init.span,
                         });
                     }
                     return Ok(Stmt::ForInOf(Box::new(ast::ForInOf {
@@ -1135,17 +1136,17 @@ impl<'a> Parser<'a> {
                 ast::ForInit::Expr(expr) => expr,
                 _ => unreachable!(),
             };
-            let bin = match expr.1 {
+            let bin = match expr.expr {
                 ast::Expr::Binary(bin) => *bin,
                 _ => {
                     return Err(ParseError {
                         msg: "couldn't parse for-of loop head".into(),
-                        at: expr.0,
+                        at: expr.span,
                     })
                 }
             };
             let ast::Binary { lhs, rhs, op: _op } = bin;
-            let loop_var = match lhs.1 {
+            let loop_var = match lhs.expr {
                 ast::Expr::Ident(name) => ast::BindingPattern::Name(name),
                 _ => unimplemented!(),
             };
@@ -1177,8 +1178,8 @@ impl<'a> Parser<'a> {
         let body = try!(self.stmt());
         Ok(Stmt::For(Box::new(ast::For {
             init: init,
-            cond: cond.map(|c| c.1),
-            iter: iter.map(|i| i.1),
+            cond: cond.map(|c| c),
+            iter: iter.map(|i| i),
             body: body,
         })))
     }
@@ -1197,7 +1198,7 @@ impl<'a> Parser<'a> {
                     self.expect(Tok::Colon)?;
                     let stmts = self.stmts()?;
                     ast::Case {
-                        expr: Some(expr.1),
+                        expr: Some(expr.expr),
                         stmts: stmts,
                     }
                 }
@@ -1217,7 +1218,7 @@ impl<'a> Parser<'a> {
         }
         self.expect(Tok::RBrace)?;
         Ok(ast::Switch {
-            expr: expr.1,
+            expr: expr,
             cases: cases,
         })
     }
@@ -1332,10 +1333,10 @@ impl<'a> Parser<'a> {
                 } else {
                     let expr = self.expr()?;
                     self.expect_semi()?;
-                    Stmt::Return(Some(Box::new(expr.1)))
+                    Stmt::Return(Some(Box::new(expr)))
                 }
             }
-            Tok::Throw => Stmt::Throw(Box::new(self.expr()?.1)),
+            Tok::Throw => Stmt::Throw(Box::new(self.expr()?)),
             Tok::Try => Stmt::Try(Box::new(try!(self.try()))),
             t => {
                 if t == Tok::Ident && self.lex_peek()? == Tok::Colon {

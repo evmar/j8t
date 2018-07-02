@@ -18,7 +18,7 @@ use ast;
 use std;
 
 trait Visit {
-    fn expr(&mut self, expr: &mut ast::Expr);
+    fn expr(&mut self, expr: &mut ast::ExprNode);
     fn stmt(&mut self, stmt: &mut ast::Stmt);
 }
 
@@ -28,8 +28,8 @@ fn visit_func<V: Visit>(func: &mut ast::Func, v: &mut V) {
     }
 }
 
-fn visit_expr<V: Visit>(expr: &mut ast::Expr, v: &mut V) {
-    match *expr {
+fn visit_expr<V: Visit>(en: &mut ast::ExprNode, v: &mut V) {
+    match en.expr {
         ast::Expr::EmptyParens
         | ast::Expr::This
         | ast::Expr::Ident(_)
@@ -59,9 +59,9 @@ fn visit_expr<V: Visit>(expr: &mut ast::Expr, v: &mut V) {
     // Field(Box<ExprNode>, String),
     // New(Box<ExprNode>),
         ast::Expr::Call(ref mut c) => {
-            v.expr(&mut c.func.1);
+            v.expr(&mut c.func);
             for a in c.args.iter_mut() {
-                v.expr(&mut a.1);
+                v.expr(a);
             }
         }
 
@@ -71,10 +71,10 @@ fn visit_expr<V: Visit>(expr: &mut ast::Expr, v: &mut V) {
         // TypeOf(Box<ExprNode>),
         // Ternary(Box<Ternary>),
         ast::Expr::Assign(ref mut e1, ref mut e2) => {
-            v.expr(&mut e1.1);
-            v.expr(&mut e2.1);
+            v.expr(e1);
+            v.expr(e2);
         }
-        _ => unimplemented!("{}", expr.kind()),
+        _ => unimplemented!("{}", en.expr.kind()),
     }
 }
 
@@ -84,12 +84,12 @@ fn visit_stmt<V: Visit>(stmt: &mut ast::Stmt, v: &mut V) {
         ast::Stmt::Var(ref mut decls) => {
             for d in decls.decls.iter_mut() {
                 if let Some(ref mut e) = d.init {
-                    v.expr(&mut e.1);
+                    v.expr(e);
                 }
             }
         }
         // ast::Stmt::Empty,
-        ast::Stmt::Expr((_, ref mut e)) => v.expr(e),
+        ast::Stmt::Expr(ref mut e) => v.expr(e),
         // ast::Stmt::If(Box<If>),
         // ast::Stmt::While(Box<While>),
         // ast::Stmt::DoWhile(Box<While>),
@@ -118,21 +118,21 @@ fn visit_module<V: Visit>(module: &mut ast::Module, v: &mut V) {
 
 struct Eval {}
 impl Visit for Eval {
-    fn expr(&mut self, expr: &mut ast::Expr) {
-        match *expr {
+    fn expr(&mut self, en: &mut ast::ExprNode) {
+        match en.expr {
             ast::Expr::Ident(ref mut sym) => {
                 sym.borrow_mut().read = true;
             }
             ast::Expr::Assign(ref mut e1, ref mut e2) => {
-                match e1.1 {
+                match e1.expr {
                     ast::Expr::Ident(ref mut sym) => {
                         sym.borrow_mut().write = true;
                     }
-                    _ => visit_expr(&mut e1.1, self),
+                    _ => visit_expr(e1, self),
                 }
-                visit_expr(&mut e2.1, self);
+                visit_expr(e2, self);
             }
-            _ => visit_expr(expr, self),
+            _ => visit_expr(en, self),
         }
     }
 
@@ -146,8 +146,8 @@ impl Visit for Eval {
                         }
                         _ => unimplemented!(),
                     }
-                    if let Some((_, ref mut init)) = decl.init {
-                        self.expr(init);
+                    if let Some(ref mut en) = decl.init {
+                        self.expr(en);
                     }
                 }
             }
@@ -164,29 +164,31 @@ fn is_dead(s: &ast::RefSym) -> bool {
 
 struct Dead {}
 impl Visit for Dead {
-    fn expr(&mut self, expr: &mut ast::Expr) {
-        let new = match *expr {
+    fn expr(&mut self, en: &mut ast::ExprNode) {
+        let new = match en.expr {
             ast::Expr::Assign(ref mut e1, ref mut e2) => {
-                match e1.1 {
+                match e1.expr {
                     ast::Expr::Ident(ref mut sym) => {
                         if is_dead(sym) {
-                            let mut new = Box::new((ast::Span::new(0,0), ast::Expr::Null));
+                            // x = expr where x is unused; replace with expr.
+                            let mut new =
+                                Box::new(ast::ExprNode::new(ast::Span::new(0, 0), ast::Expr::Null));
                             std::mem::swap(&mut new, e2);
-                            Some(new.1)
+                            Some(new)
                         } else {
                             None
                         }
                     }
-                    _ => None
+                    _ => None,
                 }
             }
-            _ => None
+            _ => None,
         };
         if let Some(new) = new {
-            println!("dead: {}", expr.kind());
-            *expr = new;
+            println!("dead: {}", en.expr.kind());
+            *en = *new;
         } else {
-            visit_expr(expr, self);
+            visit_expr(en, self);
         }
     }
     fn stmt(&mut self, stmt: &mut ast::Stmt) {

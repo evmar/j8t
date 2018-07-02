@@ -310,8 +310,8 @@ impl<'a> Writer<'a> {
         Ok(())
     }
 
-    fn exprn(&mut self, e: &ExprNode, prec: i8) -> Result {
-        self.expr(&e.1, prec)
+    fn exprn(&mut self, en: &ExprNode, prec: i8) -> Result {
+        self.expr(&en.expr, prec)
     }
     fn expr(&mut self, e: &Expr, prec: i8) -> Result {
         match *e {
@@ -337,7 +337,7 @@ impl<'a> Writer<'a> {
                         // it's allowed to be punned.
                         let name = w.property_name(&p.name)?;
                         let wrote = if let Some(n) = name {
-                            match p.value.1 {
+                            match p.value.expr {
                                 ast::Expr::Ident(ref v) if *n == *v.borrow().name => {
                                     // omit; implied by property name.
                                     true
@@ -511,9 +511,9 @@ impl<'a> Writer<'a> {
 
     fn var_decl(&mut self, decl: &ast::VarDecl) -> Result {
         self.binding_pattern(&decl.pattern)?;
-        if let Some((_, ref init)) = decl.init {
+        if let Some(ref en) = decl.init {
             self.token("=")?;
-            self.expr(init, -1)?;
+            self.exprn(en, -1)?;
         }
         Ok(())
     }
@@ -541,7 +541,7 @@ impl<'a> Writer<'a> {
             }
             ast::Stmt::If(ref i) => {
                 self.token("if")?;
-                self.paren(|w| w.expr(&i.cond, -1))?;
+                self.paren(|w| w.exprn(&i.cond, -1))?;
                 self.stmt(&i.iftrue)?;
                 if let Some(ref else_) = i.else_ {
                     self.token("else")?;
@@ -550,14 +550,14 @@ impl<'a> Writer<'a> {
             }
             ast::Stmt::While(ref wh) => {
                 self.token("while")?;
-                self.paren(|w| w.expr(&wh.cond, -1))?;
+                self.paren(|w| w.exprn(&wh.cond, -1))?;
                 self.stmt(&wh.body)?;
             }
             ast::Stmt::DoWhile(ref wh) => {
                 self.token("do")?;
                 self.stmt(&wh.body)?;
                 self.token("while")?;
-                self.paren(|w| w.expr(&wh.cond, -1))?;
+                self.paren(|w| w.exprn(&wh.cond, -1))?;
                 self.semi()?;
             }
             ast::Stmt::For(ref f) => {
@@ -575,11 +575,11 @@ impl<'a> Writer<'a> {
                     }
                     w.token(";")?;
                     if let Some(ref cond) = f.cond {
-                        w.expr(cond, -1)?;
+                        w.exprn(cond, -1)?;
                     }
                     w.token(";")?;
                     if let Some(ref iter) = f.iter {
-                        w.expr(iter, -1)?;
+                        w.exprn(iter, -1)?;
                     }
                     Ok(())
                 })?;
@@ -600,7 +600,7 @@ impl<'a> Writer<'a> {
             }
             ast::Stmt::Switch(ref switch) => {
                 self.token("switch")?;
-                self.paren(|w| w.expr(&switch.expr, -1))?;
+                self.paren(|w| w.exprn(&switch.expr, -1))?;
                 self.brace(|w| {
                     for c in &switch.cases {
                         match c.expr {
@@ -633,7 +633,7 @@ impl<'a> Writer<'a> {
             ast::Stmt::Return(ref expr) => {
                 self.token("return")?;
                 if let &Some(ref expr) = expr {
-                    self.expr(expr, -1)?;
+                    self.exprn(expr, -1)?;
                 }
                 self.semi()?;
             }
@@ -644,7 +644,7 @@ impl<'a> Writer<'a> {
             }
             ast::Stmt::Throw(ref expr) => {
                 self.token("throw")?;
-                self.expr(expr, -1)?;
+                self.exprn(expr, -1)?;
                 self.semi()?;
             }
             ast::Stmt::Try(ref try) => {

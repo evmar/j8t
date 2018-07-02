@@ -103,10 +103,10 @@ fn rename_stmt(gen: &mut NameGen, stmt: &mut ast::Stmt, debug: bool) {
     visit::stmt_expr(stmt, |e| rename_expr(gen, e, debug));
 }
 
-fn rename_expr(gen: &mut NameGen, expr: &mut ast::Expr, debug: bool) {
-    match *expr {
+fn rename_expr(gen: &mut NameGen, en: &mut ast::ExprNode, debug: bool) {
+    match en.expr {
         ast::Expr::Function(ref mut fun) => rename_func(gen, &mut fun.func, debug),
-        _ => visit::expr_expr(expr, |(_, e)| rename_expr(gen, e, debug)),
+        _ => visit::expr_expr(en, |e| rename_expr(gen, e, debug)),
     }
 }
 

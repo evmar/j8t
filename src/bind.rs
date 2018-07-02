@@ -286,12 +286,7 @@ impl<'a> Visit<'a> {
         func.scope = env.scope;
     }
 
-    fn resolve<'e>(
-        &mut self,
-        env: &Env<'e>,
-        sym: &mut ast::RefSym,
-        create_global: bool,
-    ) -> bool {
+    fn resolve<'e>(&mut self, env: &Env<'e>, sym: &mut ast::RefSym, create_global: bool) -> bool {
         if let Some(new) = env.resolve(&sym) {
             *sym = new;
             return true;
@@ -312,11 +307,11 @@ impl<'a> Visit<'a> {
         return false;
     }
 
-    fn expr<'e>(&mut self, env: &Env<'e>, span: &mut ast::Span, expr: &mut ast::Expr) {
-        match *expr {
+    fn expr<'e>(&mut self, env: &Env<'e>, en: &mut ast::ExprNode) {
+        match en.expr {
             ast::Expr::Ident(ref mut sym) => {
                 if !self.resolve(env, sym, false) {
-                    panic!("could not resolve {:?} {:?}", sym.borrow().name, span);
+                    panic!("could not resolve {:?} {:?}", sym.borrow().name, en.span);
                 }
                 return;
             }
@@ -324,18 +319,18 @@ impl<'a> Visit<'a> {
                 self.function(env, func, /* expression */ true);
                 return;
             }
-            ast::Expr::TypeOf(ref mut expr) => {
+            ast::Expr::TypeOf(ref mut en) => {
                 // Look for e.g.
                 //   typeof exports
                 // which may refer to a global.
-                if let ast::Expr::Ident(ref mut sym) = expr.1 {
+                if let ast::Expr::Ident(ref mut sym) = en.expr {
                     self.resolve(env, sym, true);
                     return;
                 }
             }
             _ => {}
         }
-        visit::expr_expr(expr, |&mut (ref mut s, ref mut e)| self.expr(env, s, e));
+        visit::expr_expr(en, |en| self.expr(env, en));
     }
 
     fn stmt<'e>(&mut self, env: &Env<'e>, stmt: &mut ast::Stmt) {
@@ -344,9 +339,8 @@ impl<'a> Visit<'a> {
                 self.function(env, func, /* expression */ false);
             }
             _ => {
-                visit::stmt_expr(stmt, |e| {
-                    let mut s = ast::Span::new(0, 0);
-                    self.expr(env, &mut s, e);
+                visit::stmt_expr(stmt, |en| {
+                    self.expr(env, en);
                 });
                 visit::stmt_stmt(stmt, |s| self.stmt(env, s));
             }
