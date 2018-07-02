@@ -16,6 +16,105 @@
 
 use ast;
 
+pub trait Visit {
+    fn expr(&mut self, expr: &mut ast::ExprNode);
+    fn stmt(&mut self, stmt: &mut ast::Stmt);
+}
+
+pub fn func<V: Visit>(func: &mut ast::Func, v: &mut V) {
+    for s in func.body.iter_mut() {
+        v.stmt(s);
+    }
+}
+
+pub fn expr<V: Visit>(en: &mut ast::ExprNode, v: &mut V) {
+    match en.expr {
+        ast::Expr::EmptyParens
+        | ast::Expr::This
+        | ast::Expr::Ident(_)
+        | ast::Expr::Null
+        | ast::Expr::Undefined
+        | ast::Expr::Bool(_)
+        | ast::Expr::Number(_)
+        | ast::Expr::String(_) => {}
+
+        // Array(Vec<ExprNode>),
+        // // The parse of "...a", which can only occur in arrow functions and
+        // // in array literals.
+        // Spread(Box<ExprNode>),
+        // Object(Box<Object>),
+        // Function(Box<Function>),
+        ast::Expr::Class(ref mut c) => {
+            for m in c.methods.iter_mut() {
+                func(&mut m.func, v);
+            }
+        }
+        // ArrowFunction(Box<ArrowFunction>),
+    // Regex(Box<Regex>),
+    // Template(Box<Template>),
+
+    // // 12.3 Left-Hand-Side Expressions
+    // Index(Box<ExprNode>, Box<ExprNode>),
+    // Field(Box<ExprNode>, String),
+    // New(Box<ExprNode>),
+        ast::Expr::Call(ref mut c) => {
+            v.expr(&mut c.func);
+            for a in c.args.iter_mut() {
+                v.expr(a);
+            }
+        }
+
+        // // Various other operators.
+        // Unary(UnOp, Box<ExprNode>),
+        // Binary(Box<Binary>),
+        // TypeOf(Box<ExprNode>),
+        // Ternary(Box<Ternary>),
+        ast::Expr::Assign(ref mut e1, ref mut e2) => {
+            v.expr(e1);
+            v.expr(e2);
+        }
+        _ => unimplemented!("{}", en.expr.kind()),
+    }
+}
+
+pub fn stmt<V: Visit>(stmt: &mut ast::Stmt, v: &mut V) {
+    match *stmt {
+        // ast::Stmt::Block(Vec<Stmt>),
+        ast::Stmt::Var(ref mut decls) => {
+            for d in decls.decls.iter_mut() {
+                if let Some(ref mut e) = d.init {
+                    v.expr(e);
+                }
+            }
+        }
+        // ast::Stmt::Empty,
+        ast::Stmt::Expr(ref mut e) => v.expr(e),
+        // ast::Stmt::If(Box<If>),
+        // ast::Stmt::While(Box<While>),
+        // ast::Stmt::DoWhile(Box<While>),
+        // ast::Stmt::For(Box<For>),
+        // ast::Stmt::ForInOf(Box<ForInOf>),
+        // ast::Stmt::Switch(Box<Switch>),
+        // ast::Stmt::Continue(Option<String>),
+        // ast::Stmt::Break(Option<String>),
+        // ast::Stmt::Return(Option<Box<Expr>>),
+        // ast::Stmt::Label(Box<Label>),
+        // ast::Stmt::Throw(Box<Expr>),
+        // ast::Stmt::Try(Box<Try>),
+        ast::Stmt::Function(ref mut f) => {
+            func(&mut f.func, v);
+        }
+        // ast::Stmt::Class(Box<Class>),
+        _ => unimplemented!("{}", stmt.kind()),
+    }
+}
+
+pub fn module<V: Visit>(module: &mut ast::Module, v: &mut V) {
+    for stmt in module.stmts.iter_mut() {
+        v.stmt(stmt);
+    }
+}
+
 pub fn expr_expr<F: FnMut(&mut ast::ExprNode)>(en: &mut ast::ExprNode, mut f: F) {
     match en.expr {
         ast::Expr::EmptyParens => unreachable!(),

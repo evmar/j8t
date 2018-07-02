@@ -16,108 +16,10 @@
 
 use ast;
 use std;
-
-trait Visit {
-    fn expr(&mut self, expr: &mut ast::ExprNode);
-    fn stmt(&mut self, stmt: &mut ast::Stmt);
-}
-
-fn visit_func<V: Visit>(func: &mut ast::Func, v: &mut V) {
-    for s in func.body.iter_mut() {
-        v.stmt(s);
-    }
-}
-
-fn visit_expr<V: Visit>(en: &mut ast::ExprNode, v: &mut V) {
-    match en.expr {
-        ast::Expr::EmptyParens
-        | ast::Expr::This
-        | ast::Expr::Ident(_)
-        | ast::Expr::Null
-        | ast::Expr::Undefined
-        | ast::Expr::Bool(_)
-        | ast::Expr::Number(_)
-        | ast::Expr::String(_) => {}
-
-        // Array(Vec<ExprNode>),
-        // // The parse of "...a", which can only occur in arrow functions and
-        // // in array literals.
-        // Spread(Box<ExprNode>),
-        // Object(Box<Object>),
-        // Function(Box<Function>),
-        ast::Expr::Class(ref mut c) => {
-            for m in c.methods.iter_mut() {
-                visit_func(&mut m.func, v);
-            }
-        }
-        // ArrowFunction(Box<ArrowFunction>),
-    // Regex(Box<Regex>),
-    // Template(Box<Template>),
-
-    // // 12.3 Left-Hand-Side Expressions
-    // Index(Box<ExprNode>, Box<ExprNode>),
-    // Field(Box<ExprNode>, String),
-    // New(Box<ExprNode>),
-        ast::Expr::Call(ref mut c) => {
-            v.expr(&mut c.func);
-            for a in c.args.iter_mut() {
-                v.expr(a);
-            }
-        }
-
-        // // Various other operators.
-        // Unary(UnOp, Box<ExprNode>),
-        // Binary(Box<Binary>),
-        // TypeOf(Box<ExprNode>),
-        // Ternary(Box<Ternary>),
-        ast::Expr::Assign(ref mut e1, ref mut e2) => {
-            v.expr(e1);
-            v.expr(e2);
-        }
-        _ => unimplemented!("{}", en.expr.kind()),
-    }
-}
-
-fn visit_stmt<V: Visit>(stmt: &mut ast::Stmt, v: &mut V) {
-    match *stmt {
-        // ast::Stmt::Block(Vec<Stmt>),
-        ast::Stmt::Var(ref mut decls) => {
-            for d in decls.decls.iter_mut() {
-                if let Some(ref mut e) = d.init {
-                    v.expr(e);
-                }
-            }
-        }
-        // ast::Stmt::Empty,
-        ast::Stmt::Expr(ref mut e) => v.expr(e),
-        // ast::Stmt::If(Box<If>),
-        // ast::Stmt::While(Box<While>),
-        // ast::Stmt::DoWhile(Box<While>),
-        // ast::Stmt::For(Box<For>),
-        // ast::Stmt::ForInOf(Box<ForInOf>),
-        // ast::Stmt::Switch(Box<Switch>),
-        // ast::Stmt::Continue(Option<String>),
-        // ast::Stmt::Break(Option<String>),
-        // ast::Stmt::Return(Option<Box<Expr>>),
-        // ast::Stmt::Label(Box<Label>),
-        // ast::Stmt::Throw(Box<Expr>),
-        // ast::Stmt::Try(Box<Try>),
-        ast::Stmt::Function(ref mut f) => {
-            visit_func(&mut f.func, v);
-        }
-        // ast::Stmt::Class(Box<Class>),
-        _ => unimplemented!("{}", stmt.kind()),
-    }
-}
-
-fn visit_module<V: Visit>(module: &mut ast::Module, v: &mut V) {
-    for stmt in module.stmts.iter_mut() {
-        v.stmt(stmt);
-    }
-}
+use trans::visit;
 
 struct Eval {}
-impl Visit for Eval {
+impl visit::Visit for Eval {
     fn expr(&mut self, en: &mut ast::ExprNode) {
         match en.expr {
             ast::Expr::Ident(ref mut sym) => {
@@ -128,11 +30,11 @@ impl Visit for Eval {
                     ast::Expr::Ident(ref mut sym) => {
                         sym.borrow_mut().write = true;
                     }
-                    _ => visit_expr(e1, self),
+                    _ => visit::expr(e1, self),
                 }
-                visit_expr(e2, self);
+                visit::expr(e2, self);
             }
-            _ => visit_expr(en, self),
+            _ => visit::expr(en, self),
         }
     }
 
@@ -152,7 +54,7 @@ impl Visit for Eval {
                 }
             }
             _ => {
-                visit_stmt(stmt, self);
+                visit::stmt(stmt, self);
             }
         }
     }
@@ -163,7 +65,7 @@ fn is_dead(s: &ast::RefSym) -> bool {
 }
 
 struct Dead {}
-impl Visit for Dead {
+impl visit::Visit for Dead {
     fn expr(&mut self, en: &mut ast::ExprNode) {
         let new = match en.expr {
             ast::Expr::Assign(ref mut e1, ref mut e2) => {
@@ -188,7 +90,7 @@ impl Visit for Dead {
             println!("dead: {}", en.expr.kind());
             *en = *new;
         } else {
-            visit_expr(en, self);
+            visit::expr(en, self);
         }
     }
     fn stmt(&mut self, stmt: &mut ast::Stmt) {
@@ -211,14 +113,14 @@ impl Visit for Dead {
             println!("dead: {}", stmt.kind());
             *stmt = new;
         } else {
-            visit_stmt(stmt, self);
+            visit::stmt(stmt, self);
         }
     }
 }
 
 pub fn eval(module: &mut ast::Module) {
     let mut e = Eval {};
-    visit_module(module, &mut e);
+    visit::module(module, &mut e);
     let mut d = Dead {};
-    visit_module(module, &mut d);
+    visit::module(module, &mut d);
 }
