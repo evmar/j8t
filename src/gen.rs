@@ -15,7 +15,7 @@
  */
 
 use ast;
-use ast::{Expr, ExprNode};
+use ast::ExprNode;
 use std::io;
 use std::io::Write;
 
@@ -254,7 +254,7 @@ impl<'a> Writer<'a> {
                 None
             }
             ast::PropertyName::Computed(ref prop) => {
-                self.wrap('[', ']', |w| w.exprn(prop, 0))?;
+                self.wrap('[', ']', |w| w.expr(prop, 0))?;
                 None
             }
         })
@@ -310,11 +310,8 @@ impl<'a> Writer<'a> {
         Ok(())
     }
 
-    fn exprn(&mut self, en: &ExprNode, prec: i8) -> Result {
-        self.expr(&en.expr, prec)
-    }
-    fn expr(&mut self, e: &Expr, prec: i8) -> Result {
-        match *e {
+    fn expr(&mut self, en: &ExprNode, prec: i8) -> Result {
+        match en.expr {
             ast::Expr::EmptyParens => unreachable!(),
             ast::Expr::This => self.token("this")?,
             ast::Expr::Ident(ref s) => self.sym(&s)?,
@@ -324,11 +321,11 @@ impl<'a> Writer<'a> {
             ast::Expr::Number(ref n) => self.token(&format!("{}", n))?,
             ast::Expr::String(ref s) => self.quoted(s)?,
             ast::Expr::Array(ref arr) => {
-                self.wrap('[', ']', |w| w.comma(arr, |w, e| w.exprn(e, 0)))?;
+                self.wrap('[', ']', |w| w.comma(arr, |w, e| w.expr(e, 0)))?;
             }
             ast::Expr::Spread(ref expr) => {
                 self.token("...")?;
-                self.exprn(expr, 19)?;
+                self.expr(expr, 19)?;
             }
             ast::Expr::Object(ref obj) => {
                 self.brace(|w| {
@@ -363,7 +360,7 @@ impl<'a> Writer<'a> {
                         };
                         if !wrote {
                             w.token(":")?;
-                            w.exprn(&p.value, 0)?;
+                            w.expr(&p.value, 0)?;
                         }
                         Ok(())
                     })
@@ -385,7 +382,7 @@ impl<'a> Writer<'a> {
                     })?;
                     w.token("=>")?;
                     match f.body {
-                        ast::ArrowBody::Expr(ref expr) => w.exprn(expr, 3),
+                        ast::ArrowBody::Expr(ref expr) => w.expr(expr, 3),
                         ast::ArrowBody::Stmts(ref stmts) => w.brace(|w| {
                             for s in stmts.iter() {
                                 w.stmt(s)?;
@@ -400,14 +397,14 @@ impl<'a> Writer<'a> {
             ast::Expr::Template(ref template) => self.template(template)?,
             ast::Expr::Index(ref expr, ref index) => {
                 self.maybe_paren(prec > 19, |w| {
-                    w.exprn(expr, 19)?;
-                    w.wrap('[', ']', |w| w.exprn(index, -1))?;
+                    w.expr(expr, 19)?;
+                    w.wrap('[', ']', |w| w.expr(index, -1))?;
                     Ok(())
                 })?;
             }
             ast::Expr::Field(ref expr, ref field) => {
                 self.maybe_paren(prec > 19, |w| {
-                    w.exprn(expr, 19)?;
+                    w.expr(expr, 19)?;
                     w.token(".")?;
                     w.token(field)?;
                     Ok(())
@@ -416,21 +413,21 @@ impl<'a> Writer<'a> {
             ast::Expr::New(ref expr) => {
                 self.maybe_paren(prec > 18, |w| {
                     w.token("new")?;
-                    w.exprn(expr, 18)?;
+                    w.expr(expr, 18)?;
                     Ok(())
                 })?;
             }
             ast::Expr::Call(ref call) => {
                 self.maybe_paren(prec > 19, |w| {
-                    w.exprn(&call.func, 19)?;
-                    w.paren(|w| w.comma(&call.args, |w, e| w.exprn(e, 0)))?;
+                    w.expr(&call.func, 19)?;
+                    w.paren(|w| w.comma(&call.args, |w, e| w.expr(e, 0)))?;
                     Ok(())
                 })?;
             }
             ast::Expr::Unary(ref op, ref expr) => match *op {
                 ast::UnOp::PostPlusPlus | ast::UnOp::PostMinusMinus => {
                     self.maybe_paren(prec > 17, |w| {
-                        w.exprn(expr, 17)?;
+                        w.expr(expr, 17)?;
                         w.token(&op.to_string())?;
                         Ok(())
                     })?;
@@ -438,7 +435,7 @@ impl<'a> Writer<'a> {
                 _ => {
                     self.maybe_paren(prec > 16, |w| {
                         w.token(&op.to_string())?;
-                        w.exprn(expr, 16)?;
+                        w.expr(expr, 16)?;
                         Ok(())
                     })?;
                 }
@@ -446,31 +443,31 @@ impl<'a> Writer<'a> {
             ast::Expr::Binary(ref bin) => {
                 let p = bin.op.prec();
                 self.maybe_paren(prec > p, |w| {
-                    w.exprn(&bin.lhs, p)?;
+                    w.expr(&bin.lhs, p)?;
                     w.token(&bin.op.to_string())?;
-                    w.exprn(&bin.rhs, p)?;
+                    w.expr(&bin.rhs, p)?;
                     Ok(())
                 })?;
             }
             ast::Expr::TypeOf(ref expr) => {
                 self.token("typeof")?;
-                self.exprn(expr, 16)?;
+                self.expr(expr, 16)?;
             }
             ast::Expr::Ternary(ref t) => {
                 self.maybe_paren(prec > 4, |w| {
-                    w.exprn(&t.condition, 5)?;
+                    w.expr(&t.condition, 5)?;
                     w.token("?")?;
-                    w.exprn(&t.iftrue, 3)?;
+                    w.expr(&t.iftrue, 3)?;
                     w.token(":")?;
-                    w.exprn(&t.iffalse, 3)?;
+                    w.expr(&t.iffalse, 3)?;
                     Ok(())
                 })?;
             }
             ast::Expr::Assign(ref lhs, ref rhs) => {
                 self.maybe_paren(prec > 3, |w| {
-                    w.exprn(lhs, 4)?;
+                    w.expr(lhs, 4)?;
                     w.token("=")?;
-                    w.exprn(rhs, 3)?;
+                    w.expr(rhs, 3)?;
                     Ok(())
                 })?;
             }
@@ -481,7 +478,7 @@ impl<'a> Writer<'a> {
     fn maybe_init(&mut self, init: &Option<ExprNode>) -> Result {
         if let Some(ref init) = *init {
             self.token("=")?;
-            self.exprn(init, 3)?;
+            self.expr(init, 3)?;
         }
         Ok(())
     }
@@ -513,7 +510,7 @@ impl<'a> Writer<'a> {
         self.binding_pattern(&decl.pattern)?;
         if let Some(ref en) = decl.init {
             self.token("=")?;
-            self.exprn(en, -1)?;
+            self.expr(en, -1)?;
         }
         Ok(())
     }
@@ -536,12 +533,12 @@ impl<'a> Writer<'a> {
             }
             ast::Stmt::Empty => self.semi()?,
             ast::Stmt::Expr(ref e) => {
-                self.exprn(e, -1)?;
+                self.expr(e, -1)?;
                 self.semi()?;
             }
             ast::Stmt::If(ref i) => {
                 self.token("if")?;
-                self.paren(|w| w.exprn(&i.cond, -1))?;
+                self.paren(|w| w.expr(&i.cond, -1))?;
                 self.stmt(&i.iftrue)?;
                 if let Some(ref else_) = i.else_ {
                     self.token("else")?;
@@ -550,14 +547,14 @@ impl<'a> Writer<'a> {
             }
             ast::Stmt::While(ref wh) => {
                 self.token("while")?;
-                self.paren(|w| w.exprn(&wh.cond, -1))?;
+                self.paren(|w| w.expr(&wh.cond, -1))?;
                 self.stmt(&wh.body)?;
             }
             ast::Stmt::DoWhile(ref wh) => {
                 self.token("do")?;
                 self.stmt(&wh.body)?;
                 self.token("while")?;
-                self.paren(|w| w.exprn(&wh.cond, -1))?;
+                self.paren(|w| w.expr(&wh.cond, -1))?;
                 self.semi()?;
             }
             ast::Stmt::For(ref f) => {
@@ -565,7 +562,7 @@ impl<'a> Writer<'a> {
                 self.paren(|w| {
                     match f.init {
                         ast::ForInit::Empty => {}
-                        ast::ForInit::Expr(ref e) => w.exprn(e, -1)?,
+                        ast::ForInit::Expr(ref e) => w.expr(e, -1)?,
                         ast::ForInit::Decls(ref decls) => {
                             if decls.decls.len() > 0 {
                                 w.token(decls.typ.to_string())?;
@@ -575,11 +572,11 @@ impl<'a> Writer<'a> {
                     }
                     w.token(";")?;
                     if let Some(ref cond) = f.cond {
-                        w.exprn(cond, -1)?;
+                        w.expr(cond, -1)?;
                     }
                     w.token(";")?;
                     if let Some(ref iter) = f.iter {
-                        w.exprn(iter, -1)?;
+                        w.expr(iter, -1)?;
                     }
                     Ok(())
                 })?;
@@ -593,14 +590,14 @@ impl<'a> Writer<'a> {
                     }
                     w.binding_pattern(&f.loop_var)?;
                     w.token("in")?; // TODO
-                    w.exprn(&f.expr, -1)?;
+                    w.expr(&f.expr, -1)?;
                     Ok(())
                 })?;
                 self.stmt(&f.body)?;
             }
             ast::Stmt::Switch(ref switch) => {
                 self.token("switch")?;
-                self.paren(|w| w.exprn(&switch.expr, -1))?;
+                self.paren(|w| w.expr(&switch.expr, -1))?;
                 self.brace(|w| {
                     for c in &switch.cases {
                         match c.expr {
@@ -633,7 +630,7 @@ impl<'a> Writer<'a> {
             ast::Stmt::Return(ref expr) => {
                 self.token("return")?;
                 if let &Some(ref expr) = expr {
-                    self.exprn(expr, -1)?;
+                    self.expr(expr, -1)?;
                 }
                 self.semi()?;
             }
@@ -644,7 +641,7 @@ impl<'a> Writer<'a> {
             }
             ast::Stmt::Throw(ref expr) => {
                 self.token("throw")?;
-                self.exprn(expr, -1)?;
+                self.expr(expr, -1)?;
                 self.semi()?;
             }
             ast::Stmt::Try(ref try) => {

@@ -409,7 +409,7 @@ pub struct ForInOf {
 
 #[derive(Debug)]
 pub struct Case {
-    pub expr: Option<Expr>,
+    pub expr: Option<ExprNode>,
     pub stmts: Vec<Stmt>,
 }
 

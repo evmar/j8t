@@ -1198,7 +1198,7 @@ impl<'a> Parser<'a> {
                     self.expect(Tok::Colon)?;
                     let stmts = self.stmts()?;
                     ast::Case {
-                        expr: Some(expr.expr),
+                        expr: Some(expr),
                         stmts: stmts,
                     }
                 }
