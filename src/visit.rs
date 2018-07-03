@@ -38,25 +38,36 @@ pub fn expr<V: Visit>(en: &mut ast::ExprNode, v: &mut V) {
         | ast::Expr::Number(_)
         | ast::Expr::String(_) => {}
 
-        // Array(Vec<ExprNode>),
+        ast::Expr::Array(ref mut es) => {
+            for e in es.iter_mut() {
+                v.expr(e);
+            }
+        }
         // // The parse of "...a", which can only occur in arrow functions and
         // // in array literals.
         // Spread(Box<ExprNode>),
-        // Object(Box<Object>),
-        // Function(Box<Function>),
+        ast::Expr::Object(ref mut obj) => {
+            for prop in obj.props.iter_mut() {
+                v.expr(&mut prop.value);
+            }
+        }
+        ast::Expr::Function(ref mut fun) => func(&mut fun.func, v),
         ast::Expr::Class(ref mut c) => {
             for m in c.methods.iter_mut() {
                 func(&mut m.func, v);
             }
         }
         // ArrowFunction(Box<ArrowFunction>),
-    // Regex(Box<Regex>),
-    // Template(Box<Template>),
+        ast::Expr::Regex(_) => {}
+        // Template(Box<Template>),
 
-    // // 12.3 Left-Hand-Side Expressions
-    // Index(Box<ExprNode>, Box<ExprNode>),
-    // Field(Box<ExprNode>, String),
-    // New(Box<ExprNode>),
+        // 12.3 Left-Hand-Side Expressions
+        ast::Expr::Index(ref mut e1, ref mut e2) => {
+            v.expr(e1);
+            v.expr(e2);
+        }
+        ast::Expr::Field(ref mut e, _) => v.expr(e),
+        ast::Expr::New(ref mut e) => v.expr(e),
         ast::Expr::Call(ref mut c) => {
             v.expr(&mut c.func);
             for a in c.args.iter_mut() {
@@ -64,11 +75,20 @@ pub fn expr<V: Visit>(en: &mut ast::ExprNode, v: &mut V) {
             }
         }
 
-        // // Various other operators.
-        // Unary(UnOp, Box<ExprNode>),
-        // Binary(Box<Binary>),
-        // TypeOf(Box<ExprNode>),
-        // Ternary(Box<Ternary>),
+        // Various other operators.
+        ast::Expr::Unary(_, ref mut e) => v.expr(e),
+        ast::Expr::Binary(ref mut bin) => {
+            v.expr(&mut bin.lhs);
+            v.expr(&mut bin.rhs);
+        }
+        ast::Expr::TypeOf(ref mut e) => {
+            v.expr(e);
+        }
+        ast::Expr::Ternary(ref mut t) => {
+            v.expr(&mut t.condition);
+            v.expr(&mut t.iftrue);
+            v.expr(&mut t.iffalse);
+        }
         ast::Expr::Assign(ref mut e1, ref mut e2) => {
             v.expr(e1);
             v.expr(e2);
@@ -101,19 +121,56 @@ pub fn stmt<V: Visit>(stmt: &mut ast::Stmt, v: &mut V) {
             }
         }
         // ast::Stmt::While(Box<While>),
+        ast::Stmt::While(ref mut w) => {
+            v.expr(&mut w.cond);
+            v.stmt(&mut w.body);
+        }
         // ast::Stmt::DoWhile(Box<While>),
-        // ast::Stmt::For(Box<For>),
-        // ast::Stmt::ForInOf(Box<ForInOf>),
+        ast::Stmt::For(ref mut for_) => {
+            match for_.init {
+                ast::ForInit::Empty => {}
+                ast::ForInit::Expr(ref mut e) => v.expr(e),
+                ast::ForInit::Decls(ref mut decls) => {
+                    for decl in decls.decls.iter_mut() {
+                        if let Some(ref mut en) = decl.init {
+                            v.expr(en);
+                        }
+                    }
+                }
+            };
+            if let Some(ref mut c) = for_.cond {
+                v.expr(c);
+            }
+            if let Some(ref mut c) = for_.iter {
+                v.expr(c);
+            }
+            v.stmt(&mut for_.body);
+        }
+        ast::Stmt::ForInOf(ref mut for_) => {
+            v.expr(&mut for_.expr);
+            v.stmt(&mut for_.body);
+        }
         // ast::Stmt::Switch(Box<Switch>),
-        // ast::Stmt::Continue(Option<String>),
-        // ast::Stmt::Break(Option<String>),
+        ast::Stmt::Switch(ref mut sw) => {
+            v.expr(&mut sw.expr);
+            for c in sw.cases.iter_mut() {
+                if let Some(ref mut e) = c.expr {
+                    v.expr(e);
+                }
+                for s in c.stmts.iter_mut() {
+                    v.stmt(s);
+                }
+            }
+        }
+        ast::Stmt::Continue(_) => {}
+        ast::Stmt::Break(_) => {}
         ast::Stmt::Return(ref mut e) => {
             if let Some(en) = e {
                 v.expr(en);
             }
         }
         // ast::Stmt::Label(Box<Label>),
-        // ast::Stmt::Throw(Box<Expr>),
+        ast::Stmt::Throw(ref mut e) => v.expr(e),
         ast::Stmt::Try(ref mut t) => {
             v.stmt(&mut t.block);
             if let Some((_, ref mut catch)) = t.catch {
@@ -155,9 +212,6 @@ pub fn expr_expr<F: FnMut(&mut ast::ExprNode)>(en: &mut ast::ExprNode, mut f: F)
         | ast::Expr::Regex(_) => {}
         ast::Expr::Template(_) => unimplemented!(),
 
-        ast::Expr::Array(ref mut es) => for e in es.iter_mut() {
-            f(e);
-        },
         ast::Expr::Spread(ref mut e) => f(e),
         ast::Expr::Object(ref mut obj) => {
             obj.props.iter_mut().for_each(|p| f(&mut p.value));
@@ -183,30 +237,10 @@ pub fn expr_expr<F: FnMut(&mut ast::ExprNode)>(en: &mut ast::ExprNode, mut f: F)
             f(&mut bin.lhs);
             f(&mut bin.rhs);
         }
-        ast::Expr::TypeOf(ref mut e) => {
-            f(e);
-        }
-        ast::Expr::Ternary(ref mut t) => {
-            f(&mut t.condition);
-            f(&mut t.iftrue);
-            f(&mut t.iffalse);
-        }
         ast::Expr::Assign(ref mut e1, ref mut e2) => {
             f(e1);
             f(e2);
         }
-    }
-}
-
-pub fn stmt_expr_forinit<F: FnMut(&mut ast::ExprNode)>(init: &mut ast::ForInit, f: &mut F) {
-    match *init {
-        ast::ForInit::Empty => {}
-        ast::ForInit::Expr(ref mut e) => f(e),
-        ast::ForInit::Decls(ref mut decls) => for decl in decls.decls.iter_mut() {
-            if let Some(ref mut en) = decl.init {
-                f(en);
-            }
-        },
     }
 }
 
@@ -215,21 +249,7 @@ pub fn stmt_expr<F: FnMut(&mut ast::ExprNode)>(stmt: &mut ast::Stmt, mut f: F) {
         ast::Stmt::If(ref mut if_) => {
             f(&mut if_.cond);
         }
-        ast::Stmt::While(ref mut w) => f(&mut w.cond),
         ast::Stmt::DoWhile(ref mut w) => f(&mut w.cond),
-        ast::Stmt::For(ref mut for_) => {
-            // TODO: init
-            stmt_expr_forinit(&mut for_.init, &mut f);
-            if let Some(ref mut c) = for_.cond {
-                f(c);
-            }
-            if let Some(ref mut c) = for_.iter {
-                f(c);
-            }
-        }
-        ast::Stmt::ForInOf(ref mut for_) => {
-            f(&mut for_.expr);
-        }
         ast::Stmt::Switch(ref mut sw) => f(&mut sw.expr),
         ast::Stmt::Expr(ref mut e) => f(e),
         ast::Stmt::Return(ref mut e) => {
@@ -267,15 +287,8 @@ pub fn stmt_stmt<F: FnMut(&mut ast::Stmt)>(stmt: &mut ast::Stmt, mut f: F) {
                 f(else_);
             }
         }
-        ast::Stmt::While(ref mut wh) => f(&mut wh.body),
         ast::Stmt::DoWhile(ref mut wh) => f(&mut wh.body),
         ast::Stmt::For(ref mut for_) => f(&mut for_.body),
-        ast::Stmt::ForInOf(ref mut for_) => f(&mut for_.body),
-        ast::Stmt::Switch(ref mut sw) => for c in sw.cases.iter_mut() {
-            for s in c.stmts.iter_mut() {
-                f(s);
-            }
-        },
         ast::Stmt::Label(ref mut l) => f(&mut l.stmt),
         ast::Stmt::Try(ref mut t) => {
             f(&mut t.block);
