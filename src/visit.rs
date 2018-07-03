@@ -91,7 +91,7 @@ pub fn stmt<V: Visit>(stmt: &mut ast::Stmt, v: &mut V) {
                 }
             }
         }
-        // ast::Stmt::Empty,
+        ast::Stmt::Empty => {}
         ast::Stmt::Expr(ref mut e) => v.expr(e),
         ast::Stmt::If(ref mut i) => {
             v.expr(&mut i.cond);
