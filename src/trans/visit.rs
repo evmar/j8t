@@ -141,6 +141,7 @@ pub fn module<V: Visit>(module: &mut ast::Module, v: &mut V) {
     }
 }
 
+/*
 pub fn expr_expr<F: FnMut(&mut ast::ExprNode)>(en: &mut ast::ExprNode, mut f: F) {
     match en.expr {
         ast::Expr::EmptyParens => unreachable!(),
@@ -303,3 +304,4 @@ pub fn stmt_stmt<F: FnMut(&mut ast::Stmt)>(stmt: &mut ast::Stmt, mut f: F) {
         | ast::Stmt::Break(_) => {}
     }
 }
+*/

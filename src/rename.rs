@@ -71,6 +71,20 @@ mod tests {
     }
 }
 
+struct V<'a> {
+    gen: &'a mut NameGen,
+    debug: bool,
+}
+
+impl<'a> visit::Visit for V<'a> {
+    fn expr(&mut self, en: &mut ast::ExprNode) {
+        rename_expr(self.gen, en, self.debug);
+    }
+    fn stmt(&mut self, s: &mut ast::Stmt) {
+        rename_stmt(self.gen, s, self.debug);
+    }
+}
+
 fn rename_scope(gen: &mut NameGen, scope: &mut ast::Scope, debug: bool) {
     for (i, s) in scope.bindings.iter_mut().enumerate() {
         let new_name = if debug {
@@ -97,16 +111,27 @@ fn rename_stmt(gen: &mut NameGen, stmt: &mut ast::Stmt, debug: bool) {
             // TODO: expressions, e.g. function f(a=(function()...)) {}
         }
         _ => {
-            visit::stmt_stmt(stmt, |s| rename_stmt(gen, s, debug));
+            visit::stmt(
+                stmt,
+                &mut V {
+                    gen: gen,
+                    debug: debug,
+                },
+            );
         }
     }
-    visit::stmt_expr(stmt, |e| rename_expr(gen, e, debug));
 }
 
 fn rename_expr(gen: &mut NameGen, en: &mut ast::ExprNode, debug: bool) {
     match en.expr {
         ast::Expr::Function(ref mut fun) => rename_func(gen, &mut fun.func, debug),
-        _ => visit::expr_expr(en, |e| rename_expr(gen, e, debug)),
+        _ => visit::expr(
+            en,
+            &mut V {
+                gen: gen,
+                debug: debug,
+            },
+        ),
     }
 }
 

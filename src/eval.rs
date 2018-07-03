@@ -19,6 +19,7 @@ use std;
 use trans::visit;
 
 struct Eval {}
+
 impl visit::Visit for Eval {
     fn expr(&mut self, en: &mut ast::ExprNode) {
         match en.expr {
