@@ -18,6 +18,7 @@ use ast;
 use parse::Parser;
 use std::rc::Rc;
 use trans::visit;
+use trans::visit::Visit;
 
 const EXTERNS: &'static str = r#"
 var Array;
@@ -198,11 +199,11 @@ fn var_declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
     }
 }
 
-struct Visit {
+struct Bind {
     scopes: Vec<ast::Scope>,
 }
 
-impl Visit {
+impl Bind {
     /// Resolve a symbol against the current scopes, overwriting the symbol if found.
     /// Returns false if the symbol failed to resolve (indicating a bug!).
     fn resolve(&mut self, sym: &mut ast::RefSym, create_global: bool) -> bool {
@@ -274,6 +275,20 @@ impl Visit {
         func.scope = scope;
     }
 
+    fn module(&mut self, module: &mut ast::Module) {
+        let mut scope = ast::Scope::new();
+        for s in module.stmts.iter_mut() {
+            var_declared_names(s, &mut scope);
+        }
+        self.scopes.push(scope);
+        for s in module.stmts.iter_mut() {
+            self.stmt(s);
+        }
+        module.scope = self.scopes.pop().unwrap();
+    }
+}
+
+impl visit::Visit for Bind {
     fn expr(&mut self, en: &mut ast::ExprNode) {
         match en.expr {
             ast::Expr::Ident(ref mut sym) => {
@@ -297,39 +312,22 @@ impl Visit {
             }
             _ => {}
         }
-        visit::expr_expr(en, |en| self.expr(en));
+        visit::expr(en, self);
     }
 
-    fn stmt<'e>(&mut self, stmt: &mut ast::Stmt) {
+    fn stmt(&mut self, stmt: &mut ast::Stmt) {
         match *stmt {
             ast::Stmt::Function(ref mut func) => {
                 self.function(func, /* expression */ false);
             }
-            _ => {
-                visit::stmt_expr(stmt, |en| {
-                    self.expr(en);
-                });
-                visit::stmt_stmt(stmt, |s| self.stmt(s));
-            }
+            _ => visit::stmt(stmt, self),
         }
-    }
-
-    fn module(&mut self, module: &mut ast::Module) {
-        let mut scope = ast::Scope::new();
-        for s in module.stmts.iter_mut() {
-            var_declared_names(s, &mut scope);
-        }
-        self.scopes.push(scope);
-        for s in module.stmts.iter_mut() {
-            self.stmt(s);
-        }
-        module.scope = self.scopes.pop().unwrap();
     }
 }
 
 pub fn bind(module: &mut ast::Module) {
-    let mut visit = Visit { scopes: Vec::new() };
-    visit.scopes.push(load_externs());
-    visit.module(module);
-    assert_eq!(visit.scopes.len(), 1);
+    let mut bind = Bind { scopes: Vec::new() };
+    bind.scopes.push(load_externs());
+    bind.module(module);
+    assert_eq!(bind.scopes.len(), 1);
 }
