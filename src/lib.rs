@@ -17,12 +17,22 @@
 extern crate getopts;
 
 pub mod ast;
-pub mod bind;
-pub mod deblock;
-pub mod eval;
-pub mod gen;
 pub mod lex;
 mod ops;
-pub mod parse;
-pub mod rename;
+mod parse;
+pub use parse::Parser;
+mod rename;
+pub use rename::rename;
 pub mod visit;
+
+mod deblock;
+pub use deblock::deblock;
+
+mod bind;
+pub use bind::bind;
+
+mod eval;
+pub use eval::eval;
+
+mod gen;
+pub use gen::Writer;

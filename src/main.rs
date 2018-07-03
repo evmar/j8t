@@ -17,27 +17,19 @@
 extern crate getopts;
 extern crate j8t;
 
-use j8t::ast;
-use j8t::bind;
-use j8t::eval;
-use j8t::gen;
-use j8t::lex::Tok;
-use j8t::parse::*;
-use j8t::rename;
-use j8t::deblock;
 use std::io;
 use std::io::Read;
 use std::io::Write;
 
 #[allow(dead_code)]
 fn sizes() {
-    println!("tok is {} bytes", std::mem::size_of::<Tok>());
-    println!("vec is {} bytes", std::mem::size_of::<Vec<ast::Expr>>());
-    println!("box is {} bytes", std::mem::size_of::<Box<ast::Expr>>());
-    println!("binop is {} bytes", std::mem::size_of::<ast::BinOp>());
+    println!("tok is {} bytes", std::mem::size_of::<j8t::lex::Tok>());
+    println!("vec is {} bytes", std::mem::size_of::<Vec<j8t::ast::Expr>>());
+    println!("box is {} bytes", std::mem::size_of::<Box<j8t::ast::Expr>>());
+    println!("binop is {} bytes", std::mem::size_of::<j8t::ast::BinOp>());
     println!("string is {} bytes", std::mem::size_of::<String>());
-    println!("expr is {} bytes", std::mem::size_of::<ast::Expr>());
-    println!("stmt is {} bytes", std::mem::size_of::<ast::Stmt>());
+    println!("expr is {} bytes", std::mem::size_of::<j8t::ast::Expr>());
+    println!("stmt is {} bytes", std::mem::size_of::<j8t::ast::Stmt>());
 }
 
 struct FmtWrite {
@@ -124,7 +116,7 @@ fn real_main() -> bool {
         .read_to_end(&mut input)
         .unwrap();
 
-    let mut p = Parser::new(input.as_slice());
+    let mut p = j8t::Parser::new(input.as_slice());
     let (t, mut module) = match measure(|| p.module()) {
         (t, Ok(stmts)) => (t, stmts),
         (_, Err(err)) => {
@@ -137,14 +129,14 @@ fn real_main() -> bool {
     }
 
     let (t, _) = measure(|| {
-        bind::bind(&mut module);
+        j8t::bind(&mut module);
     });
     if timing {
         eprintln!("bind: {}ms", t);
     }
 
     let (t, _) = measure(|| {
-        eval::eval(&mut module);
+        j8t::eval(&mut module);
     });
     if timing {
         eprintln!("eval: {}ms", t);
@@ -152,8 +144,7 @@ fn real_main() -> bool {
 
     if rename {
         let (t, _) = measure(|| {
-            bind::bind(&mut module);
-            rename::rename(&mut module, debug_rename);
+            j8t::rename(&mut module, debug_rename);
         });
         if timing {
             eprintln!("scope: {}ms", t);
@@ -162,7 +153,7 @@ fn real_main() -> bool {
 
     // TODO: reenable after ES6 fixes.
     let (t, _) = measure(|| {
-        deblock::deblock(&mut module);
+        j8t::deblock(&mut module);
     });
     if timing {
         eprintln!("deblock: {}ms", t);
@@ -174,7 +165,7 @@ fn real_main() -> bool {
         Box::new(std::io::BufWriter::new(std::io::stdout()))
     };
     let (t, _) = measure(|| {
-        let mut writer = gen::Writer::new(&mut w);
+        let mut writer = j8t::Writer::new(&mut w);
         writer.disable_asi = fmt;
         writer.module(&module).unwrap();
     });
