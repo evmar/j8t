@@ -201,28 +201,29 @@ fn var_declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
 
 struct Bind {
     scopes: Vec<ast::Scope>,
+    warnings: Vec<String>,
 }
 
 impl Bind {
     /// Resolve a symbol against the current scopes, overwriting the symbol if found.
-    /// Returns false if the symbol failed to resolve (indicating a bug!).
-    fn resolve(&mut self, sym: &mut ast::RefSym, create_global: bool) -> bool {
+    fn resolve(&mut self, sym: &mut ast::RefSym, create_global: bool) {
         for scope in self.scopes.iter().rev() {
             if let Some(r) = scope.resolve(sym) {
                 *sym = r;
-                return true;
+                return;
             }
         }
-        if create_global {
-            {
-                let mut sym = sym.borrow_mut();
-                eprintln!("inferred global: {}", sym.name);
-                sym.renameable = false;
+
+        {
+            let mut sym = sym.borrow_mut();
+            if create_global {
+                self.warnings.push(format!("inferred global: {}", sym.name));
+            } else {
+                self.warnings.push(format!("global referenced without declaration: {}", sym.name));
             }
-            self.scopes[0].bindings.push(sym.clone());
-            return true;
+            sym.renameable = false;
         }
-        false
+        self.scopes[0].bindings.push(sym.clone());
     }
 
     fn function(&mut self, func: &mut ast::Function, expr: bool) {
@@ -292,9 +293,7 @@ impl visit::Visit for Bind {
     fn expr(&mut self, en: &mut ast::ExprNode) {
         match en.expr {
             ast::Expr::Ident(ref mut sym) => {
-                if !self.resolve(sym, false) {
-                    panic!("could not resolve {:?} {:?}", sym.borrow().name, en.span);
-                }
+                self.resolve(sym, false);
                 return;
             }
             ast::Expr::Function(ref mut func) => {
@@ -325,9 +324,10 @@ impl visit::Visit for Bind {
     }
 }
 
-pub fn bind(module: &mut ast::Module) {
-    let mut bind = Bind { scopes: Vec::new() };
+pub fn bind(module: &mut ast::Module) -> Vec<String> {
+    let mut bind = Bind { scopes: Vec::new(), warnings: Vec::new() };
     bind.scopes.push(load_externs());
     bind.module(module);
     assert_eq!(bind.scopes.len(), 1);
+    return bind.warnings;
 }

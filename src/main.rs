@@ -135,7 +135,10 @@ fn real_main() -> bool {
     }
 
     let (t, _) = measure(|| {
-        j8t::bind(&mut module);
+        let warnings = j8t::bind(&mut module);
+        for w in warnings {
+            println!("warn: {}", w);
+        }
     });
     if timing {
         eprintln!("bind: {}ms", t);
