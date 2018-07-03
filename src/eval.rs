@@ -16,7 +16,7 @@
 
 use ast;
 use std;
-use trans::visit;
+use visit;
 
 struct Eval {}
 

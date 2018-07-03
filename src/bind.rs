@@ -17,8 +17,8 @@
 use ast;
 use parse::Parser;
 use std::rc::Rc;
-use trans::visit;
-use trans::visit::Visit;
+use visit;
+use visit::Visit;
 
 const EXTERNS: &'static str = r#"
 var Array;

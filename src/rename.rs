@@ -15,7 +15,7 @@
  */
 
 use ast;
-use trans::visit;
+use visit;
 
 const NAME_GEN_ALPHABET: &'static [u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$";
 

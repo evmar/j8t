@@ -24,7 +24,7 @@ use j8t::gen;
 use j8t::lex::Tok;
 use j8t::parse::*;
 use j8t::rename;
-use j8t::trans;
+use j8t::deblock;
 use std::io;
 use std::io::Read;
 use std::io::Write;
@@ -162,7 +162,7 @@ fn real_main() -> bool {
 
     // TODO: reenable after ES6 fixes.
     let (t, _) = measure(|| {
-        trans::deblock(&mut module);
+        deblock::deblock(&mut module);
     });
     if timing {
         eprintln!("deblock: {}ms", t);

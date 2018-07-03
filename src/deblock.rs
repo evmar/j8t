@@ -16,7 +16,7 @@
 
 use ast;
 use std;
-use trans::visit;
+use visit;
 
 fn consumes_dangling_else(stmt: &ast::Stmt) -> bool {
     match *stmt {
