@@ -43,9 +43,9 @@ pub fn expr<V: Visit>(en: &mut ast::ExprNode, v: &mut V) {
                 v.expr(e);
             }
         }
-        // // The parse of "...a", which can only occur in arrow functions and
-        // // in array literals.
-        // Spread(Box<ExprNode>),
+        // The parse of "...a", which can only occur in arrow functions and
+        // in array literals.
+        ast::Expr::Spread(_) => unreachable!(),
         ast::Expr::Object(ref mut obj) => {
             for prop in obj.props.iter_mut() {
                 v.expr(&mut prop.value);
@@ -57,9 +57,18 @@ pub fn expr<V: Visit>(en: &mut ast::ExprNode, v: &mut V) {
                 func(&mut m.func, v);
             }
         }
-        // ArrowFunction(Box<ArrowFunction>),
+        ast::Expr::ArrowFunction(ref mut fun) => {
+            match fun.body {
+                ast::ArrowBody::Expr(ref mut en) => v.expr(en),
+                ast::ArrowBody::Stmts(ref mut sts) => {
+                    for s in sts.iter_mut() {
+                        v.stmt(s);
+                    }
+                }
+            }
+        }
         ast::Expr::Regex(_) => {}
-        // Template(Box<Template>),
+        ast::Expr::Template(_) => unimplemented!(),
 
         // 12.3 Left-Hand-Side Expressions
         ast::Expr::Index(ref mut e1, ref mut e2) => {
@@ -93,7 +102,6 @@ pub fn expr<V: Visit>(en: &mut ast::ExprNode, v: &mut V) {
             v.expr(e1);
             v.expr(e2);
         }
-        _ => unimplemented!("{}", en.expr.kind()),
     }
 }
 
@@ -120,12 +128,14 @@ pub fn stmt<V: Visit>(stmt: &mut ast::Stmt, v: &mut V) {
                 v.stmt(else_);
             }
         }
-        // ast::Stmt::While(Box<While>),
         ast::Stmt::While(ref mut w) => {
             v.expr(&mut w.cond);
             v.stmt(&mut w.body);
         }
-        // ast::Stmt::DoWhile(Box<While>),
+        ast::Stmt::DoWhile(ref mut w) => {
+            v.stmt(&mut w.body);
+            v.expr(&mut w.cond);
+        }
         ast::Stmt::For(ref mut for_) => {
             match for_.init {
                 ast::ForInit::Empty => {}
@@ -150,7 +160,6 @@ pub fn stmt<V: Visit>(stmt: &mut ast::Stmt, v: &mut V) {
             v.expr(&mut for_.expr);
             v.stmt(&mut for_.body);
         }
-        // ast::Stmt::Switch(Box<Switch>),
         ast::Stmt::Switch(ref mut sw) => {
             v.expr(&mut sw.expr);
             for c in sw.cases.iter_mut() {
@@ -169,7 +178,7 @@ pub fn stmt<V: Visit>(stmt: &mut ast::Stmt, v: &mut V) {
                 v.expr(en);
             }
         }
-        // ast::Stmt::Label(Box<Label>),
+        ast::Stmt::Label(ref mut l) => v.stmt(&mut l.stmt),
         ast::Stmt::Throw(ref mut e) => v.expr(e),
         ast::Stmt::Try(ref mut t) => {
             v.stmt(&mut t.block);
@@ -188,7 +197,6 @@ pub fn stmt<V: Visit>(stmt: &mut ast::Stmt, v: &mut V) {
                 func(&mut m.func, v);
             }
         }
-        _ => unimplemented!("{}", stmt.kind()),
     }
 }
 
