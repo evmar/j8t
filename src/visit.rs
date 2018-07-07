@@ -57,16 +57,14 @@ pub fn expr<V: Visit>(en: &mut ast::ExprNode, v: &mut V) {
                 func(&mut m.func, v);
             }
         }
-        ast::Expr::ArrowFunction(ref mut fun) => {
-            match fun.body {
-                ast::ArrowBody::Expr(ref mut en) => v.expr(en),
-                ast::ArrowBody::Stmts(ref mut sts) => {
-                    for s in sts.iter_mut() {
-                        v.stmt(s);
-                    }
+        ast::Expr::ArrowFunction(ref mut fun) => match fun.body {
+            ast::ArrowBody::Expr(ref mut en) => v.expr(en),
+            ast::ArrowBody::Stmts(ref mut sts) => {
+                for s in sts.iter_mut() {
+                    v.stmt(s);
                 }
             }
-        }
+        },
         ast::Expr::Regex(_) => {}
         ast::Expr::Template(_) => unimplemented!(),
 

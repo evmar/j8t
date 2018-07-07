@@ -219,7 +219,10 @@ impl Bind {
             if create_global {
                 self.warnings.push(format!("inferred global: {}", sym.name));
             } else {
-                self.warnings.push(format!("global referenced without declaration: {}", sym.name));
+                self.warnings.push(format!(
+                    "global referenced without declaration: {}",
+                    sym.name
+                ));
             }
             sym.renameable = false;
         }
@@ -325,7 +328,10 @@ impl visit::Visit for Bind {
 }
 
 pub fn bind(module: &mut ast::Module) -> Vec<String> {
-    let mut bind = Bind { scopes: Vec::new(), warnings: Vec::new() };
+    let mut bind = Bind {
+        scopes: Vec::new(),
+        warnings: Vec::new(),
+    };
     bind.scopes.push(load_externs());
     bind.module(module);
     assert_eq!(bind.scopes.len(), 1);

@@ -75,113 +75,138 @@ impl Write for FmtWrite {
     }
 }
 
-fn measure<T, F: FnMut() -> T>(mut f: F) -> (u64, T) {
-    let start = std::time::Instant::now();
-    let r = f();
-    let dur = std::time::Instant::now().duration_since(start);
-    let time = dur.as_secs() * 1000 + (dur.subsec_nanos() as u64 / 1_000_000);
-    (time, r)
+struct Trace {
+    log: bool,
+    points: Vec<(usize, String)>,
 }
 
-fn real_main() -> bool {
-    //sizes();
+impl Trace {
+    fn new(log: bool) -> Trace {
+        Trace {
+            log: log,
+            points: Vec::new(),
+        }
+    }
 
-    let args: Vec<String> = std::env::args().collect();
-    let mut opts = getopts::Options::new();
-    opts.optflag("h", "help", "");
-    opts.optflag("", "timing", "");
-    opts.optflag("", "fmt", "");
-    opts.optflagopt("", "rename", "", "MODE");
-    let matches = match opts.parse(&args[1..]) {
+    fn measure<R, F: FnMut() -> R>(&mut self, msg: &str, mut f: F) -> R {
+        let start = std::time::Instant::now();
+        let r = f();
+        let dur = std::time::Instant::now().duration_since(start);
+        let time = (dur.as_secs() * 1000 + (dur.subsec_nanos() as u64 / 1_000_000)) as usize;
+        if self.log {
+            eprintln!("{} {}ms", msg, time);
+        }
+        self.points.push((time, msg.into()));
+        r
+    }
+}
+
+#[derive(PartialEq)]
+enum Rename {
+    Off,
+    On,
+    Debug,
+}
+
+struct Invocation {
+    infile: String,
+    timing: bool,
+    fmt: bool,
+    rename: Rename,
+}
+
+fn parse_options(args: &[String]) -> std::result::Result<Invocation, String> {
+    let mut parser = getopts::Options::new();
+    parser.optflag("h", "help", "");
+    parser.optflag("", "timing", "");
+    parser.optflag("", "fmt", "");
+    parser.optflagopt("", "rename", "", "MODE");
+    let matches = match parser.parse(&args[1..]) {
         Ok(m) => m,
         Err(f) => {
-            eprintln!("error: {}", f.to_string());
-            return false;
+            return Err(format!("error: {}", f.to_string()));
         }
     };
     if matches.free.len() != 1 {
-        eprintln!("specify input");
-        return false;
+        return Err("specify input".to_string());
     }
     let infile = &matches.free[0];
     let timing = matches.opt_present("timing");
     let fmt = matches.opt_present("fmt");
-    let (rename, debug_rename) = match matches.opt_str("rename") {
-        None => (true, false),
-        Some(ref s) if s == "debug" => (true, true),
-        Some(ref s) if s == "off" => (false, false),
-        Some(_) => {
-            eprintln!("bad --rename");
+    let rename = match matches.opt_str("rename") {
+        None => Rename::Off,
+        Some(ref s) if s == "debug" => Rename::Debug,
+        Some(ref s) if s == "off" => Rename::On,
+        Some(ref s) => {
+            return Err(format!("bad --rename: {}", s));
+        }
+    };
+    Ok(Invocation {
+        infile: infile.to_string(),
+        timing: timing,
+        fmt: fmt,
+        rename: rename,
+    })
+}
+
+fn real_main() -> bool {
+    //sizes();
+    let args: Vec<String> = std::env::args().collect();
+    let options = match parse_options(&args) {
+        Ok(o) => o,
+        Err(err) => {
+            eprintln!("{}", err);
             return false;
         }
     };
 
+    let mut trace = Trace::new(options.timing);
+
     let mut input = Vec::<u8>::new();
-    std::fs::File::open(infile)
-        .unwrap()
-        .read_to_end(&mut input)
-        .unwrap();
+    trace.measure("read", || {
+        std::fs::File::open(&options.infile)
+            .unwrap()
+            .read_to_end(&mut input)
+            .unwrap();
+    });
 
     let mut p = j8t::Parser::new(input.as_slice());
-    let (t, mut module) = match measure(|| p.module()) {
-        (t, Ok(stmts)) => (t, stmts),
-        (_, Err(err)) => {
+    let mut module = match trace.measure("parse", || p.module()) {
+        Ok(stmts) => stmts,
+        Err(err) => {
             print!("{}", err.pretty(&p.lexer));
             return false;
         }
     };
-    if timing {
-        eprintln!("parse: {}ms", t);
+
+    let warnings = trace.measure("bind", || j8t::bind(&mut module));
+    for w in warnings {
+        println!("warn: {}", w);
     }
 
-    let (t, _) = measure(|| {
-        let warnings = j8t::bind(&mut module);
-        for w in warnings {
-            println!("warn: {}", w);
-        }
-    });
-    if timing {
-        eprintln!("bind: {}ms", t);
-    }
+    trace.measure("eval", || j8t::eval(&mut module));
 
-    let (t, _) = measure(|| {
-        j8t::eval(&mut module);
-    });
-    if timing {
-        eprintln!("eval: {}ms", t);
-    }
-
-    if rename {
-        let (t, _) = measure(|| {
-            j8t::rename(&mut module, debug_rename);
+    if options.rename != Rename::Off {
+        trace.measure("rename", || {
+            j8t::rename(&mut module, options.rename == Rename::Debug)
         });
-        if timing {
-            eprintln!("scope: {}ms", t);
-        }
     }
 
-    // TODO: reenable after ES6 fixes.
-    let (t, _) = measure(|| {
-        j8t::deblock(&mut module);
-    });
-    if timing {
-        eprintln!("deblock: {}ms", t);
-    }
+    trace.measure("deblock", || j8t::deblock(&mut module));
 
-    let mut w: Box<Write> = if fmt {
+    let mut w: Box<Write> = if options.fmt {
         Box::new(FmtWrite::new().unwrap())
     } else {
         Box::new(std::io::BufWriter::new(std::io::stdout()))
     };
-    let (t, _) = measure(|| {
-        let mut writer = j8t::Writer::new(&mut w);
-        writer.disable_asi = fmt;
-        writer.module(&module).unwrap();
+    trace.measure("write", || {
+        {
+            let mut writer = j8t::Writer::new(&mut w);
+            writer.disable_asi = options.fmt;
+            writer.module(&module).unwrap();
+        }
+        w.flush().unwrap();
     });
-    if timing {
-        eprintln!("gen: {}ms", t);
-    }
-    w.flush().unwrap();
     return true;
 }
 
