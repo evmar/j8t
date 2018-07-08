@@ -75,47 +75,9 @@ impl Write for FmtWrite {
     }
 }
 
-struct Trace {
-    log: bool,
-    points: Vec<(usize, String)>,
-}
-
-impl Trace {
-    fn new(log: bool) -> Trace {
-        Trace {
-            log: log,
-            points: Vec::new(),
-        }
-    }
-
-    fn measure<R, F: FnMut() -> R>(&mut self, msg: &str, mut f: F) -> R {
-        let start = std::time::Instant::now();
-        let r = f();
-        let dur = std::time::Instant::now().duration_since(start);
-        let time = (dur.as_secs() * 1000 + (dur.subsec_nanos() as u64 / 1_000_000)) as usize;
-        if self.log {
-            eprintln!("{} {}ms", msg, time);
-        }
-        self.points.push((time, msg.into()));
-        r
-    }
-}
-
-#[derive(PartialEq)]
-enum Rename {
-    Off,
-    On,
-    Debug,
-}
-
-struct Invocation {
-    infile: String,
-    timing: bool,
-    fmt: bool,
-    rename: Rename,
-}
-
-fn parse_options(args: &[String]) -> std::result::Result<Invocation, String> {
+fn parse_options(
+    args: &[String],
+) -> std::result::Result<(j8t::run::Trace, j8t::run::Invocation), String> {
     let mut parser = getopts::Options::new();
     parser.optflag("h", "help", "");
     parser.optflag("", "timing", "");
@@ -130,83 +92,56 @@ fn parse_options(args: &[String]) -> std::result::Result<Invocation, String> {
     if matches.free.len() != 1 {
         return Err("specify input".to_string());
     }
-    let infile = &matches.free[0];
+    let filename = &matches.free[0];
     let timing = matches.opt_present("timing");
     let fmt = matches.opt_present("fmt");
     let rename = match matches.opt_str("rename") {
-        None => Rename::Off,
-        Some(ref s) if s == "debug" => Rename::Debug,
-        Some(ref s) if s == "off" => Rename::On,
+        None => j8t::run::Rename::Off,
+        Some(ref s) if s == "debug" => j8t::run::Rename::Debug,
+        Some(ref s) if s == "off" => j8t::run::Rename::On,
         Some(ref s) => {
             return Err(format!("bad --rename: {}", s));
         }
     };
-    Ok(Invocation {
-        infile: infile.to_string(),
-        timing: timing,
-        fmt: fmt,
-        rename: rename,
-    })
+    Ok((
+        j8t::run::Trace::new(timing),
+        j8t::run::Invocation {
+            filename: filename.to_string(),
+            input: Vec::new(),
+            fmt: fmt,
+            rename: rename,
+        },
+    ))
 }
 
 fn real_main() -> bool {
     //sizes();
     let args: Vec<String> = std::env::args().collect();
-    let options = match parse_options(&args) {
-        Ok(o) => o,
+    let (mut trace, mut inv) = match parse_options(&args) {
+        Ok(r) => r,
         Err(err) => {
             eprintln!("{}", err);
             return false;
         }
     };
 
-    let mut trace = Trace::new(options.timing);
-
-    let mut input = Vec::<u8>::new();
     trace.measure("read", || {
-        std::fs::File::open(&options.infile)
+        std::fs::File::open(&inv.filename)
             .unwrap()
-            .read_to_end(&mut input)
+            .read_to_end(&mut inv.input)
             .unwrap();
     });
 
-    let mut p = j8t::Parser::new(input.as_slice());
-    let mut module = match trace.measure("parse", || p.module()) {
-        Ok(stmts) => stmts,
-        Err(err) => {
-            print!("{}", err.pretty(&p.lexer));
-            return false;
-        }
-    };
-
-    let warnings = trace.measure("bind", || j8t::bind(&mut module));
-    for w in warnings {
-        println!("warn: {}", w);
-    }
-
-    trace.measure("eval", || j8t::eval(&mut module));
-
-    if options.rename != Rename::Off {
-        trace.measure("rename", || {
-            j8t::rename(&mut module, options.rename == Rename::Debug)
-        });
-    }
-
-    trace.measure("deblock", || j8t::deblock(&mut module));
-
-    let mut w: Box<Write> = if options.fmt {
+    let mut w: Box<Write> = if inv.fmt {
         Box::new(FmtWrite::new().unwrap())
     } else {
         Box::new(std::io::BufWriter::new(std::io::stdout()))
     };
-    trace.measure("write", || {
-        {
-            let mut writer = j8t::Writer::new(&mut w);
-            writer.disable_asi = options.fmt;
-            writer.module(&module).unwrap();
-        }
-        w.flush().unwrap();
-    });
+
+    if let Err(err) = j8t::run::run(&mut trace, inv, &mut w) {
+        eprintln!("{}", err);
+    }
+
     return true;
 }
 
