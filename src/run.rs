@@ -69,7 +69,7 @@ pub fn run(
     inv: Invocation,
     write: &mut Write,
 ) -> std::result::Result<(), String> {
-    let mut p = parse::Parser::new(inv.input.as_slice());
+    let mut p = parse::Parser::new(&inv.input);
     let mut module = match trace.measure("parse", || p.module()) {
         Ok(stmts) => stmts,
         Err(err) => {

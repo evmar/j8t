@@ -77,7 +77,7 @@ impl Write for FmtWrite {
 
 fn parse_options(
     args: &[String],
-) -> std::result::Result<(j8t::run::Trace, j8t::run::Invocation), String> {
+) -> std::result::Result<(j8t::Trace, j8t::Invocation), String> {
     let mut parser = getopts::Options::new();
     parser.optflag("h", "help", "");
     parser.optflag("", "timing", "");
@@ -96,16 +96,16 @@ fn parse_options(
     let timing = matches.opt_present("timing");
     let fmt = matches.opt_present("fmt");
     let rename = match matches.opt_str("rename") {
-        None => j8t::run::Rename::Off,
-        Some(ref s) if s == "debug" => j8t::run::Rename::Debug,
-        Some(ref s) if s == "off" => j8t::run::Rename::On,
+        None => j8t::Rename::Off,
+        Some(ref s) if s == "debug" => j8t::Rename::Debug,
+        Some(ref s) if s == "off" => j8t::Rename::On,
         Some(ref s) => {
             return Err(format!("bad --rename: {}", s));
         }
     };
     Ok((
-        j8t::run::Trace::new(timing),
-        j8t::run::Invocation {
+        j8t::Trace::new(timing),
+        j8t::Invocation {
             filename: filename.to_string(),
             input: Vec::new(),
             fmt: fmt,
@@ -138,7 +138,7 @@ fn real_main() -> bool {
         Box::new(std::io::BufWriter::new(std::io::stdout()))
     };
 
-    if let Err(err) = j8t::run::run(&mut trace, inv, &mut w) {
+    if let Err(err) = j8t::run(&mut trace, inv, &mut w) {
         eprintln!("{}", err);
     }
 

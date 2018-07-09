@@ -37,4 +37,5 @@ pub use eval::eval;
 mod gen;
 pub use gen::Writer;
 
-pub mod run;
+mod run;
+pub use run::{Rename, Trace, Invocation, run};

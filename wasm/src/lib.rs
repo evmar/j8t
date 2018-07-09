@@ -12,22 +12,17 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub fn j8tw(code: &str) -> String {
-    let mut p = j8t::parse::Parser::new(code.as_bytes());
-    let mut module = match p.module() {
-        Ok(stmts) => stmts,
-        Err(err) => return err.pretty(&p.lexer),
+    let mut trace = j8t::Trace::new(false);
+    let inv = j8t::Invocation {
+        filename: String::from("input.js"),
+        input: Vec::from(code),
+        fmt: false,
+        rename: j8t::Rename::Off,
     };
 
-    let debug_rename = false;
-    j8t::eval::scope(&mut module, debug_rename);
-
-    j8t::trans::deblock(&mut module);
-
     let mut output = Vec::<u8>::new();
-    {
-        let mut writer = j8t::gen::Writer::new(&mut output);
-        //writer.disable_asi = fmt;
-        writer.module(&module).unwrap();
+    if let Err(err) = j8t::run(&mut trace, inv, &mut output) {
+        return format!("{}", err);
     }
     
     return String::from_utf8_lossy(&output).into();
