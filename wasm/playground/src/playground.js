@@ -2,6 +2,11 @@ const input = document.getElementById('input');
 const output = document.getElementById('output');
 let j8tw;
 
+// Expected by wasm/src/lib.rs.
+window.now_ms = function() {
+  return window.performance.now().toFixed(0);
+};
+
 function load() {
   fetch('js/0.bundle.js').then(r => r.text()).then(t => {
     input.value = t;

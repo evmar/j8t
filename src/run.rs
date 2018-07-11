@@ -27,26 +27,46 @@ use rename;
 pub struct Trace {
     log: bool,
     points: Vec<(usize, String)>,
+    clock: Box<Fn() -> usize>,
 }
 
 impl Trace {
-    pub fn new(log: bool) -> Trace {
+    pub fn new(log: bool, clock: Option<Box<Fn() -> usize>>) -> Trace {
+        let clock = match clock {
+            Some(f) => f,
+            None => {
+                let start = std::time::Instant::now();
+                Box::new(move || {
+                    let dur = std::time::Instant::now().duration_since(start);
+                    (dur.as_secs() * 1000 + (dur.subsec_nanos() as u64 / 1_000_000)) as usize
+                })
+            }
+        };
         Trace {
             log: log,
             points: Vec::new(),
+            clock: clock,
         }
     }
 
     pub fn measure<R, F: FnMut() -> R>(&mut self, msg: &str, mut f: F) -> R {
-        let start = std::time::Instant::now();
+        let start = (self.clock)();
         let r = f();
-        let dur = std::time::Instant::now().duration_since(start);
-        let time = (dur.as_secs() * 1000 + (dur.subsec_nanos() as u64 / 1_000_000)) as usize;
+        let end = (self.clock)();
+        let time = end - start;
         if self.log {
             eprintln!("{} {}ms", msg, time);
         }
         self.points.push((time, msg.into()));
         r
+    }
+
+    pub fn to_string(&self) -> String {
+        let mut out = String::new();
+        for (time, ref msg) in self.points.iter() {
+            out.push_str(&format!("{} {}\n", time, msg));
+        }
+        out
     }
 }
 

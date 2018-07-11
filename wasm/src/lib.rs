@@ -5,14 +5,15 @@ extern crate j8t;
 
 use wasm_bindgen::prelude::*;
 
-// #[wasm_bindgen]
-// extern {
-//     fn alert(s: &str);
-// }
+#[wasm_bindgen]
+extern {
+    // Provided by playground.js.
+    fn now_ms() -> usize;
+}
 
 #[wasm_bindgen]
 pub fn j8tw(code: &str) -> String {
-    let mut trace = j8t::Trace::new(false);
+    let mut trace = j8t::Trace::new(false, Some(Box::new(|| { now_ms() })));
     let inv = j8t::Invocation {
         filename: String::from("input.js"),
         input: Vec::from(code),
@@ -25,5 +26,8 @@ pub fn j8tw(code: &str) -> String {
         return format!("{}", err);
     }
     
-    return String::from_utf8_lossy(&output).into();
+    let res = String::from_utf8_lossy(&output).to_string();
+    // TODO: return trace info too.
+    // res.push_str(&trace.to_string());
+    res
 }
