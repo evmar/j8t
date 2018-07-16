@@ -104,7 +104,7 @@ fn parse_options(
         }
     };
     Ok((
-        j8t::Trace::new(timing),
+        j8t::Trace::new(timing, None),
         j8t::Invocation {
             filename: filename.to_string(),
             input: Vec::new(),
