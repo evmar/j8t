@@ -1,9 +1,9 @@
-const input = document.getElementById('input');
-const output = document.getElementById('output');
-let j8tw;
+const input = document.getElementById('input')! as HTMLTextAreaElement;
+const output = document.getElementById('output')!;
+let j8tw: any;
 
 // Expected by wasm/src/lib.rs.
-window.now_ms = function() {
+(window as any).now_ms = function() {
   return window.performance.now().toFixed(0);
 };
 
@@ -25,7 +25,7 @@ function update() {
 }
 
 function init() {
-  document.getElementById('load').onclick = () => { load(); };
+  document.getElementById('load')!.onclick = () => { load(); };
   input.oninput = () => { update(); };
   update();
 }
