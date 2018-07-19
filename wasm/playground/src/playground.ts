@@ -1,6 +1,6 @@
 const input = document.getElementById('input')! as HTMLTextAreaElement;
 const output = document.getElementById('output')!;
-let j8tw: any;
+let j8tw: typeof import('./j8tw').j8tw;
 
 // Expected by wasm/src/lib.rs.
 (window as any).now_ms = function() {
