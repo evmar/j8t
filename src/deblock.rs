@@ -115,56 +115,57 @@ pub fn deblock(module: &mut ast::Module) {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use gen;
-    use parse;
-    use std::str;
+    use ast;
+    use test_util::{must_parse, ast_eq};
 
-    fn deblock_to_string(input: &str) -> String {
-        let mut module = parse::Parser::new(input.as_bytes()).module().unwrap();
-        deblock(&mut module);
-        let mut buf: Vec<u8> = Vec::new();
-        {
-            let mut w = gen::Writer::new(&mut buf);
-            w.module(&module).unwrap();
-        }
-        String::from_utf8(buf).unwrap()
+    fn deblock(input: &str) -> ast::Module {
+        let mut module = must_parse(input);
+        super::deblock(&mut module);
+        module
     }
 
     #[test]
     fn deblock_if() {
-        assert_eq!(
-            deblock_to_string("if (a) { return b(c) }"),
-            "if(a)return b(c)"
+        // Simplest deblocking positive case.
+        ast_eq(
+            &deblock("if (a) { return b(c) }"),
+            "if (a) return b(c)"
         );
 
-        assert_eq!(
-            deblock_to_string("if (a) { if (b) c; } else d;"),
-            "if(a){if(b)c}else d"
+        // Dangling else.
+        ast_eq(
+            &deblock("if (a) { if (b) c; } else d;"),
+            "if (a) { if (b) c; } else d"
         );
     }
 
     #[test]
     fn try() {
-        assert_eq!(
-            deblock_to_string("try { x; } catch (e) { y; }"),
-            "try{x}catch(e){y}"
+        // Can't remove blocks on try/catch.
+        ast_eq(
+            &deblock("try { x; } catch (e) { y; }"),
+            "try { x } catch (e) { y }"
         );
     }
 
     #[test]
     fn nested() {
-        assert_eq!(
-            deblock_to_string("if (a) { if (b) { c; } else if (d) { e } } else if (g) { h }"),
-            "if(a){if(b)c;else if(d)e}else if(g)h"
+        ast_eq(
+            &deblock("if (a) { if (b) { c; } else if (d) { e } } else if (g) { h }"),
+            "if (a) {
+  if (b) c;
+  else if (d) e
+}
+else if (g) h"
         );
     }
 
     #[test]
     fn class() {
-        assert_eq!(
-            deblock_to_string("class C { f() { if (a) { b; } } }"),
-            "class C{f(){if(a)b}}"
+        // Can't remove blocks on class/methods.
+        ast_eq(
+            &deblock("class C { f() { if (a) { b; } } }"),
+            "class C { f() { if (a) b } }"
         );
     }
 }
