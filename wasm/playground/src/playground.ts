@@ -24,12 +24,11 @@ function update() {
                      `compilation took ${end - start}ms`;
 }
 
-function init() {
+async function main() {
+  const wasm = await import("./j8tw");
+  j8tw = wasm.j8tw;
   document.getElementById('load')!.onclick = () => { load(); };
   input.oninput = () => { update(); };
   update();
 }
-
-const wasm = import("./j8tw");
-wasm.then(({j8tw:f}) => { j8tw = f; init(); });
-
+main();
