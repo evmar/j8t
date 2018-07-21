@@ -1,4 +1,6 @@
-const input = document.getElementById('input')! as HTMLTextAreaElement;
+import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
+
+let editor: monaco.editor.IStandaloneCodeEditor;
 const output = document.getElementById('output')!;
 let j8tw: typeof import('./j8tw').j8tw;
 
@@ -9,13 +11,14 @@ let j8tw: typeof import('./j8tw').j8tw;
 
 function load() {
   fetch('js/0.bundle.js').then(r => r.text()).then(t => {
-    input.value = t;
+    editor.setValue(t);
     update();
   });
 }
 
 function update() {
-  const js = input.value;
+  const js = editor.getValue();
+
   let start = Date.now();
   const out = j8tw(js);
   let end = Date.now();
@@ -26,9 +29,18 @@ function update() {
 
 async function main() {
   const wasm = await import("./j8tw");
+  editor = monaco.editor.create(document.getElementById("input")!, {
+    value: "function hello() {\n\talert('Hello world!');\n}",
+    language: "javascript",
+    lineNumbers: 'off',
+    minimap: {enabled: false},
+    scrollbar: {horizontalScrollbarSize: 5, verticalScrollbarSize: 5},
+  });
+  window.onresize = () => { editor.layout(); };
+
   j8tw = wasm.j8tw;
   document.getElementById('load')!.onclick = () => { load(); };
-  input.oninput = () => { update(); };
+  editor.onDidChangeModelContent(event => { update(); });
   update();
 }
 main();
