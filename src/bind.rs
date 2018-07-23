@@ -102,15 +102,18 @@ fn load_externs() -> ast::Scope {
     return scope;
 }
 
-/// decl_names adds all the new names declared in a VarDecls to a Scope.
-fn decl_names(decls: &ast::VarDecls, scope: &mut ast::Scope) {
-    for decl in decls.decls.iter() {
-        match decl.pattern {
-            ast::BindingPattern::Name(ref sym) => {
-                scope.bindings.push(sym.clone());
-            }
-            _ => panic!("vardecl {:?}", decl),
+/// decl_names adds all the new names declared in a BindingPattern to a Scope.
+fn pattern_declared_names(pat: &ast::BindingPattern, scope: &mut ast::Scope) {
+    match *pat {
+        ast::BindingPattern::Name(ref sym) => {
+            scope.bindings.push(sym.clone());
         }
+        ast::BindingPattern::Array(ref pat) => {
+            for (ref pat, _) in pat.elems.iter() {
+                pattern_declared_names(pat, scope);
+            }
+        }
+        _ => panic!("vardecl {:?}", *pat),
     }
 }
 
@@ -123,7 +126,9 @@ fn var_declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
             var_declared_names(s, scope);
         },
         ast::Stmt::Var(ref decls) => {
-            decl_names(decls, scope);
+            for decl in decls.decls.iter() {
+                pattern_declared_names(&decl.pattern, scope);
+            }
         }
         ast::Stmt::If(ref if_) => {
             var_declared_names(&if_.iftrue, scope);
@@ -141,7 +146,9 @@ fn var_declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
             match for_.init {
                 ast::ForInit::Empty | ast::ForInit::Expr(_) => {}
                 ast::ForInit::Decls(ref decls) => {
-                    decl_names(decls, scope);
+                    for decl in decls.decls.iter() {
+                        pattern_declared_names(&decl.pattern, scope);
+                    }
                 }
             }
             var_declared_names(&for_.body, scope);

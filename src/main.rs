@@ -24,6 +24,7 @@ use std::io::Write;
 #[allow(dead_code)]
 fn sizes() {
     println!("tok is {} bytes", std::mem::size_of::<j8t::lex::Tok>());
+    println!("token is {} bytes", std::mem::size_of::<j8t::lex::Token>());
     println!(
         "vec is {} bytes",
         std::mem::size_of::<Vec<j8t::ast::Expr>>()
@@ -35,6 +36,7 @@ fn sizes() {
     println!("binop is {} bytes", std::mem::size_of::<j8t::ast::BinOp>());
     println!("string is {} bytes", std::mem::size_of::<String>());
     println!("expr is {} bytes", std::mem::size_of::<j8t::ast::Expr>());
+    println!("exprnode is {} bytes", std::mem::size_of::<j8t::ast::ExprNode>());
     println!("stmt is {} bytes", std::mem::size_of::<j8t::ast::Stmt>());
 }
 
