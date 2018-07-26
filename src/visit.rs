@@ -45,7 +45,7 @@ pub fn expr<V: Visit>(en: &mut ast::ExprNode, v: &mut V) {
         }
         // The parse of "...a", which can only occur in arrow functions and
         // in array literals.
-        ast::Expr::Spread(_) => unreachable!(),
+        ast::Expr::Spread(ref mut expr) => v.expr(expr),
         ast::Expr::Object(ref mut obj) => {
             for prop in obj.props.iter_mut() {
                 v.expr(&mut prop.value);
@@ -66,7 +66,7 @@ pub fn expr<V: Visit>(en: &mut ast::ExprNode, v: &mut V) {
             }
         },
         ast::Expr::Regex(_) => {}
-        ast::Expr::Template(_) => unimplemented!(),
+        ast::Expr::Template(ref _literal) => {}
 
         // 12.3 Left-Hand-Side Expressions
         ast::Expr::Index(ref mut e1, ref mut e2) => {

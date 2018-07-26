@@ -161,12 +161,7 @@ fn declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
         }
         ast::Stmt::ForInOf(ref forinof) => {
             if forinof.decl_type.is_some() {
-                match forinof.loop_var {
-                    ast::BindingPattern::Name(ref sym) => {
-                        scope.bindings.push(sym.clone());
-                    }
-                    _ => unimplemented!("forinof"),
-                }
+                pattern_declared_names(&forinof.loop_var, scope);
             }
             declared_names(&forinof.body, scope);
         }
