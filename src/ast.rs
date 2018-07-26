@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
+use std;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 pub use lex::Span;
@@ -46,15 +48,40 @@ impl Symbol {
     }
 }
 
-/// Scope is a single lexical scope: a collection symbols.
+/// Scope is a single lexical scope: a collection of symbols.
+/// TODO: SmallScope is the original, Vec-based scope.  We should prefer those
+/// for most scopes, but it needs profiling to decide which to use where.
 #[derive(Debug)]
 pub struct Scope {
-    pub bindings: Vec<RefSym>,
+    pub bindings: HashMap<String, RefSym>,
 }
-
 impl Scope {
     pub fn new() -> Scope {
         Scope {
+            bindings: HashMap::new(),
+        }
+    }
+    pub fn add(&mut self, sym: RefSym) {
+        let name = sym.borrow().name.clone();
+        self.bindings.insert(name, sym);
+    }
+    pub fn resolve(&self, sym: &RefSym) -> Option<RefSym> {
+        let name = &sym.borrow().name;
+        self.bindings.get(name).map(|s| s.clone())
+    }
+    pub fn iter(&self) -> impl std::iter::Iterator<Item = &RefSym> {
+        self.bindings.values()
+    }
+}
+
+#[derive(Debug)]
+pub struct SmallScope {
+    pub bindings: Vec<RefSym>,
+}
+
+impl SmallScope {
+    pub fn new() -> SmallScope {
+        SmallScope {
             bindings: Vec::new(),
         }
     }

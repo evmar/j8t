@@ -678,7 +678,7 @@ impl<'a> Writer<'a> {
     pub fn dump_scope(&mut self, scope: &ast::Scope) -> Result {
         if false {
             self.write(b"/*\n")?;
-            for b in scope.bindings.iter() {
+            for b in scope.iter() {
                 self.write(format!("{}\n", b.borrow().name).as_bytes())?;
             }
             self.write(b"*/\n")?;

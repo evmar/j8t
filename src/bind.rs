@@ -16,7 +16,6 @@
 
 use ast;
 use parse::Parser;
-use std::rc::Rc;
 use visit;
 use visit::Visit;
 
@@ -91,7 +90,7 @@ fn load_externs() -> ast::Scope {
             ast::Stmt::Var(decls) => for d in decls.decls {
                 match d.pattern {
                     ast::BindingPattern::Name(sym) => {
-                        scope.bindings.push(sym);
+                        scope.add(sym);
                     }
                     _ => panic!("bad externs"),
                 }
@@ -106,7 +105,7 @@ fn load_externs() -> ast::Scope {
 fn pattern_declared_names(pat: &ast::BindingPattern, scope: &mut ast::Scope) {
     match *pat {
         ast::BindingPattern::Name(ref sym) => {
-            scope.bindings.push(sym.clone());
+            scope.add(sym.clone());
         }
         ast::BindingPattern::Array(ref pat) => {
             for (ref pat, _) in pat.elems.iter() {
@@ -178,7 +177,7 @@ fn declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
                 // it should be in its own scope.
                 match *pattern {
                     ast::BindingPattern::Name(ref sym) => {
-                        scope.bindings.push(sym.clone());
+                        scope.add(sym.clone());
                     }
                     _ => unimplemented!("binding pattern"),
                 }
@@ -194,12 +193,12 @@ fn declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
         ast::Stmt::Function(ref func) => {
             // TODO: this is not part of the spec, how do functions get hoisted?
             if let Some(ref name) = func.name {
-                scope.bindings.push(name.clone());
+                scope.add(name.clone());
             }
         }
         ast::Stmt::Class(ref class) => {
             if let Some(ref name) = class.name {
-                scope.bindings.push(name.clone());
+                scope.add(name.clone());
             }
         }
         ast::Stmt::Empty
@@ -238,7 +237,7 @@ impl Bind {
             }
             sym.renameable = false;
         }
-        self.scopes[0].bindings.push(sym.clone());
+        self.scopes[0].add(sym.clone());
     }
 
     fn function(&mut self, func: &mut ast::Function, expr: bool) {
@@ -253,12 +252,12 @@ impl Bind {
             //   let x = (function foo() { ... foo(); });
             // See note 2 in 14.1.21.
             if expr {
-                scope.bindings.push(name);
+                scope.add(name);
             }
         }
         let args = ast::Symbol::new("arguments");
         args.borrow_mut().renameable = false;
-        scope.bindings.push(args);
+        scope.add(args);
         for (ref pat, _) in func.params.iter() {
             pattern_declared_names(pat, &mut scope);
         }
@@ -275,14 +274,15 @@ impl Bind {
         // See if anyone used 'arguments', and if not, drop it from the scope.
         // Maybe it'd be better to leave arguments out and only create
         // it if it's needed, hm.
-        let args = scope
-            .bindings
-            .iter()
-            .position(|s| s.borrow().name == "arguments")
-            .unwrap();
-        if Rc::strong_count(&scope.bindings[args]) == 1 {
-            scope.bindings.swap_remove(args);
-        }
+        // TODO: restore me.
+        // let args = scope
+        //     .bindings
+        //     .iter()
+        //     .position(|s| s.borrow().name == "arguments")
+        //     .unwrap();
+        // if Rc::strong_count(&scope.bindings[args]) == 1 {
+        //     scope.bindings.swap_remove(args);
+        // }
         func.scope = scope;
     }
 
