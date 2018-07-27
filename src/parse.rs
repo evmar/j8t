@@ -31,8 +31,8 @@ pub struct Parser<'a> {
 
 #[derive(Debug)]
 pub struct ParseError {
-    msg: String,
-    at: Span,
+    pub msg: String,
+    pub at: Span,
 }
 
 impl ParseError {
@@ -46,12 +46,12 @@ impl ParseError {
         }
     }
 
-    pub fn pretty(&self, l: &lex::Lexer) -> String {
+    pub fn pretty(&self, source: &[u8]) -> String {
         let lex::Context {
             line,
             col,
             source_line,
-        } = l.scan.context(self.at.start);
+        } = lex::context(source, self.at.start);
         let mut msg = String::new();
         write!(msg, "ERROR:{}:{}: {}\n", line, col, self.msg).unwrap();
         write!(msg, "{}\n", std::str::from_utf8(source_line).unwrap()).unwrap();

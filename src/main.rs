@@ -141,8 +141,8 @@ fn real_main() -> bool {
         Box::new(std::io::BufWriter::new(std::io::stdout()))
     };
 
-    if let Err(err) = j8t::run(&mut trace, inv, &mut w) {
-        eprintln!("{}", err);
+    if let Err(err) = j8t::run(&mut trace, &inv, &mut w) {
+        eprintln!("{}", err.pretty(&inv.input));
     }
 
     return true;

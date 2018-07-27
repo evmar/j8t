@@ -87,37 +87,37 @@ impl<'a> Scanner<'a> {
         }
         return true;
     }
+}
 
-    pub fn context(&self, pos: usize) -> Context {
-        let mut scan = Scanner {
-            input: self.input,
-            pos: 0,
-        };
-        let mut line = 1;
-        let mut line_start = 0;
-        let mut col = 1;
-        for i in 0..pos {
-            match scan.read() as char {
-                '\n' => {
-                    line += 1;
-                    col = 1;
-                    line_start = i + 1;
-                }
-                _ => col += 1,
+pub fn context(input: &[u8], pos: usize) -> Context {
+    let mut scan = Scanner {
+        input: input,
+        pos: 0,
+    };
+    let mut line = 1;
+    let mut line_start = 0;
+    let mut col = 1;
+    for i in 0..pos {
+        match scan.read() as char {
+            '\n' => {
+                line += 1;
+                col = 1;
+                line_start = i + 1;
             }
+            _ => col += 1,
         }
-        let mut line_end = line_start;
-        for i in pos..std::cmp::min(pos + 80, self.input.len() + 1) {
-            line_end = i;
-            match scan.read() as char {
-                '\n' | '\0' => break,
-                _ => {}
-            }
-        }
-        return Context {
-            source_line: &self.input[line_start..line_end],
-            line: line,
-            col: col,
-        };
     }
+    let mut line_end = line_start;
+    for i in pos..std::cmp::min(pos + 80, input.len() + 1) {
+        line_end = i;
+        match scan.read() as char {
+            '\n' | '\0' => break,
+            _ => {}
+        }
+    }
+    return Context {
+        source_line: &input[line_start..line_end],
+        line: line,
+        col: col,
+    };
 }

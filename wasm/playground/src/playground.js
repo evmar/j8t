@@ -1,6 +1,6 @@
 const input = document.getElementById('input');
 const output = document.getElementById('output');
-let j8tw;
+let j8t;
 
 // Expected by wasm/src/lib.rs.
 window.now_ms = function() {
@@ -17,7 +17,7 @@ function load() {
 function update() {
   const js = input.value;
   let start = Date.now();
-  const out = j8tw(js);
+  const out = j8t.run(js);
   let end = Date.now();
   output.innerText = out + '\n\n' +
                      `${js.length} -> ${out.length} bytes (${(100*out.length/js.length).toFixed(1)}%)\n` +
@@ -31,5 +31,5 @@ function init() {
 }
 
 const wasm = import("./j8tw");
-wasm.then(({j8tw:f}) => { j8tw = f; init(); });
+wasm.then(m => { j8t = m; init(); });
 

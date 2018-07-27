@@ -20,7 +20,7 @@ pub mod ast;
 pub mod lex;
 mod ops;
 mod parse;
-pub use parse::Parser;
+pub use parse::{Parser, ParseError};
 mod rename;
 pub use rename::rename;
 pub mod visit;

@@ -21,4 +21,4 @@ mod scanner;
 
 pub use self::lexer::{Lexer, Span, Token};
 pub use self::scan::{Tok, TokData};
-pub use self::scanner::{Context, LexError};
+pub use self::scanner::{context, Context, LexError};

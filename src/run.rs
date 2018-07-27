@@ -86,14 +86,14 @@ pub struct Invocation {
 
 pub fn run(
     trace: &mut Trace,
-    inv: Invocation,
+    inv: &Invocation,
     write: &mut Write,
-) -> std::result::Result<(), String> {
+) -> std::result::Result<(), parse::ParseError> {
     let mut p = parse::Parser::new(&inv.input);
     let mut module = match trace.measure("parse", || p.module()) {
         Ok(stmts) => stmts,
         Err(err) => {
-            return Err(format!("{}", err.pretty(&p.lexer)));
+            return Err(err);
         }
     };
 
