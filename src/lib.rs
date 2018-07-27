@@ -38,7 +38,7 @@ mod gen;
 pub use gen::Writer;
 
 mod run;
-pub use run::{Rename, Trace, Invocation, run};
+pub use run::{run, Invocation, Rename, Trace};
 
 #[cfg(test)]
 pub mod test_util;

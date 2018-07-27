@@ -116,7 +116,7 @@ pub fn deblock(module: &mut ast::Module) {
 #[cfg(test)]
 mod tests {
     use ast;
-    use test_util::{must_parse, ast_eq};
+    use test_util::{ast_eq, must_parse};
 
     fn deblock(input: &str) -> ast::Module {
         let mut module = must_parse(input);
@@ -127,15 +127,12 @@ mod tests {
     #[test]
     fn deblock_if() {
         // Simplest deblocking positive case.
-        ast_eq(
-            &deblock("if (a) { return b(c) }"),
-            "if (a) return b(c)"
-        );
+        ast_eq(&deblock("if (a) { return b(c) }"), "if (a) return b(c)");
 
         // Dangling else.
         ast_eq(
             &deblock("if (a) { if (b) c; } else d;"),
-            "if (a) { if (b) c; } else d"
+            "if (a) { if (b) c; } else d",
         );
     }
 
@@ -144,7 +141,7 @@ mod tests {
         // Can't remove blocks on try/catch.
         ast_eq(
             &deblock("try { x; } catch (e) { y; }"),
-            "try { x } catch (e) { y }"
+            "try { x } catch (e) { y }",
         );
     }
 
@@ -156,7 +153,7 @@ mod tests {
   if (b) c;
   else if (d) e
 }
-else if (g) h"
+else if (g) h",
         );
     }
 
@@ -165,7 +162,7 @@ else if (g) h"
         // Can't remove blocks on class/methods.
         ast_eq(
             &deblock("class C { f() { if (a) { b; } } }"),
-            "class C { f() { if (a) b } }"
+            "class C { f() { if (a) b } }",
         );
     }
 }

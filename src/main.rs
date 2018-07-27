@@ -36,7 +36,10 @@ fn sizes() {
     println!("binop is {} bytes", std::mem::size_of::<j8t::ast::BinOp>());
     println!("string is {} bytes", std::mem::size_of::<String>());
     println!("expr is {} bytes", std::mem::size_of::<j8t::ast::Expr>());
-    println!("exprnode is {} bytes", std::mem::size_of::<j8t::ast::ExprNode>());
+    println!(
+        "exprnode is {} bytes",
+        std::mem::size_of::<j8t::ast::ExprNode>()
+    );
     println!("stmt is {} bytes", std::mem::size_of::<j8t::ast::Stmt>());
 }
 
@@ -77,9 +80,7 @@ impl Write for FmtWrite {
     }
 }
 
-fn parse_options(
-    args: &[String],
-) -> std::result::Result<(j8t::Trace, j8t::Invocation), String> {
+fn parse_options(args: &[String]) -> std::result::Result<(j8t::Trace, j8t::Invocation), String> {
     let mut parser = getopts::Options::new();
     parser.optflag("h", "help", "");
     parser.optflag("", "timing", "");
