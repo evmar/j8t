@@ -25,8 +25,6 @@
    }
    #input {
      flex: 1;
-     padding: 1ex;
-     overflow-y: scroll;
    }
    #output {
      flex: 1;
@@ -43,10 +41,8 @@
     <button id=load>load</button>
   </header>
   <main>
-    <textarea id=input rows=10 cols=60>function demo() {
-}
-</textarea>
-<pre id=output></pre>
+    <div id=input></div>
+    <pre id=output></pre>
   </main>
   <script src='js/bundle.js'></script>
 </body>

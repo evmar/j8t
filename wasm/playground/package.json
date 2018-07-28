@@ -3,8 +3,13 @@
     "build": "webpack --mode=production",
     "serve": "webpack-dev-server --host=$(hostname -I) --content-base=dist"
   },
-  "dependencies": {
+  "devDependencies": {
+    "css-loader": "^1.0.0",
     "monaco-editor": "^0.13.1",
+    "monaco-editor-webpack-plugin": "^1.4.0",
+    "style-loader": "^0.21.0",
+    "ts-loader": "^4.4.2",
+    "typescript": "^2.9.2",
     "webpack": "^4.11.1",
     "webpack-cli": "^3.0.3",
     "webpack-dev-server": "^3.1.4"
