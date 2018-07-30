@@ -3,6 +3,9 @@
 extern crate j8t;
 extern crate wasm_bindgen;
 
+#[macro_use]
+extern crate serde_derive;
+
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -11,38 +14,66 @@ extern "C" {
     fn now_ms() -> usize;
 }
 
-static mut LAST_ERR: Option<j8t::ParseError> = None;
-
-#[wasm_bindgen]
-pub fn last_err_str() -> String {
-    unsafe {
-        if let Some(ref err) = LAST_ERR {
-            return err.msg.clone();
-        }
-    }
-    return String::new();
-}
-#[wasm_bindgen]
-pub fn last_err_start() -> usize {
-    unsafe {
-        if let Some(ref err) = LAST_ERR {
-            return err.at.start;
-        }
-    }
-    return 0;
-}
-#[wasm_bindgen]
-pub fn last_err_end() -> usize {
-    unsafe {
-        if let Some(ref err) = LAST_ERR {
-            return err.at.end;
-        }
-    }
-    return 0;
+#[derive(Default, Serialize)]
+struct Pos {
+    line: usize,
+    col: usize,
 }
 
+#[derive(Default, Serialize)]
+struct Error {
+    msg: String,
+    start: Pos,
+    end: Pos,
+}
+
+#[derive(Serialize)]
+struct Result {
+    output: String,
+    error: Error,
+}
+
+fn err_from_j8t(input: &[u8], err: j8t::ParseError) -> Error {
+    let mut start = Pos::default();
+    let mut end = Pos::default();
+
+    // TODO: j8t returns start/end offsets as byte offsets into UTF8, but
+    // JS wants start/end positions as UTF-16 indexes.
+    let mut line = 1;
+    let mut line_start = 0;
+    let mut col = 1;
+    for (i, c) in input.iter().chain([0, 0].iter()).enumerate() {
+        if i == err.at.start {
+            start = Pos {
+                line: line,
+                col: col,
+            };
+        }
+        if i == err.at.end {
+            end = Pos {
+                line: line,
+                col: col,
+            };
+        }
+        match *c as char {
+            '\n' => {
+                line += 1;
+                col = 1;
+                line_start = i + 1;
+            }
+            _ => col += 1,
+        }
+    }
+
+    Error {
+        msg: err.msg,
+        start: start,
+        end: end,
+    }
+}
+
 #[wasm_bindgen]
-pub fn run(code: &str) -> String {
+pub fn run(code: &str) -> JsValue {
     let mut trace = j8t::Trace::new(false, Some(Box::new(|| now_ms())));
     let inv = j8t::Invocation {
         filename: String::from("input.js"),
@@ -52,18 +83,15 @@ pub fn run(code: &str) -> String {
     };
 
     let mut output = Vec::<u8>::new();
-    if let Err(err) = j8t::run(&mut trace, &inv, &mut output) {
-        unsafe {
-            LAST_ERR = Some(err);
-        }
-        return String::from("ERROR");
-    }
-    unsafe {
-        LAST_ERR = None;
-    }
-
-    let res = String::from_utf8_lossy(&output).to_string();
-    // TODO: return trace info too.
-    // res.push_str(&trace.to_string());
-    res
+    let result = match j8t::run(&mut trace, &inv, &mut output) {
+        Err(err) => Result {
+            output: String::default(),
+            error: err_from_j8t(&inv.input, err),
+        },
+        Ok(()) => Result {
+            output: String::from_utf8_lossy(&output).to_string(),
+            error: Error::default(),
+        },
+    };
+    JsValue::from_serde(&result).unwrap()
 }
