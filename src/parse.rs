@@ -1398,7 +1398,7 @@ mod tests {
         let mut p = Parser::new(input.as_bytes());
         let en = match p.expr() {
             Err(err) => {
-                panic!("{}", err.pretty(&p.lexer));
+                panic!("{}", err.pretty(input.as_bytes()));
             }
             Ok(en) => en,
         };
@@ -1412,7 +1412,7 @@ mod tests {
         let mut p = Parser::new(input.as_bytes());
         let stmts = match p.stmts() {
             Err(err) => {
-                panic!("{}", err.pretty(&p.lexer));
+                panic!("{}", err.pretty(input.as_bytes()));
             }
             Ok(stmt) => stmt,
         };
