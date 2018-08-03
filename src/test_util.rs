@@ -22,7 +22,7 @@ pub fn must_parse(input: &str) -> ast::Module {
     parse::Parser::new(input.as_bytes()).module().unwrap()
 }
 
-fn must_gen(module: &ast::Module) -> String {
+pub fn must_gen(module: &ast::Module) -> String {
     let mut buf: Vec<u8> = Vec::new();
     {
         let mut w = gen::Writer::new(&mut buf);

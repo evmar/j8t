@@ -116,7 +116,7 @@ pub fn deblock(module: &mut ast::Module) {
 #[cfg(test)]
 mod tests {
     use ast;
-    use test_util::{ast_eq, must_parse};
+    use test_util::*;
 
     fn deblock(input: &str) -> ast::Module {
         let mut module = must_parse(input);
