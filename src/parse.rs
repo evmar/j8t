@@ -1336,7 +1336,11 @@ impl<'a> Parser<'a> {
                     Stmt::Return(Some(Box::new(expr)))
                 }
             }
-            Tok::Throw => Stmt::Throw(Box::new(self.expr()?)),
+            Tok::Throw => {
+                let expr = Box::new(self.expr()?);
+                self.expect_semi()?;
+                Stmt::Throw(expr)
+            }
             Tok::Try => Stmt::Try(Box::new(try!(self.try()))),
             t => {
                 if t == Tok::Ident && self.lex_peek()? == Tok::Colon {
