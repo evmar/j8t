@@ -99,9 +99,9 @@ fn parse_options(args: &[String]) -> std::result::Result<(j8t::Trace, j8t::Invoc
     let timing = matches.opt_present("timing");
     let fmt = matches.opt_present("fmt");
     let rename = match matches.opt_str("rename") {
-        None => j8t::Rename::Off,
+        None => j8t::Rename::On,
         Some(ref s) if s == "debug" => j8t::Rename::Debug,
-        Some(ref s) if s == "off" => j8t::Rename::On,
+        Some(ref s) if s == "off" => j8t::Rename::Off,
         Some(ref s) => {
             return Err(format!("bad --rename: {}", s));
         }
