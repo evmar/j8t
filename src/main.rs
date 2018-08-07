@@ -117,7 +117,6 @@ fn parse_options(args: &[String]) -> std::result::Result<(j8t::Trace, j8t::Invoc
     ))
 }
 
-<<<<<<< HEAD
 fn real_main() -> bool {
     //sizes();
     let args: Vec<String> = std::env::args().collect();
@@ -125,24 +124,10 @@ fn real_main() -> bool {
         Ok(r) => r,
         Err(err) => {
             eprintln!("{}", err);
-=======
-    let mut input = Vec::<u8>::new();
-    std::fs::File::open(infile)
-        .unwrap()
-        .read_to_end(&mut input)
-        .unwrap();
-
-    let mut p = j8t::parse::Parser::new(input.as_slice());
-    let (t, mut module) = match measure(|| p.module()) {
-        (t, Ok(stmts)) => (t, stmts),
-        (_, Err(err)) => {
-            print!("{}", err.pretty(&p.lexer));
->>>>>>> rc wip
             return false;
         }
     };
 
-<<<<<<< HEAD
     trace.measure("read", || {
         std::fs::File::open(&inv.filename)
             .unwrap()
@@ -151,58 +136,13 @@ fn real_main() -> bool {
     });
 
     let mut w: Box<Write> = if inv.fmt {
-=======
-    // let (t, _) = measure(|| {
-    //     j8t::bind::bind(&mut module);
-    // });
-    // if timing {
-    //     eprintln!("bind: {}ms", t);
-    // }
-
-    // let (t, _) = measure(|| {
-    //     j8t::eval::eval(&mut module);
-    // });
-    // if timing {
-    //     eprintln!("eval: {}ms", t);
-    // }
-
-    // if rename {
-    //     let (t, _) = measure(|| {
-    //         j8t::bind::bind(&mut module);
-    //         j8t::rename::rename(&mut module, debug_rename);
-    //     });
-    //     if timing {
-    //         eprintln!("scope: {}ms", t);
-    //     }
-    // }
-
-    // TODO: reenable after ES6 fixes.
-    // let (t, _) = measure(|| {
-    //     trans::deblock(&mut module);
-    // });
-    // if timing {
-    //     eprintln!("deblock: {}ms", t);
-    // }
-
-    let mut w: Box<Write> = if fmt {
->>>>>>> rc wip
         Box::new(FmtWrite::new().unwrap())
     } else {
         Box::new(std::io::BufWriter::new(std::io::stdout()))
     };
-<<<<<<< HEAD
 
     if let Err(err) = j8t::run(&mut trace, &inv, &mut w) {
         eprintln!("{}", err.pretty(&inv.input));
-=======
-    let (t, _) = measure(|| {
-        let mut writer = j8t::gen::Writer::new(&mut w);
-        writer.disable_asi = fmt;
-        writer.module(&module).unwrap();
-    });
-    if timing {
-        eprintln!("gen: {}ms", t);
->>>>>>> rc wip
     }
 
     return true;

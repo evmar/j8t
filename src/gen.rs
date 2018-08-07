@@ -604,7 +604,7 @@ impl<'a> Writer<'a> {
                         match c.expr {
                             Some(ref c) => {
                                 w.token("case")?;
-                                w.exprn(c, -1)?;
+                                w.expr(c, -1)?;
                             }
                             None => w.token("default")?,
                         }

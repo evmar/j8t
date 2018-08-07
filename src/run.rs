@@ -17,12 +17,12 @@
 use std;
 use std::io::Write;
 
-use bind;
-use deblock;
-use eval;
+// use bind;
+// use deblock;
+// use eval;
 use gen;
 use parse;
-use rename;
+// use rename;
 
 pub struct Trace {
     log: bool,
@@ -97,20 +97,20 @@ pub fn run(
         }
     };
 
-    let warnings = trace.measure("bind", || bind::bind(&mut module));
-    for w in warnings {
-        println!("warn: {}", w);
-    }
+    // let warnings = trace.measure("bind", || bind::bind(&mut module));
+    // for w in warnings {
+    //     println!("warn: {}", w);
+    // }
 
-    trace.measure("eval", || eval::eval(&mut module));
+    // trace.measure("eval", || eval::eval(&mut module));
 
-    if inv.rename != Rename::Off {
-        trace.measure("rename", || {
-            rename::rename(&mut module, inv.rename == Rename::Debug)
-        });
-    }
+    // if inv.rename != Rename::Off {
+    //     trace.measure("rename", || {
+    //         rename::rename(&mut module, inv.rename == Rename::Debug)
+    //     });
+    // }
 
-    trace.measure("deblock", || deblock::deblock(&mut module));
+    // trace.measure("deblock", || deblock::deblock(&mut module));
 
     trace.measure("write", || {
         {

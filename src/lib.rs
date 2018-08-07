@@ -21,18 +21,18 @@ pub mod lex;
 mod ops;
 mod parse;
 pub use parse::{ParseError, Parser};
-mod rename;
-pub use rename::rename;
-pub mod visit;
+// mod rename;
+// pub use rename::rename;
+// pub mod visit;
 
-mod deblock;
-pub use deblock::deblock;
+// mod deblock;
+// pub use deblock::deblock;
 
-mod bind;
-pub use bind::bind;
+// mod bind;
+// pub use bind::bind;
 
-mod eval;
-pub use eval::eval;
+// mod eval;
+// pub use eval::eval;
 
 mod gen;
 pub use gen::Writer;
