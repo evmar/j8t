@@ -31,12 +31,12 @@ impl<'a> visit::Visit for Eval<'a> {
     fn expr(&mut self, en: &mut ast::ExprNode) {
         match en.expr {
             ast::Expr::Ident(ref mut sym) => {
-                self.syms.read.insert(sym.borrow().id);
+                self.syms.read.insert(sym.id);
             }
             ast::Expr::Assign(ref mut e1, ref mut e2) => {
                 match e1.expr {
                     ast::Expr::Ident(ref mut sym) => {
-                        self.syms.write.insert(sym.borrow().id);
+                        self.syms.write.insert(sym.id);
                     }
                     _ => visit::expr(e1, self),
                 }
@@ -73,7 +73,7 @@ struct Dead<'a> {
 }
 impl<'a> Dead<'a> {
     fn is_dead(&self, sym: &ast::RefSym) -> bool {
-        self.syms.read.contains(&sym.borrow().id)
+        self.syms.read.contains(&sym.id)
     }
 
     fn trim_expr(&self, en: &mut ast::ExprNode) -> Option<ast::ExprNode> {
@@ -83,7 +83,7 @@ impl<'a> Dead<'a> {
                     // x = expr where x is unused; replace with expr.
                     let mut new = Box::new(ast::ExprNode::empty());
                     std::mem::swap(&mut new, e2);
-                    return Some(*new)
+                    return Some(*new);
                 }
             }
         }
@@ -96,7 +96,7 @@ impl<'a> Dead<'a> {
                 if let Some(ref name) = f.name {
                     //println!("{:?}", f.name);
                     if self.is_dead(name) {
-                        return Some(ast::Stmt::Empty)
+                        return Some(ast::Stmt::Empty);
                     }
                 }
             }

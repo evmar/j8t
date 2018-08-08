@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 pub use lex::Span;
@@ -29,12 +29,12 @@ pub type SymId = usize;
 #[derive(Debug)]
 pub struct Symbol {
     pub id: SymId,
-    pub name: String,
+    pub name: RefCell<String>,
     /// False if the symbol's name is significant and cannot be changed, e.g. 'arguments'.
-    pub renameable: bool,
+    pub renameable: Cell<bool>,
 }
 
-pub type RefSym = Rc<RefCell<Symbol>>;
+pub type RefSym = Rc<Symbol>;
 
 #[derive(Debug, Clone)]
 pub struct SymGen {
@@ -49,11 +49,11 @@ impl SymGen {
     pub fn sym<S: Into<String>>(&mut self, name: S) -> RefSym {
         let id = self.next;
         self.next += 1;
-        Rc::new(RefCell::new(Symbol {
+        Rc::new(Symbol {
             id: id,
-            name: String::from(name.into()),
-            renameable: true,
-        }))
+            name: RefCell::new(String::from(name.into())),
+            renameable: Cell::new(true),
+        })
     }
 }
 
@@ -72,10 +72,9 @@ impl Scope {
 
     /// resolve looks up a symbol by name.
     pub fn resolve(&self, sym: &RefSym) -> Option<RefSym> {
-        let name = &sym.borrow().name;
         self.bindings
             .iter()
-            .find(|s| *s.borrow().name == *name)
+            .find(|s| *s.name.borrow() == *sym.name.borrow())
             .map(|t| t.clone())
     }
 }
@@ -165,7 +164,7 @@ impl ExprNode {
     }
 
     pub fn empty() -> ExprNode {
-        ExprNode::new(Span::new(0,0), Expr::Null)
+        ExprNode::new(Span::new(0, 0), Expr::Null)
     }
 }
 

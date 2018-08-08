@@ -88,11 +88,11 @@ impl<'a> visit::Visit for V<'a> {
 fn rename_scope(gen: &mut NameGen, scope: &mut ast::Scope, debug: bool) {
     for (i, s) in scope.bindings.iter_mut().enumerate() {
         let new_name = if debug {
-            format!("{}{}", s.borrow().name, i)
+            format!("{}{}", s.name.borrow(), i)
         } else {
             gen.new_name()
         };
-        s.borrow_mut().name = new_name;
+        *s.name.borrow_mut() = new_name;
     }
 }
 

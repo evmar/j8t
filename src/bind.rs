@@ -223,16 +223,16 @@ impl<'a> Bind<'a> {
         }
 
         {
-            let mut sym = sym.borrow_mut();
             if create_global {
-                self.warnings.push(format!("inferred global: {}", sym.name));
+                self.warnings
+                    .push(format!("inferred global: {}", sym.name.borrow()));
             } else {
                 self.warnings.push(format!(
                     "global referenced without declaration: {}",
-                    sym.name
+                    sym.name.borrow()
                 ));
             }
-            sym.renameable = false;
+            sym.renameable.set(false);
         }
         self.scopes[0].bindings.push(sym.clone());
     }
@@ -253,7 +253,7 @@ impl<'a> Bind<'a> {
             }
         }
         let args = self.symgen.sym("arguments");
-        args.borrow_mut().renameable = false;
+        args.renameable.set(false);
         scope.bindings.push(args);
         for param in func.params.iter() {
             match *param {
@@ -279,7 +279,7 @@ impl<'a> Bind<'a> {
         let args = scope
             .bindings
             .iter()
-            .position(|s| s.borrow().name == "arguments")
+            .position(|s| *s.name.borrow() == "arguments")
             .unwrap();
         if Rc::strong_count(&scope.bindings[args]) == 1 {
             scope.bindings.swap_remove(args);
