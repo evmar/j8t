@@ -19,6 +19,8 @@ use std::rc::Rc;
 
 pub use lex::Span;
 
+pub type SymId = usize;
+
 /// Symbol represents a resolved lexical symbol.
 /// E.g. in
 ///   let x = 3;
@@ -26,22 +28,31 @@ pub use lex::Span;
 /// both 'x' will refer to the same Symbol.
 #[derive(Debug)]
 pub struct Symbol {
+    pub id: SymId,
     pub name: String,
     /// False if the symbol's name is significant and cannot be changed, e.g. 'arguments'.
     pub renameable: bool,
-    pub write: bool,
-    pub read: bool,
 }
 
 pub type RefSym = Rc<RefCell<Symbol>>;
 
-impl Symbol {
-    pub fn new<S: Into<String>>(name: S) -> RefSym {
+#[derive(Debug, Clone)]
+pub struct SymGen {
+    next: SymId,
+}
+
+impl SymGen {
+    pub fn new() -> SymGen {
+        SymGen { next: 1 }
+    }
+
+    pub fn sym<S: Into<String>>(&mut self, name: S) -> RefSym {
+        let id = self.next;
+        self.next += 1;
         Rc::new(RefCell::new(Symbol {
+            id: id,
             name: String::from(name.into()),
             renameable: true,
-            read: false,
-            write: false,
         }))
     }
 }
@@ -151,6 +162,10 @@ impl ExprNode {
             span: span,
             expr: expr,
         }
+    }
+
+    pub fn empty() -> ExprNode {
+        ExprNode::new(Span::new(0,0), Expr::Null)
     }
 }
 
@@ -434,6 +449,7 @@ pub struct Try {
 
 #[derive(Debug)]
 pub struct Module {
+    pub symgen: SymGen,
     pub scope: Scope,
     pub stmts: Vec<Stmt>,
 }

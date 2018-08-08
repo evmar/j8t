@@ -27,6 +27,7 @@ fn todo_span() -> Span {
 
 pub struct Parser<'a> {
     pub lexer: lex::Lexer<'a>,
+    symgen: ast::SymGen,
 }
 
 #[derive(Debug)]
@@ -84,7 +85,7 @@ fn decl_type_from_tok(tok: Tok) -> ast::VarDeclType {
 // no following semi and the 'in' and realize it's a for-in loop.
 // So we must then convert the [a,b] half of the expr into a binding
 // pattern.
-fn binding_from_expr(en: ExprNode) -> ParseResult<ast::BindingPattern> {
+fn binding_from_expr(symgen: &mut ast::SymGen, en: ExprNode) -> ParseResult<ast::BindingPattern> {
     Ok(match en.expr {
         ast::Expr::Ident(sym) => ast::BindingPattern::Name(sym),
         ast::Expr::Object(obj) => {
@@ -93,7 +94,7 @@ fn binding_from_expr(en: ExprNode) -> ParseResult<ast::BindingPattern> {
                 .map(|p| {
                     let pat = match p.name {
                         ast::PropertyName::String(ref s) => {
-                            ast::BindingPattern::Name(ast::Symbol::new(s.clone()))
+                            ast::BindingPattern::Name(symgen.sym(s.clone()))
                         }
                         _ => unimplemented!(),
                     };
@@ -105,7 +106,7 @@ fn binding_from_expr(en: ExprNode) -> ParseResult<ast::BindingPattern> {
         ast::Expr::Array(arr) => {
             let mut elems: Vec<ast::BindingElement> = Vec::new();
             for elem in arr {
-                elems.push((binding_from_expr(elem)?, None));
+                elems.push((binding_from_expr(symgen, elem)?, None));
             }
             ast::BindingPattern::Array(ast::ArrayBindingPattern { elems: elems })
         }
@@ -167,14 +168,18 @@ fn call_is_async(call: &ast::Call) -> bool {
 //
 // This differs from binding_from_expr in that it handles comma-separated
 // lists of parameters as well as default value initializers.
-fn arrow_params_from_expr(en: ExprNode, params: &mut Vec<ast::BindingElement>) -> ParseResult<()> {
+fn arrow_params_from_expr(
+    symgen: &mut ast::SymGen,
+    en: ExprNode,
+    params: &mut Vec<ast::BindingElement>,
+) -> ParseResult<()> {
     match en.expr {
         ast::Expr::EmptyParens => { /* ok, no params */ }
         ast::Expr::Binary(_) => {
             let mut en = en;
             loop {
                 let (lhs, rhs) = split_commas(en);
-                params.push(arrow_param_from_expr(lhs)?);
+                params.push(arrow_param_from_expr(symgen, lhs)?);
                 match rhs {
                     Some(e) => en = e,
                     None => break,
@@ -187,7 +192,7 @@ fn arrow_params_from_expr(en: ExprNode, params: &mut Vec<ast::BindingElement>) -
                 // parses as a function call.
                 // TODO: async.
                 for arg in call.args {
-                    params.push(arrow_param_from_expr(arg)?);
+                    params.push(arrow_param_from_expr(symgen, arg)?);
                 }
             } else {
                 unimplemented!();
@@ -198,7 +203,7 @@ fn arrow_params_from_expr(en: ExprNode, params: &mut Vec<ast::BindingElement>) -
         | ast::Expr::Spread(_)
         | ast::Expr::Object(_)
         | ast::Expr::Array(_) => {
-            params.push(arrow_param_from_expr(en)?);
+            params.push(arrow_param_from_expr(symgen, en)?);
         }
         _ => {
             println!("on: {:?}", en);
@@ -211,15 +216,18 @@ fn arrow_params_from_expr(en: ExprNode, params: &mut Vec<ast::BindingElement>) -
     Ok(())
 }
 
-fn arrow_param_from_expr(en: ExprNode) -> ParseResult<ast::BindingElement> {
+fn arrow_param_from_expr(
+    symgen: &mut ast::SymGen,
+    en: ExprNode,
+) -> ParseResult<ast::BindingElement> {
     Ok(match en.expr {
         ast::Expr::Ident(_) | ast::Expr::Object(_) | ast::Expr::Array(_) => {
-            (binding_from_expr(en)?, None)
+            (binding_from_expr(symgen, en)?, None)
         }
-        ast::Expr::Assign(lhs, rhs) => (binding_from_expr(*lhs)?, Some(*rhs)),
+        ast::Expr::Assign(lhs, rhs) => (binding_from_expr(symgen, *lhs)?, Some(*rhs)),
         ast::Expr::Spread(e) => {
             // TODO: spread
-            (binding_from_expr(*e)?, None)
+            (binding_from_expr(symgen, *e)?, None)
         }
         e => {
             return Err(ParseError {
@@ -234,6 +242,7 @@ impl<'a> Parser<'a> {
     pub fn new(input: &'a [u8]) -> Parser<'a> {
         Parser {
             lexer: lex::Lexer::new(input),
+            symgen: ast::SymGen::new(),
         }
     }
 
@@ -367,7 +376,7 @@ impl<'a> Parser<'a> {
                     let value = match name {
                         ast::PropertyName::String(ref s) => ExprNode {
                             span: span,
-                            expr: ast::Expr::Ident(ast::Symbol::new(s.clone())),
+                            expr: ast::Expr::Ident(self.symgen.sym(s.clone())),
                         },
                         _ => unreachable!(),
                     };
@@ -419,7 +428,7 @@ impl<'a> Parser<'a> {
                             "undefined" => Expr::Undefined,
                             "true" => Expr::Bool(true),
                             "false" => Expr::Bool(false),
-                            _ => Expr::Ident(ast::Symbol::new(text)),
+                            _ => Expr::Ident(self.symgen.sym(text)),
                         },
                     )
                 }
@@ -494,7 +503,7 @@ impl<'a> Parser<'a> {
         let name = match self.lex_peek()? {
             Tok::Ident => {
                 let token = self.lex_read()?;
-                Some(ast::Symbol::new(self.lexer.text(token)))
+                Some(self.symgen.sym(self.lexer.text(token)))
             }
             _ => None,
         };
@@ -565,7 +574,7 @@ impl<'a> Parser<'a> {
                     } else {
                         match name {
                             ast::PropertyName::String(ref name) => {
-                                ast::BindingPattern::Name(ast::Symbol::new(name.clone()))
+                                ast::BindingPattern::Name(self.symgen.sym(name.clone()))
                             }
                             _ => unimplemented!(),
                         }
@@ -610,9 +619,9 @@ impl<'a> Parser<'a> {
                 self.expect(Tok::RSquare)?;
                 ast::BindingPattern::Array(ast::ArrayBindingPattern { elems: elems })
             }
-            Tok::Ident => ast::BindingPattern::Name(ast::Symbol::new(self.lexer.text(token))),
+            Tok::Ident => ast::BindingPattern::Name(self.symgen.sym(self.lexer.text(token))),
             tok if tok.is_kw() => {
-                ast::BindingPattern::Name(ast::Symbol::new(self.lexer.text(token)))
+                ast::BindingPattern::Name(self.symgen.sym(self.lexer.text(token)))
             }
             _ => return Err(self.parse_error(token, "binding element")),
         })
@@ -623,7 +632,7 @@ impl<'a> Parser<'a> {
         let name = match self.lex_peek()? {
             Tok::Ident => {
                 let token = self.lex_read()?;
-                Some(ast::Symbol::new(self.lexer.text(token)))
+                Some(self.symgen.sym(self.lexer.text(token)))
             }
             _ => None,
         };
@@ -791,7 +800,7 @@ impl<'a> Parser<'a> {
                     let start = expr.span.start;
                     let end = start; // TODO
                     let mut params: Vec<ast::BindingElement> = Vec::new();
-                    arrow_params_from_expr(expr, &mut params)?;
+                    arrow_params_from_expr(&mut self.symgen, expr, &mut params)?;
                     let body = if self.lex_peek()? == Tok::LBrace {
                         self.lex_read()?;
                         let mut body: Vec<Stmt> = Vec::new();
@@ -1111,7 +1120,7 @@ impl<'a> Parser<'a> {
                     })));
                 }
                 ast::ForInit::Expr(expr) => {
-                    let loop_var = binding_from_expr(expr)?;
+                    let loop_var = binding_from_expr(&mut self.symgen, expr)?;
                     return Ok(Stmt::ForInOf(Box::new(ast::ForInOf {
                         decl_type: None,
                         loop_var: loop_var,
@@ -1386,9 +1395,11 @@ impl<'a> Parser<'a> {
     }
 
     pub fn module(&mut self) -> ParseResult<ast::Module> {
+        let stmts = self.stmts()?;
         Ok(ast::Module {
+            symgen: self.symgen.clone(),
             scope: ast::Scope::new(),
-            stmts: self.stmts()?,
+            stmts: stmts,
         })
     }
 }

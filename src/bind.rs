@@ -206,12 +206,13 @@ fn var_declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
     }
 }
 
-struct Bind {
+struct Bind<'a> {
+    symgen: &'a mut ast::SymGen,
     scopes: Vec<ast::Scope>,
     warnings: Vec<String>,
 }
 
-impl Bind {
+impl<'a> Bind<'a> {
     /// Resolve a symbol against the current scopes, overwriting the symbol if found.
     fn resolve(&mut self, sym: &mut ast::RefSym, create_global: bool) {
         for scope in self.scopes.iter().rev() {
@@ -251,7 +252,7 @@ impl Bind {
                 scope.bindings.push(name);
             }
         }
-        let args = ast::Symbol::new("arguments");
+        let args = self.symgen.sym("arguments");
         args.borrow_mut().renameable = false;
         scope.bindings.push(args);
         for param in func.params.iter() {
@@ -299,7 +300,7 @@ impl Bind {
     }
 }
 
-impl visit::Visit for Bind {
+impl<'a> visit::Visit for Bind<'a> {
     fn expr(&mut self, en: &mut ast::ExprNode) {
         match en.expr {
             ast::Expr::Ident(ref mut sym) => {
@@ -335,12 +336,18 @@ impl visit::Visit for Bind {
 }
 
 pub fn bind(module: &mut ast::Module) -> Vec<String> {
-    let mut bind = Bind {
-        scopes: Vec::new(),
-        warnings: Vec::new(),
+    let mut symgen = module.symgen.clone();
+    let warnings = {
+        let mut bind = Bind {
+            symgen: &mut symgen,
+            scopes: Vec::new(),
+            warnings: Vec::new(),
+        };
+        bind.scopes.push(load_externs());
+        bind.module(module);
+        assert_eq!(bind.scopes.len(), 1);
+        bind.warnings
     };
-    bind.scopes.push(load_externs());
-    bind.module(module);
-    assert_eq!(bind.scopes.len(), 1);
-    return bind.warnings;
+    module.symgen = symgen;
+    warnings
 }
