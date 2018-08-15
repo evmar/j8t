@@ -18,8 +18,8 @@ use std;
 use std::io::Write;
 
 use bind;
+use dead;
 use deblock;
-use eval;
 use gen;
 use parse;
 use rename;
@@ -102,7 +102,7 @@ pub fn run(
         println!("warn: {}", w);
     }
 
-    trace.measure("eval", || eval::eval(&mut module));
+    trace.measure("dead", || dead::dead(&mut module));
 
     if inv.rename != Rename::Off {
         trace.measure("rename", || {

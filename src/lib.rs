@@ -31,8 +31,8 @@ pub use deblock::deblock;
 mod bind;
 pub use bind::bind;
 
-mod eval;
-pub use eval::eval;
+mod dead;
+pub use dead::dead;
 
 mod gen;
 pub use gen::Writer;

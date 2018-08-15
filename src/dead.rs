@@ -126,7 +126,7 @@ impl<'a> visit::Visit for Dead<'a> {
     }
 }
 
-pub fn eval(module: &mut ast::Module) {
+pub fn dead(module: &mut ast::Module) {
     let mut syms = SymStatus {
         read: std::collections::HashSet::new(),
         write: std::collections::HashSet::new(),
