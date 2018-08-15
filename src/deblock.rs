@@ -55,12 +55,36 @@ fn is_block(s: &ast::Stmt) -> bool {
     }
 }
 
+fn remove_empty(stmts: &mut Vec<ast::Stmt>) {
+    let mut i = 0;
+    while i < stmts.len() {
+        if let ast::Stmt::Empty = stmts[i] {
+            stmts.remove(i);
+        } else {
+            i += 1;
+        }
+    }
+}
+
 struct Deblock {}
+
+impl Deblock {
+    fn func(&mut self, func: &mut ast::Func) {
+        visit::func(func, self);
+        remove_empty(&mut func.body);
+    }
+}
+
 impl visit::Visit for Deblock {
     fn expr(&mut self, en: &mut ast::ExprNode) {
         match en.expr {
             ast::Expr::Function(ref mut func) => {
-                visit::func(&mut func.func, self);
+                self.func(&mut func.func);
+            }
+            ast::Expr::Class(ref mut c) => {
+                for m in c.methods.iter_mut() {
+                    self.func(&mut m.func);
+                }
             }
             _ => visit::expr(en, self),
         }
@@ -98,10 +122,22 @@ impl visit::Visit for Deblock {
                 return;
             }
             ast::Stmt::Block(ref mut stmts) => {
-                if stmts.len() != 1 {
-                    return;
+                remove_empty(stmts);
+                match stmts.len() {
+                    0 => ast::Stmt::Empty,
+                    1 => stmts.pop().unwrap(),
+                    _ => return,
                 }
-                stmts.pop().unwrap()
+            }
+            ast::Stmt::Function(ref mut f) => {
+                self.func(&mut f.func);
+                return;
+            }
+            ast::Stmt::Class(ref mut c) => {
+                for m in c.methods.iter_mut() {
+                    self.func(&mut m.func);
+                }
+                return;
             }
             _ => return,
         }
@@ -111,6 +147,7 @@ impl visit::Visit for Deblock {
 pub fn deblock(module: &mut ast::Module) {
     let mut d = Deblock {};
     visit::module(module, &mut d);
+    remove_empty(&mut module.stmts);
 }
 
 #[cfg(test)]
@@ -164,5 +201,28 @@ else if (g) h",
             &deblock("class C { f() { if (a) { b; } } }"),
             "class C { f() { if (a) b } }",
         );
+    }
+
+    mod empty {
+        use super::*;
+
+        #[test]
+        fn module() {
+            ast_eq(&deblock("{ ; }"), "");
+        }
+
+        #[test]
+        fn if_() {
+            ast_eq(&deblock("if (a) { }"), "if (a) ;");
+        }
+
+        #[test]
+        fn func() {
+            ast_eq(&deblock("function f() { {} }"), "function f() {}");
+        }
+        #[test]
+        fn method() {
+            ast_eq(&deblock("class C { f() { {} } }"), "class C { f() {} }");
+        }
     }
 }
