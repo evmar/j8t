@@ -23,31 +23,33 @@ fn inline_iife(stmt: &mut ast::Stmt) -> bool {
     //   https://github.com/rust-lang/rust/issues/16223
     // which suggests that NLL will help.
     let rewrite = {
-        let en = match stmt {
-            ast::Stmt::Expr(ref mut en) => en,
+        // Match stmt into a call expression.
+        let call = match stmt {
+            ast::Stmt::Expr(ast::ExprNode {
+                expr: ast::Expr::Call(call),
+                ..
+            }) => &mut **call,
             _ => return false,
         };
-        let ast::Call {
-            ref mut func,
-            ref mut args,
-        } = match en.expr {
-            ast::Expr::Call(ref mut c) => &mut **c,
+        // Match the call into an IIFE call.
+        let (func, args) = match call {
+            ast::Call {
+                func:
+                    ast::ExprNode {
+                        expr: ast::Expr::Function(ref mut f),
+                        ..
+                    },
+                ref mut args,
+                ..
+            } => (&mut f.func, args),
             _ => return false,
         };
         // TODO: arrows?
-        let ast::Func {
-            ref mut params,
-            ref mut body,
-            ..
-        } = match func.expr {
-            ast::Expr::Function(ref mut f) => &mut f.func,
-            _ => return false,
-        };
         // TODO: default args?
 
         let mut new_body = Vec::new();
-        std::mem::swap(&mut new_body, body);
-        let decls = params
+        std::mem::swap(&mut new_body, &mut func.body);
+        let decls = func.params
             .drain(..)
             .zip(args.drain(..))
             .map(|((pat, _), arg)| ast::VarDecl {
@@ -59,6 +61,7 @@ fn inline_iife(stmt: &mut ast::Stmt) -> bool {
             typ: ast::VarDeclType::Let,
             decls: decls,
         }));
+        // TODO: merge scopes
         new_body.insert(0, new_let);
         new_body
     };
