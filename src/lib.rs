@@ -34,6 +34,9 @@ pub use bind::bind;
 mod dead;
 pub use dead::dead;
 
+mod eval;
+pub use eval::eval;
+
 mod gen;
 pub use gen::Writer;
 
