@@ -3,7 +3,8 @@ const path = require('path');
 
 module.exports = {
   entry: "./src/playground.ts",
-  devtool: 'inline-source-map',
+  // source maps create massive outputs with monaco.
+  // devtool: 'inline-source-map',
   output: {
     path: path.resolve(__dirname, "dist/js"),
     publicPath: 'js/',
@@ -33,4 +34,3 @@ module.exports = {
     })
   ]
 };
-
