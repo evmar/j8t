@@ -16,7 +16,6 @@
 
 use ast;
 use parse::Parser;
-use std::rc::Rc;
 use visit;
 use visit::Visit;
 
@@ -91,7 +90,7 @@ fn load_externs() -> ast::Scope {
             ast::Stmt::Var(decls) => for d in decls.decls {
                 match d.pattern {
                     ast::BindingPattern::Name(sym) => {
-                        scope.bindings.push(sym);
+                        scope.add(sym);
                     }
                     _ => panic!("bad externs"),
                 }
@@ -106,24 +105,30 @@ fn load_externs() -> ast::Scope {
 fn pattern_declared_names(pat: &ast::BindingPattern, scope: &mut ast::Scope) {
     match *pat {
         ast::BindingPattern::Name(ref sym) => {
-            scope.bindings.push(sym.clone());
+            scope.add(sym.clone());
         }
         ast::BindingPattern::Array(ref pat) => {
             for (ref pat, _) in pat.elems.iter() {
                 pattern_declared_names(pat, scope);
             }
         }
-        _ => panic!("vardecl {:?}", *pat),
+        ast::BindingPattern::Object(ref pat) => {
+            for (ref _name, ref element) in pat.props.iter() {
+                let (ref pat, _) = element;
+                pattern_declared_names(pat, scope);
+            }
+        }
     }
 }
 
-/// var_declared_names gathers all 'var' declared names in a statement
-/// and adds them to a Scope.
-fn var_declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
+/// declared_names gathers all 'var'/let declared names in a statement
+/// and adds them to a Scope.  Note that in the spec they treat VarDeclaredNames
+/// separately from LexicallyDeclaredNames, and we might need to as well.
+fn declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
     // Follows the definition of VarDeclaredNames in the spec.
     match *stmt {
         ast::Stmt::Block(ref stmts) => for s in stmts {
-            var_declared_names(s, scope);
+            declared_names(s, scope);
         },
         ast::Stmt::Var(ref decls) => {
             for decl in decls.decls.iter() {
@@ -131,16 +136,16 @@ fn var_declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
             }
         }
         ast::Stmt::If(ref if_) => {
-            var_declared_names(&if_.iftrue, scope);
+            declared_names(&if_.iftrue, scope);
             if let Some(ref else_) = if_.else_ {
-                var_declared_names(else_, scope);
+                declared_names(else_, scope);
             }
         }
         ast::Stmt::While(ref while_) => {
-            var_declared_names(&while_.body, scope);
+            declared_names(&while_.body, scope);
         }
         ast::Stmt::DoWhile(ref do_) => {
-            var_declared_names(&do_.body, scope);
+            declared_names(&do_.body, scope);
         }
         ast::Stmt::For(ref for_) => {
             match for_.init {
@@ -151,51 +156,50 @@ fn var_declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
                     }
                 }
             }
-            var_declared_names(&for_.body, scope);
+            declared_names(&for_.body, scope);
         }
         ast::Stmt::ForInOf(ref forinof) => {
             if forinof.decl_type.is_some() {
-                match forinof.loop_var {
-                    ast::BindingPattern::Name(ref sym) => {
-                        scope.bindings.push(sym.clone());
-                    }
-                    _ => unimplemented!("forinof"),
-                }
+                pattern_declared_names(&forinof.loop_var, scope);
             }
-            var_declared_names(&forinof.body, scope);
+            declared_names(&forinof.body, scope);
         }
         ast::Stmt::Switch(ref sw) => for case in sw.cases.iter() {
             for stmt in case.stmts.iter() {
-                var_declared_names(&stmt, scope);
+                declared_names(&stmt, scope);
             }
         },
         ast::Stmt::Try(ref try) => {
-            var_declared_names(&try.block, scope);
+            declared_names(&try.block, scope);
             if let Some((ref pattern, ref catch)) = try.catch {
                 // TODO: not part of the spec, how does decl get in scope?
+                // Answer: 13.15.7 Runtime Semantics: CatchClauseEvaluation,
+                // it should be in its own scope.
                 match *pattern {
                     ast::BindingPattern::Name(ref sym) => {
-                        scope.bindings.push(sym.clone());
+                        scope.add(sym.clone());
                     }
                     _ => unimplemented!("binding pattern"),
                 }
-                var_declared_names(catch, scope);
+                declared_names(catch, scope);
             }
             if let Some(ref finally) = try.finally {
-                var_declared_names(finally, scope);
+                declared_names(finally, scope);
             }
         }
         ast::Stmt::Label(ref label) => {
-            var_declared_names(&label.stmt, scope);
+            declared_names(&label.stmt, scope);
         }
         ast::Stmt::Function(ref func) => {
             // TODO: this is not part of the spec, how do functions get hoisted?
             if let Some(ref name) = func.name {
-                scope.bindings.push(name.clone());
+                scope.add(name.clone());
             }
         }
-        ast::Stmt::Class(ref _class) => {
-            unimplemented!();
+        ast::Stmt::Class(ref class) => {
+            if let Some(ref name) = class.name {
+                scope.add(name.clone());
+            }
         }
         ast::Stmt::Empty
         | ast::Stmt::Expr(_)
@@ -234,7 +238,7 @@ impl<'a> Bind<'a> {
             }
             sym.renameable.set(false);
         }
-        self.scopes[0].bindings.push(sym.clone());
+        self.scopes[0].add(sym.clone());
     }
 
     fn function(&mut self, func: &mut ast::Function, expr: bool) {
@@ -249,22 +253,17 @@ impl<'a> Bind<'a> {
             //   let x = (function foo() { ... foo(); });
             // See note 2 in 14.1.21.
             if expr {
-                scope.bindings.push(name);
+                scope.add(name);
             }
         }
         let args = self.symgen.sym("arguments");
         args.renameable.set(false);
-        scope.bindings.push(args);
-        for param in func.params.iter() {
-            match *param {
-                (ast::BindingPattern::Name(ref name), _) => {
-                    scope.bindings.push(name.clone());
-                }
-                _ => unimplemented!(),
-            }
+        scope.add(args);
+        for (ref pat, _) in func.params.iter() {
+            pattern_declared_names(pat, &mut scope);
         }
         for s in func.body.iter_mut() {
-            var_declared_names(s, &mut scope);
+            declared_names(s, &mut scope);
         }
 
         self.scopes.push(scope);
@@ -276,21 +275,22 @@ impl<'a> Bind<'a> {
         // See if anyone used 'arguments', and if not, drop it from the scope.
         // Maybe it'd be better to leave arguments out and only create
         // it if it's needed, hm.
-        let args = scope
-            .bindings
-            .iter()
-            .position(|s| *s.name.borrow() == "arguments")
-            .unwrap();
-        if Rc::strong_count(&scope.bindings[args]) == 1 {
-            scope.bindings.swap_remove(args);
-        }
+        // TODO: restore me.
+        // let args = scope
+        //     .bindings
+        //     .iter()
+        //     .position(|s| s.borrow().name == "arguments")
+        //     .unwrap();
+        // if Rc::strong_count(&scope.bindings[args]) == 1 {
+        //     scope.bindings.swap_remove(args);
+        // }
         func.scope = scope;
     }
 
     fn module(&mut self, module: &mut ast::Module) {
         let mut scope = ast::Scope::new();
         for s in module.stmts.iter_mut() {
-            var_declared_names(s, &mut scope);
+            declared_names(s, &mut scope);
         }
         self.scopes.push(scope);
         for s in module.stmts.iter_mut() {

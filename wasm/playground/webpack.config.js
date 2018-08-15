@@ -3,7 +3,7 @@ const path = require('path');
 
 module.exports = {
   entry: "./src/playground.ts",
-  // source maps create massive outputs with monaco.
+  // TODO: source maps are 10s of mb with monaco.
   // devtool: 'inline-source-map',
   output: {
     path: path.resolve(__dirname, "dist/js"),
@@ -27,6 +27,10 @@ module.exports = {
     extensions: [ '.tsx', '.ts', '.js', '.wasm', '.css' ]
   },
   mode: "development",
+  // Workaround for https://github.com/webpack/webpack/issues/7760
+  optimization: {
+    usedExports: false
+  },
   plugins: [
     new MonacoWebpackPlugin({
       languages: ['javascript'],
