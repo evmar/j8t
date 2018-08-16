@@ -32,6 +32,8 @@ fn inline_iife(stmt: &mut ast::Stmt) -> bool {
             _ => return false,
         };
         // Match the call into an IIFE call.
+        // This cannot be part of the above match because 'call' is a box above
+        // and patterns can't look into boxes.
         let (func, args) = match call {
             ast::Call {
                 func:
