@@ -62,6 +62,8 @@ impl SymGen {
 /// Scope is a single lexical scope: a collection of symbols.
 /// TODO: SmallScope is the original, Vec-based scope.  We should prefer those
 /// for most scopes, but it needs profiling to decide which to use where.
+/// While I'm at it, most scopes are empty and we could avoid allocating in that
+/// case.
 #[derive(Debug)]
 pub struct Scope {
     pub bindings: HashMap<String, RefSym>,
