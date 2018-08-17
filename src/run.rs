@@ -20,8 +20,8 @@ use std::io::Write;
 use bind;
 use dead;
 use deblock;
-use gen;
 use eval;
+use gen;
 use parse;
 use rename;
 

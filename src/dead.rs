@@ -19,8 +19,8 @@ use std;
 use visit;
 
 struct SymStatus {
+    /// Symbols where we observed their value was read.
     read: std::collections::HashSet<ast::SymId>,
-    write: std::collections::HashSet<ast::SymId>,
 }
 
 struct Eval<'a> {
@@ -33,38 +33,12 @@ impl<'a> visit::Visit for Eval<'a> {
             ast::Expr::Ident(ref mut sym) => {
                 self.syms.read.insert(sym.id);
             }
-            ast::Expr::Assign(ref mut e1, ref mut e2) => {
-                match e1.expr {
-                    ast::Expr::Ident(ref mut sym) => {
-                        self.syms.write.insert(sym.id);
-                    }
-                    _ => visit::expr(e1, self),
-                }
-                visit::expr(e2, self);
-            }
             _ => visit::expr(en, self),
         }
     }
 
     fn stmt(&mut self, stmt: &mut ast::Stmt) {
-        match *stmt {
-            ast::Stmt::Var(ref mut decls) => {
-                for decl in decls.decls.iter_mut() {
-                    match decl.pattern {
-                        ast::BindingPattern::Name(ref mut name) => {
-                            println!("decl {:?}", name);
-                        }
-                        _ => unimplemented!(),
-                    }
-                    if let Some(ref mut en) = decl.init {
-                        self.expr(en);
-                    }
-                }
-            }
-            _ => {
-                visit::stmt(stmt, self);
-            }
-        }
+        visit::stmt(stmt, self);
     }
 }
 
@@ -73,7 +47,7 @@ struct Dead<'a> {
 }
 impl<'a> Dead<'a> {
     fn is_dead(&self, sym: &ast::RefSym) -> bool {
-        self.syms.read.contains(&sym.id)
+        !self.syms.read.contains(&sym.id)
     }
 
     fn trim_expr(&self, en: &mut ast::ExprNode) -> Option<ast::ExprNode> {
@@ -129,7 +103,6 @@ impl<'a> visit::Visit for Dead<'a> {
 pub fn dead(module: &mut ast::Module) {
     let mut syms = SymStatus {
         read: std::collections::HashSet::new(),
-        write: std::collections::HashSet::new(),
     };
     {
         let mut e = Eval { syms: &mut syms };
