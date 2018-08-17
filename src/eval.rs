@@ -67,7 +67,11 @@ fn inline_iife(stmt: &mut ast::Stmt) -> bool {
         new_body.insert(0, new_let);
         new_body
     };
-    *stmt = ast::Stmt::Block(rewrite);
+    *stmt = ast::Stmt::Block(Box::new(ast::Block{
+        // TODO: merge scopes
+        scope: ast::Scope::new(),
+        stmts: rewrite,
+    }));
     return true;
 }
 

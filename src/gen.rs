@@ -518,9 +518,9 @@ impl<'a> Writer<'a> {
     pub fn stmt(&mut self, s: &ast::Stmt) -> Result {
         self.statement_start = self.ofs;
         match *s {
-            ast::Stmt::Block(ref stmts) => {
+            ast::Stmt::Block(ref block) => {
                 self.brace(|w| {
-                    for s in stmts.iter() {
+                    for s in block.stmts.iter() {
                         w.stmt(s)?;
                     }
                     Ok(())

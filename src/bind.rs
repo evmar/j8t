@@ -127,7 +127,7 @@ fn pattern_declared_names(pat: &ast::BindingPattern, scope: &mut ast::Scope) {
 fn declared_names(stmt: &ast::Stmt, scope: &mut ast::Scope) {
     // Follows the definition of VarDeclaredNames in the spec.
     match *stmt {
-        ast::Stmt::Block(ref stmts) => for s in stmts {
+        ast::Stmt::Block(ref block) => for s in block.stmts.iter() {
             declared_names(s, scope);
         },
         ast::Stmt::Var(ref decls) => {

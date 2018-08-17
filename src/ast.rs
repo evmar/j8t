@@ -330,7 +330,7 @@ pub struct Ternary {
 
 #[derive(Debug)]
 pub enum Stmt {
-    Block(Vec<Stmt>),
+    Block(Box<Block>),
     Var(Box<VarDecls>),
     Empty,
     Expr(ExprNode),
@@ -374,6 +374,12 @@ impl Stmt {
             Stmt::Class(_) => "class",
         }
     }
+}
+
+#[derive(Debug)]
+pub struct Block {
+    pub scope: Scope,
+    pub stmts: Vec<Stmt>,
 }
 
 #[derive(Debug, Clone, Copy)]

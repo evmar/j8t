@@ -105,8 +105,8 @@ pub fn expr<V: Visit>(en: &mut ast::ExprNode, v: &mut V) {
 
 pub fn stmt<V: Visit>(stmt: &mut ast::Stmt, v: &mut V) {
     match *stmt {
-        ast::Stmt::Block(ref mut stmts) => {
-            for s in stmts.iter_mut() {
+        ast::Stmt::Block(ref mut block) => {
+            for s in block.stmts.iter_mut() {
                 v.stmt(s);
             }
         }

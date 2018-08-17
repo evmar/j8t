@@ -105,7 +105,10 @@ impl visit::Visit for Deblock {
                 if !is_block(&i.iftrue) && i.else_.is_some() && consumes_dangling_else(&i.iftrue) {
                     let mut e = ast::Stmt::Empty;
                     std::mem::swap(&mut e, &mut i.iftrue);
-                    i.iftrue = ast::Stmt::Block(vec![e]);
+                    i.iftrue = ast::Stmt::Block(Box::new(ast::Block{
+                        scope: ast::Scope::new(),
+                        stmts: vec![e],
+                    }));
                 }
                 return;
             }
@@ -121,11 +124,11 @@ impl visit::Visit for Deblock {
                 }
                 return;
             }
-            ast::Stmt::Block(ref mut stmts) => {
-                remove_empty(stmts);
-                match stmts.len() {
+            ast::Stmt::Block(ref mut block) => {
+                remove_empty(&mut block.stmts);
+                match block.stmts.len() {
                     0 => ast::Stmt::Empty,
-                    1 => stmts.pop().unwrap(),
+                    1 => block.stmts.pop().unwrap(),
                     _ => return,
                 }
             }

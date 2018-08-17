@@ -1301,7 +1301,10 @@ impl<'a> Parser<'a> {
             Tok::LBrace => {
                 let body = try!(self.stmts());
                 try!(self.expect(Tok::RBrace));
-                Stmt::Block(body)
+                Stmt::Block(Box::new(ast::Block {
+                    scope: ast::Scope::new(),
+                    stmts: body,
+                }))
             }
             Tok::Var | Tok::Let | Tok::Const => {
                 let typ = decl_type_from_tok(token.tok);
@@ -1387,11 +1390,16 @@ impl<'a> Parser<'a> {
 
     // In some cases, the syntax only allows a block but for AST simplicity
     // we represent it as a single Stmt::Block.
+    // TODO: does try/finally introduce a scope or not?
     fn block(&mut self) -> ParseResult<Stmt> {
-        try!(self.expect(Tok::LBrace));
-        let block = try!(self.stmts());
-        try!(self.expect(Tok::RBrace));
-        Ok(Stmt::Block(block))
+        self.expect(Tok::LBrace)?;
+        let stmts = self.stmts()?;
+        self.expect(Tok::RBrace)?;
+        Ok(
+            Stmt::Block(Box::new(ast::Block {
+                scope: ast::Scope::new(),
+                stmts: stmts,
+            })))
     }
 
     pub fn module(&mut self) -> ParseResult<ast::Module> {
