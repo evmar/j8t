@@ -40,6 +40,9 @@ pub use eval::eval;
 mod gen;
 pub use gen::Writer;
 
+mod inline_eval;
+pub use inline_eval::inline_eval;
+
 mod run;
 pub use run::{run, Invocation, Rename, Trace};
 

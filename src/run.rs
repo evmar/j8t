@@ -21,6 +21,7 @@ use bind;
 use dead;
 use deblock;
 use gen;
+use eval;
 use parse;
 use rename;
 
@@ -82,6 +83,7 @@ pub struct Invocation {
     pub input: Vec<u8>,
     pub fmt: bool,
     pub rename: Rename,
+    pub exp: bool,
 }
 
 pub fn run(
@@ -102,7 +104,11 @@ pub fn run(
         println!("warn: {}", w);
     }
 
-    trace.measure("dead", || dead::dead(&mut module));
+    if inv.exp {
+        trace.measure("eval", || eval::eval(&mut module));
+
+        trace.measure("dead", || dead::dead(&mut module));
+    }
 
     if inv.rename != Rename::Off {
         trace.measure("rename", || {

@@ -86,6 +86,7 @@ fn parse_options(args: &[String]) -> std::result::Result<(j8t::Trace, j8t::Invoc
     parser.optflag("", "timing", "");
     parser.optflag("", "fmt", "");
     parser.optflagopt("", "rename", "", "MODE");
+    parser.optflag("", "exp","");
     let matches = match parser.parse(&args[1..]) {
         Ok(m) => m,
         Err(f) => {
@@ -106,6 +107,7 @@ fn parse_options(args: &[String]) -> std::result::Result<(j8t::Trace, j8t::Invoc
             return Err(format!("bad --rename: {}", s));
         }
     };
+    let exp = matches.opt_present("exp");
     Ok((
         j8t::Trace::new(timing, None),
         j8t::Invocation {
@@ -113,6 +115,7 @@ fn parse_options(args: &[String]) -> std::result::Result<(j8t::Trace, j8t::Invoc
             input: Vec::new(),
             fmt: fmt,
             rename: rename,
+            exp: exp,
         },
     ))
 }
