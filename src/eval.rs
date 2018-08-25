@@ -22,7 +22,7 @@ fn inline_iife(stmt: &mut ast::Stmt) -> bool {
     // It seems very similar to some of the discussion on
     //   https://github.com/rust-lang/rust/issues/16223
     // which suggests that NLL will help.
-    let rewrite = {
+    let block = {
         // Match stmt into a call expression.
         let call = match stmt {
             ast::Stmt::Expr(ast::ExprNode {
@@ -63,15 +63,15 @@ fn inline_iife(stmt: &mut ast::Stmt) -> bool {
             typ: ast::VarDeclType::Let,
             decls: decls,
         }));
-        // TODO: merge scopes
+        let mut scope = ast::Scope::new();
+        std::mem::swap(&mut scope, &mut func.scope);
         new_body.insert(0, new_let);
-        new_body
+        Box::new(ast::Block {
+            scope: scope,
+            stmts: new_body,
+        })
     };
-    *stmt = ast::Stmt::Block(Box::new(ast::Block{
-        // TODO: merge scopes
-        scope: ast::Scope::new(),
-        stmts: rewrite,
-    }));
+    *stmt = ast::Stmt::Block(block);
     return true;
 }
 

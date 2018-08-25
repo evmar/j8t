@@ -110,6 +110,13 @@ fn rename_stmt(gen: &mut NameGen, stmt: &mut ast::Stmt, debug: bool) {
             rename_func(gen, &mut fun.func, debug);
             // TODO: expressions, e.g. function f(a=(function()...)) {}
         }
+        ast::Stmt::Block(ref mut block) => {
+            let mut gen = gen.clone();
+            rename_scope(&mut gen, &mut block.scope, debug);
+            for stmt in block.stmts.iter_mut() {
+                rename_stmt(&mut gen, stmt, debug);
+            }
+        }
         _ => {
             visit::stmt(
                 stmt,

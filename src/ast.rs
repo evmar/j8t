@@ -85,6 +85,18 @@ impl Scope {
     pub fn iter(&self) -> impl std::iter::Iterator<Item = &RefSym> {
         self.bindings.values()
     }
+
+    pub fn remove_unused(&mut self) {
+        // Hack: see if nobody referenced implicit scope entries like
+        // 'arguments' and if not, drop it from the scope.
+        let prune: Vec<RefSym> = self.iter()
+            .filter(|sym| std::rc::Rc::strong_count(sym) == 1)
+            .map(|sym| sym.clone())
+            .collect();
+        for sym in prune {
+            self.bindings.remove(&*sym.name.borrow());
+        }
+    }
 }
 
 #[derive(Debug)]

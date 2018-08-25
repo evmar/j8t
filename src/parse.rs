@@ -1395,11 +1395,10 @@ impl<'a> Parser<'a> {
         self.expect(Tok::LBrace)?;
         let stmts = self.stmts()?;
         self.expect(Tok::RBrace)?;
-        Ok(
-            Stmt::Block(Box::new(ast::Block {
-                scope: ast::Scope::new(),
-                stmts: stmts,
-            })))
+        Ok(Stmt::Block(Box::new(ast::Block {
+            scope: ast::Scope::new(),
+            stmts: stmts,
+        })))
     }
 
     pub fn module(&mut self) -> ParseResult<ast::Module> {
