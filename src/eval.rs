@@ -105,4 +105,10 @@ mod tests {
     fn iife_simple() {
         ast_eq(&eval("(function (x) {x})(3)"), "{let x = 3; x}");
     }
+
+    #[test]
+    fn iife_return() {
+        // TODO
+        // ast_eq(&eval("(function (x) { return x })(3)"), "{let x = 3; x}");
+    }
 }
