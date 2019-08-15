@@ -19,3 +19,7 @@ function f(...{length}) {
   return length;
 }
 f('a', 'b', 'c');  // 3
+
+
+// Copy an array, ... kinda!
+const x = {...['hello']};
